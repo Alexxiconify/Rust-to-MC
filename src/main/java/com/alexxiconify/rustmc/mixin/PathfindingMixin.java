@@ -13,14 +13,13 @@ import com.alexxiconify.rustmc.NativeBridge;
 @SuppressWarnings("preview")
 @Mixin(PathNodeNavigator.class)
 public class PathfindingMixin {
-    @Inject(method = "findPathToAny", at = @At("HEAD"), cancellable = true)
-    private void onFindPath(CallbackInfoReturnable<?> cir) {
-        try (Arena arena = Arena.ofConfined()) {
-            // Memory allocation for pathfinding parameters would go here
-            // For now, providing the hook to Rust
-            int result = NativeBridge.findPath(MemorySegment.NULL, MemorySegment.NULL, MemorySegment.NULL, 0);
-            if (result == 1) { // 1 = Path found and handled by Rust
-                // Implementation would set return value here
+    @Inject(method = "findPathToAny(Lnet/minecraft/world/chunk/ChunkCache;Lnet/minecraft/entity/mob/MobEntity;Ljava/util/Set;FIF)Lnet/minecraft/entity/ai/pathing/Path;", at = @At("HEAD"), cancellable = true)
+    private void onFindPath(net.minecraft.world.chunk.ChunkCache world, net.minecraft.entity.mob.MobEntity mob, java.util.Set<net.minecraft.util.math.BlockPos> positions, float distance, int range, float extraRange, CallbackInfoReturnable<?> cir) {
+        net.minecraft.util.math.BlockPos start = mob.getBlockPos();
+        for (net.minecraft.util.math.BlockPos end : positions) {
+            int result = NativeBridge.findPathRaw(start.getX(), start.getY(), start.getZ(), end.getX(), end.getY(), end.getZ());
+            if (result == 0) { // Found path
+                // For now, let vanilla finish if Rust finds it (POC)
             }
         }
     }

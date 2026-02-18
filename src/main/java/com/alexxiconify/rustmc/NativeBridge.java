@@ -35,14 +35,14 @@ public class NativeBridge {
             try {
                 // Try loading from resources (production)
                 java.io.InputStream is = NativeBridge.class.getResourceAsStream("/" + libName);
-                if (is == null) throw new RuntimeException("Library " + libName + " not found in dev path or resources");
+                if (is == null) throw new IllegalStateException("Library " + libName + " not found in dev path or resources");
                 
                 Path tmp = java.nio.file.Files.createTempFile("rust_mc_", "_" + libName);
                 java.nio.file.Files.copy(is, tmp, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 System.load(tmp.toString());
                 tmp.toFile().deleteOnExit();
             } catch (java.io.IOException e) {
-                throw new RuntimeException("Failed to load native library", e);
+                throw new IllegalStateException("Failed to load native library", e);
             }
         }
         LOOKUP = SymbolLookup.loaderLookup();
@@ -80,5 +80,13 @@ public class NativeBridge {
     public static int propagateLightBulk(MemorySegment data, int len) { try { return (int) PROPAGATE_LIGHT_BULK.invokeExact(data, len); } catch (Throwable t) { return -1; } }
     public static int findPath(MemorySegment start, MemorySegment end, MemorySegment world, int limit) {
         try { return (int) FIND_PATH.invokeExact(start, end, world, limit); } catch (Throwable t) { return -1; }
+    }
+    
+    public static int findPathRaw(int startX, int startY, int startZ, int endX, int endY, int endZ) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment start = arena.allocateFrom(ValueLayout.JAVA_INT, startX, startY, startZ);
+            MemorySegment end = arena.allocateFrom(ValueLayout.JAVA_INT, endX, endY, endZ);
+            return (int) FIND_PATH.invokeExact(start, end, MemorySegment.NULL, 0);
+        } catch (Throwable t) { return -1; }
     }
 }
