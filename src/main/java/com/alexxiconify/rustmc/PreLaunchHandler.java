@@ -18,26 +18,29 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
                 @Override
                 public Result filter(LogEvent event) {
                     if (event == null || event.getMessage() == null) return Result.NEUTRAL;
-                    
-                    String content = event.getMessage().getFormattedMessage();
-                    Level level = event.getLevel();
-                    
-                    // Filter out common startup spam from various mods
-                    if (content.contains("Loading") && content.contains("mod") && !content.contains("rust-mc") && level.isLessSpecificThan(Level.WARN)) {
-                        return Result.DENY;
-                    }
-                    
-                    // Filter out specific known spammy mods or patterns
-                    if ((content.contains("Checking for updates") || content.contains("Incompatible with") || content.contains("Redirecting Mixin")) && level.isLessSpecificThan(Level.WARN)) {
-                        return Result.DENY;
-                    }
-                    
-                    return Result.NEUTRAL;
+                    return shouldFilter(event.getMessage().getFormattedMessage(), event.getLevel()) ? Result.DENY : Result.NEUTRAL;
                 }
             });
             ctx.updateLoggers();
         } catch (Exception | NoClassDefFoundError e) {
             // Log4j might not be fully initialized or visible yet
         } 
+    }
+
+    private static final String[] SPAM_PATTERNS = {
+        "Checking for updates", "Incompatible with", "Redirecting Mixin",
+        "Reference map", "Force-disabling mixin", "Force disabled MC-",
+        "Quick reload listener", "Reloading texture"
+    };
+
+    private static boolean shouldFilter(String content, Level level) {
+        if (level.isLessSpecificThan(Level.WARN)) {
+            if (content.contains("Loading") && content.contains("mod") && !content.contains("rust-mc")) return true;
+            if (content.startsWith("\t- ")) return true;
+            for (String pattern : SPAM_PATTERNS) {
+                if (content.contains(pattern)) return true;
+            }
+        }
+        return false;
     }
 }
