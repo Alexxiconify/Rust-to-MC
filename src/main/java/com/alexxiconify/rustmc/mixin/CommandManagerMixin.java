@@ -18,6 +18,7 @@ public class CommandManagerMixin {
     @SuppressWarnings("preview")
     @Inject(method = "execute", at = @At("HEAD"), cancellable = true)
     private void onExecute(ParseResults<ServerCommandSource> parseResults, String command, CallbackInfoReturnable<Integer> cir) {
+        if (!NativeBridge.isReady()) return;
         try (Arena arena = Arena.ofConfined()) {
             byte[] bytes = command.getBytes(StandardCharsets.UTF_8);
             MemorySegment segment = arena.allocate(bytes.length);

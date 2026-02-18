@@ -25,6 +25,7 @@ public class PacketDeflaterMixin {
     @SuppressWarnings("preview")
     @Inject(method = "encode", at = @At("HEAD"), cancellable = true)
     private void onEncode(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf, ByteBuf byteBuf2, CallbackInfo ci) {
+        if (!NativeBridge.isReady()) return;
         int i = byteBuf.readableBytes();
         if (i < this.compressionThreshold) {
             byteBuf2.writeInt(0);

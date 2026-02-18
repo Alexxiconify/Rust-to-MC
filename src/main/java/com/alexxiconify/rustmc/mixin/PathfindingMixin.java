@@ -14,6 +14,7 @@ import com.alexxiconify.rustmc.NativeBridge;
 public class PathfindingMixin {
     @Inject(method = "findPathToAny(Lnet/minecraft/world/chunk/ChunkCache;Lnet/minecraft/entity/mob/MobEntity;Ljava/util/Set;FIF)Lnet/minecraft/entity/ai/pathing/Path;", at = @At("HEAD"), cancellable = true)
     private void onFindPath(net.minecraft.world.chunk.ChunkCache world, net.minecraft.entity.mob.MobEntity mob, java.util.Set<net.minecraft.util.math.BlockPos> positions, float distance, int range, float extraRange, CallbackInfoReturnable<?> cir) {
+        if (!NativeBridge.isReady()) return;
         net.minecraft.util.math.BlockPos start = mob.getBlockPos();
         for (net.minecraft.util.math.BlockPos end : positions) {
             int result = NativeBridge.findPathRaw(start.getX(), start.getY(), start.getZ(), end.getX(), end.getY(), end.getZ());

@@ -15,6 +15,7 @@ import com.alexxiconify.rustmc.NativeBridge;
 public class LightingMixin {
     @Inject(method = "doLightUpdates", at = @At("HEAD"), cancellable = true)
     private void onDoLightUpdates(CallbackInfoReturnable<Integer> cir) {
+        if (!NativeBridge.isReady()) return;
         try (Arena arena = Arena.ofConfined()) {
             int result = NativeBridge.propagateLightBulk(MemorySegment.NULL, 0);
             if (result >= 0) {

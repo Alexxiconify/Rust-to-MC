@@ -25,6 +25,10 @@ public class NativeBridge {
     public static final MethodHandle FIND_PATH;
     public static final MethodHandle EXECUTE_COMMAND;
 
+    private static boolean libLoaded = false;
+    
+    public static boolean isReady() { return libLoaded; }
+
     static {
         String libName = System.mapLibraryName("rust_mc_core");
         Path devPath = Paths.get("rust_mc_core/target/release/" + libName).toAbsolutePath();
@@ -60,6 +64,7 @@ public class NativeBridge {
         PROPAGATE_LIGHT_BULK = createHandle("rust_propagate_light_bulk", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
         FIND_PATH = createHandle("rust_find_path", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
         EXECUTE_COMMAND = createHandle("rust_execute_command", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
+        libLoaded = true;
     }
 
     private static MethodHandle createHandle(String name, FunctionDescriptor desc) {
