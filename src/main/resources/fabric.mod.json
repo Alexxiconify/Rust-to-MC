@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "rust-mc",
-  "version": "${version}",
+  "version": "1.0.0",
   "name": "Rust to MC",
   "description": "Optimizing Minecraft with Rust native libraries.",
   "authors": [
@@ -17,6 +17,9 @@
   "entrypoints": {
     "main": [
       "com.alexxiconify.rustmc.RustMC"
+    ],
+    "preLaunch": [
+      "com.alexxiconify.rustmc.PreLaunchHandler"
     ]
   },
   "mixins": [

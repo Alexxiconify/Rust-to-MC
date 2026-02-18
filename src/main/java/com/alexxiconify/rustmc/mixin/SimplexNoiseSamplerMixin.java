@@ -12,6 +12,8 @@ import com.alexxiconify.rustmc.NativeBridge;
 public class SimplexNoiseSamplerMixin {
     @Inject(method = "sample(DD)D", at = @At("HEAD"), cancellable = true)
     private void onSample(double x, double y, CallbackInfoReturnable<Double> cir) {
-        cir.setReturnValue(NativeBridge.noise2d(x, y));
+        if (NativeBridge.isReady()) {
+            cir.setReturnValue(NativeBridge.noise2d(x, y));
+        }
     }
 }
