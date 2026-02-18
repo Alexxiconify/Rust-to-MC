@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 @Mixin(CommandManager.class)
 public class CommandManagerMixin {
     @SuppressWarnings("preview")
-    @Inject(method = "execute(Lcom/mojang/brigadier/ParseResults;Ljava/lang/String;)I", at = @At("HEAD"), cancellable = true, remap = false)
+    @Inject(method = "execute(Lcom/mojang/brigadier/ParseResults;Ljava/lang/String;)I", at = @At("HEAD"), cancellable = true)
     private void onExecute(ParseResults<ServerCommandSource> parseResults, String command, CallbackInfoReturnable<Integer> cir) {
         if (!NativeBridge.isReady()) return;
         try (Arena arena = Arena.ofConfined()) {
