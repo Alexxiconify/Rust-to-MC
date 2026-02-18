@@ -84,8 +84,16 @@ public class NativeBridge {
     
     public static int findPathRaw(int startX, int startY, int startZ, int endX, int endY, int endZ) {
         try (Arena arena = Arena.ofConfined()) {
-            MemorySegment start = arena.allocateFrom(ValueLayout.JAVA_INT, startX, startY, startZ);
-            MemorySegment end = arena.allocateFrom(ValueLayout.JAVA_INT, endX, endY, endZ);
+            MemorySegment start = arena.allocate(ValueLayout.JAVA_INT, 3);
+            start.setAtIndex(ValueLayout.JAVA_INT, 0, startX);
+            start.setAtIndex(ValueLayout.JAVA_INT, 1, startY);
+            start.setAtIndex(ValueLayout.JAVA_INT, 2, startZ);
+            
+            MemorySegment end = arena.allocate(ValueLayout.JAVA_INT, 3);
+            end.setAtIndex(ValueLayout.JAVA_INT, 0, endX);
+            end.setAtIndex(ValueLayout.JAVA_INT, 1, endY);
+            end.setAtIndex(ValueLayout.JAVA_INT, 2, endZ);
+            
             return (int) FIND_PATH.invokeExact(start, end, MemorySegment.NULL, 0);
         } catch (Throwable t) { return -1; }
     }

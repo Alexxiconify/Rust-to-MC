@@ -1,7 +1,6 @@
 package com.alexxiconify.rustmc.mixin;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.MemorySegment;
+
 import net.minecraft.entity.ai.pathing.PathNodeNavigator;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -10,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import com.alexxiconify.rustmc.NativeBridge;
 
-@SuppressWarnings("preview")
+
 @Mixin(PathNodeNavigator.class)
 public class PathfindingMixin {
     @Inject(method = "findPathToAny(Lnet/minecraft/world/chunk/ChunkCache;Lnet/minecraft/entity/mob/MobEntity;Ljava/util/Set;FIF)Lnet/minecraft/entity/ai/pathing/Path;", at = @At("HEAD"), cancellable = true)
