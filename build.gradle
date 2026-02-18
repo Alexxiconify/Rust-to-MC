@@ -1,0 +1,96 @@
+plugins {
+    id 'fabric-loom' version '1.15-SNAPSHOT'
+    id 'maven-publish'
+}
+
+version = '1.0.0'
+group = 'com.alexxiconify.rustmc'
+
+base {
+    archivesName = 'rust-mc'
+}
+
+repositories {
+    mavenCentral()
+    maven { url "https://maven.fabricmc.net/" }
+    maven { url 'https://jitpack.io' }
+    maven { url = "https://maven.bawnorton.com/releases" }
+    maven {
+        name = "Modrinth"
+        url = "https://api.modrinth.com/maven"
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:1.21.1"
+    mappings "net.fabricmc:yarn:1.21.1+build.3:v2"
+    modImplementation "net.fabricmc:fabric-loader:0.16.10"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.106.0+1.21.1"
+    
+    // Core dependencies from Oxidizium
+    include implementation("org.joml:joml:1.10.8")
+    include implementation("com.github.Tater-Certified:MixinConstraints:4856759a06")
+    include implementation("com.github.zafarkhaja:java-semver:0.10.2")
+}
+
+processResources {
+    inputs.property "version", project.version
+    filteringCharset "UTF-8"
+
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+// loom handles sourceSets automatically
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+    it.options.compilerArgs << "--enable-preview"
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+    from("LICENSE") {
+        rename { "${it}_${project.base.archivesName.get()}" }
+    }
+}
+
+// - - - - Rust Automation - - - - \\
+
+tasks.register('rustBuild', Exec) {
+    workingDir 'rust_mc_core'
+    if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
+        commandLine 'cmd', '/c', 'cargo build --release'
+    } else {
+        commandLine 'cargo', 'build', '--release'
+    }
+}
+
+tasks.register('moveRustBinaries') {
+    dependsOn 'rustBuild'
+    doLast {
+        def buildDir = file('rust_mc_core/target/release')
+        def resourceDir = file('src/main/resources')
+        
+        def libName = System.mapLibraryName("rust_mc_core")
+        def libFile = new File(buildDir, libName)
+        
+        if (libFile.exists()) {
+            copy {
+                from libFile
+                into resourceDir
+            }
+            println "Moved ${libName} to resources."
+        } else {
+            println "Warning: ${libName} not found in ${buildDir}"
+        }
+    }
+}
+
+processResources.dependsOn 'moveRustBinaries'

@@ -1,0 +1,25 @@
+# Gradle
+.gradle/
+build/
+bin/
+
+# Fabric
+run/
+.fabric/
+
+# Rust
+target/
+rust_mc_core/target/
+**/*.rs.bk
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
