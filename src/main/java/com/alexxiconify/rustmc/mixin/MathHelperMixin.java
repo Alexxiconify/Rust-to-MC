@@ -41,4 +41,25 @@ public class MathHelperMixin {
             cir.setReturnValue(NativeBridge.invokeSqrt(f));
         }
     }
+
+    @Inject(method = "tan", at = @At("HEAD"), cancellable = true)
+    private static void onTan(float f, CallbackInfoReturnable<Float> cir) {
+        if (NativeBridge.isReady() && RustMC.CONFIG.isUseNativeTan()) {
+            cir.setReturnValue(NativeBridge.invokeTan(f));
+        }
+    }
+
+    @Inject(method = "atan2", at = @At("HEAD"), cancellable = true)
+    private static void onAtan2(double y, double x, CallbackInfoReturnable<Double> cir) {
+        if (NativeBridge.isReady() && RustMC.CONFIG.isUseNativeAtan2()) {
+            cir.setReturnValue(NativeBridge.invokeAtan2(y, x));
+        }
+    }
+
+    @Inject(method = "floor", at = @At("HEAD"), cancellable = true)
+    private static void onFloor(double d, CallbackInfoReturnable<Integer> cir) {
+        if (NativeBridge.isReady() && RustMC.CONFIG.isUseNativeFloor()) {
+            cir.setReturnValue(NativeBridge.invokeFloor(d));
+        }
+    }
 }

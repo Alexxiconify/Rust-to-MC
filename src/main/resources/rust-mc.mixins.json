@@ -11,7 +11,8 @@
     "SimplexNoiseSamplerMixin",
     "LightingMixin",
     "PathfindingMixin",
-    "LoggingMixin"
+    "LoggingMixin",
+    "DecoderHandlerMixin"
   ],
   "client": [
   ],

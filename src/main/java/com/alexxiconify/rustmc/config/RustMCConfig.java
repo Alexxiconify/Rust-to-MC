@@ -6,6 +6,9 @@ public class RustMCConfig {
     private boolean useNativeCos      = true;
     private boolean useNativeSqrt     = true;
     private boolean useNativeInvSqrt  = true;
+    private boolean useNativeTan      = true;
+    private boolean useNativeAtan2    = true;
+    private boolean useNativeFloor    = true;
     private boolean useNativeNoise    = true;
 
     // World / system features
@@ -30,6 +33,9 @@ public class RustMCConfig {
         this.useNativeCos        = other.useNativeCos;
         this.useNativeSqrt       = other.useNativeSqrt;
         this.useNativeInvSqrt    = other.useNativeInvSqrt;
+        this.useNativeTan        = other.useNativeTan;
+        this.useNativeAtan2      = other.useNativeAtan2;
+        this.useNativeFloor      = other.useNativeFloor;
         this.useNativeNoise      = other.useNativeNoise;
         this.useNativeLighting   = other.useNativeLighting;
         this.useNativeCompression = other.useNativeCompression;
@@ -49,6 +55,9 @@ public class RustMCConfig {
     public boolean isUseNativeCos()        { return useNativeCos; }
     public boolean isUseNativeSqrt()       { return useNativeSqrt; }
     public boolean isUseNativeInvSqrt()    { return useNativeInvSqrt; }
+    public boolean isUseNativeTan()        { return useNativeTan; }
+    public boolean isUseNativeAtan2()      { return useNativeAtan2; }
+    public boolean isUseNativeFloor()      { return useNativeFloor; }
     public boolean isUseNativeNoise()      { return useNativeNoise; }
     public boolean isUseNativeLighting()   { return useNativeLighting; }
     public boolean isUseNativeCompression(){ return useNativeCompression; }
@@ -67,7 +76,10 @@ public class RustMCConfig {
     public void setUseNativeCos(boolean val)         { this.useNativeCos = val; }
     public void setUseNativeSqrt(boolean val)        { this.useNativeSqrt = val; }
     public void setUseNativeInvSqrt(boolean val)     { this.useNativeInvSqrt = val; }
-    public void setUseNativeNoise(boolean val)        { this.useNativeNoise = val; }
+    public void setUseNativeTan(boolean val)         { this.useNativeTan = val; }
+    public void setUseNativeAtan2(boolean val)       { this.useNativeAtan2 = val; }
+    public void setUseNativeFloor(boolean val)       { this.useNativeFloor = val; }
+    public void setUseNativeNoise(boolean val)       { this.useNativeNoise = val; }
     public void setUseNativeLighting(boolean val)    { this.useNativeLighting = val; }
     public void setUseNativeCompression(boolean val) { this.useNativeCompression = val; }
     public void setUseNativePathfinding(boolean val) { this.useNativePathfinding = val; }

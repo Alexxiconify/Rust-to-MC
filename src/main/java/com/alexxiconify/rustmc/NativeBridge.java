@@ -19,6 +19,9 @@ public class NativeBridge {
     public static MethodHandle SIN            = null;
     public static MethodHandle COS            = null;
     public static MethodHandle SQRT           = null;
+    public static MethodHandle TAN            = null;
+    public static MethodHandle ATAN2          = null;
+    public static MethodHandle FLOOR          = null;
 
     // Network
     public static MethodHandle COMPRESS       = null;
@@ -67,6 +70,9 @@ public class NativeBridge {
             SIN  = createHandle("rust_sin",  FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
             COS  = createHandle("rust_cos",  FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
             SQRT = createHandle("rust_sqrt", FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
+            TAN  = createHandle("rust_tan",  FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
+            ATAN2 = createHandle("rust_atan2", FunctionDescriptor.of(ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE));
+            FLOOR = createHandle("rust_floor", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_DOUBLE));
 
             COMPRESS = createHandle("rust_compress",
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
@@ -155,6 +161,21 @@ public class NativeBridge {
         try { return (float) SQRT.invokeExact(x); }
         catch (Throwable t) { return (float) Math.sqrt(x); }
     }
+    public static float invokeTan(float x) {
+        try { return (float) TAN.invokeExact(x); }
+        catch (Throwable t) { return (float) Math.tan(x); }
+    }
+    public static double invokeAtan2(double y, double x) {
+        try { return (double) ATAN2.invokeExact(y, x); }
+        catch (Throwable t) { return Math.atan2(y, x); }
+    }
+    public static int invokeFloor(double x) {
+        try { return (int) FLOOR.invokeExact(x); }
+        catch (Throwable t) { 
+            int xi = (int) x;
+            return x < (double) xi ? xi - 1 : xi;
+        }
+    }
 
     // ── Compression helpers ────────────────────────────────────────────────────
     public static int invokeCompress(MemorySegment in, int inL, MemorySegment out, int outL) {
@@ -163,6 +184,10 @@ public class NativeBridge {
     }
     public static int invokeDecompress(MemorySegment in, int inL, MemorySegment out, int outL) {
         try { return (int) DECOMPRESS.invokeExact(in, inL, out, outL); }
+        catch (Throwable t) { return -1; }
+    }
+    public static int invokeProcessPacket(MemorySegment in, int len) {
+        try { return (int) PROCESS_PACKET.invokeExact(in, len); }
         catch (Throwable t) { return -1; }
     }
 

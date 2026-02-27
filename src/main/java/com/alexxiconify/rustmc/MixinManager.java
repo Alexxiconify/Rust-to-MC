@@ -16,6 +16,7 @@ public class MixinManager implements IMixinConfigPlugin {
     private static final String MATH_MIXIN   = PKG + "MathHelperMixin";
     private static final String LIGHT_MIXIN  = PKG + "LightingMixin";
     private static final String PACKET_MIXIN = PKG + "PacketDeflaterMixin";
+    private static final String DECODER_MIXIN= PKG + "DecoderHandlerMixin";
     private static final String PATH_MIXIN   = PKG + "PathfindingMixin";
     private static final String LOG_MIXIN    = PKG + "LoggingMixin";
     private static final String NOISE_MIXIN  = PKG + "SimplexNoiseSamplerMixin";
@@ -44,8 +45,8 @@ public class MixinManager implements IMixinConfigPlugin {
         if (PATH_MIXIN.equals(mixinClassName))
             return !ModBridge.isPathfindingOwned();
 
-        if (PACKET_MIXIN.equals(mixinClassName))
-            return !ModBridge.RAKNETIFY && !ModBridge.VIAFABRICPLUS;
+        if (PACKET_MIXIN.equals(mixinClassName) || DECODER_MIXIN.equals(mixinClassName))
+            return !ModBridge.isNetworkingOwned();
 
         // Logging and commands: always apply unless specifically disabled
         // their bodies check NativeBridge.isReady() and config flags at runtime.
