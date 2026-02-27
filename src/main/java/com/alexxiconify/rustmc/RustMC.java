@@ -1,7 +1,7 @@
 package com.alexxiconify.rustmc;
 
 import net.fabricmc.api.ModInitializer;
-genimport net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.alexxiconify.rustmc.config.RustMCConfig;

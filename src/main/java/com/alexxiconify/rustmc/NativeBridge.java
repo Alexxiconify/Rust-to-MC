@@ -12,31 +12,31 @@ public class NativeBridge {
     private NativeBridge() {}
 
     private static final Linker LINKER = Linker.nativeLinker();
-    private static SymbolLookup LOOKUP = null;
+    private static SymbolLookup lookup = null;
 
     // Math
-    public static MethodHandle FAST_INV_SQRT = null;
-    public static MethodHandle SIN            = null;
-    public static MethodHandle COS            = null;
-    public static MethodHandle SQRT           = null;
-    public static MethodHandle TAN            = null;
-    public static MethodHandle ATAN2          = null;
-    public static MethodHandle FLOOR          = null;
+    private static MethodHandle fastInvSqrt = null;
+    private static MethodHandle sin            = null;
+    private static MethodHandle cos            = null;
+    private static MethodHandle sqrt           = null;
+    private static MethodHandle tan            = null;
+    private static MethodHandle atan2          = null;
+    private static MethodHandle floor          = null;
 
     // Network
-    public static MethodHandle COMPRESS       = null;
-    public static MethodHandle DECOMPRESS     = null;
-    public static MethodHandle PROCESS_PACKET = null;
+    private static MethodHandle compress       = null;
+    private static MethodHandle decompress     = null;
+    private static MethodHandle processPacket = null;
 
     // World-gen / Noise
-    public static MethodHandle NOISE_INIT     = null;
-    public static MethodHandle NOISE_2D       = null;
-    public static MethodHandle NOISE_3D       = null;
+    private static MethodHandle noiseInit     = null;
+    private static MethodHandle noise2d       = null;
+    private static MethodHandle noise3d       = null;
 
     // Lighting / Pathfinding / Commands
-    public static MethodHandle PROPAGATE_LIGHT_BULK = null;
-    public static MethodHandle FIND_PATH            = null;
-    public static MethodHandle EXECUTE_COMMAND      = null;
+    private static MethodHandle propagateLightBulk = null;
+    private static MethodHandle findPath            = null;
+    private static MethodHandle executeCommand      = null;
 
     /** Shared confined arena for hot-path allocations (single-threaded callers). */
     public static final Arena SHARED_ARENA = Arena.ofShared();
@@ -63,62 +63,62 @@ public class NativeBridge {
                 }
             }
 
-            LOOKUP = SymbolLookup.loaderLookup();
+            lookup = SymbolLookup.loaderLookup();
 
-            FAST_INV_SQRT = createHandle("rust_fast_inv_sqrt",
+            fastInvSqrt = createHandle("rust_fast_inv_sqrt",
                     FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
-            SIN  = createHandle("rust_sin",  FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
-            COS  = createHandle("rust_cos",  FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
-            SQRT = createHandle("rust_sqrt", FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
-            TAN  = createHandle("rust_tan",  FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
-            ATAN2 = createHandle("rust_atan2", FunctionDescriptor.of(ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE));
-            FLOOR = createHandle("rust_floor", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_DOUBLE));
+            sin  = createHandle("rust_sin",  FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
+            cos  = createHandle("rust_cos",  FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
+            sqrt = createHandle("rust_sqrt", FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
+            tan  = createHandle("rust_tan",  FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
+            atan2 = createHandle("rust_atan2", FunctionDescriptor.of(ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE));
+            floor = createHandle("rust_floor", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_DOUBLE));
 
-            COMPRESS = createHandle("rust_compress",
+            compress = createHandle("rust_compress",
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            DECOMPRESS = createHandle("rust_decompress",
+            decompress = createHandle("rust_decompress",
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            PROCESS_PACKET = createHandle("rust_process_packet",
+            processPacket = createHandle("rust_process_packet",
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
 
-            NOISE_INIT = createHandle("rust_noise_init",
+            noiseInit = createHandle("rust_noise_init",
                     FunctionDescriptor.ofVoid(ValueLayout.JAVA_INT));
-            NOISE_2D = createHandle("rust_noise_2d",
+            noise2d = createHandle("rust_noise_2d",
                     FunctionDescriptor.of(ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE));
-            NOISE_3D = createHandle("rust_noise_3d",
+            noise3d = createHandle("rust_noise_3d",
                     FunctionDescriptor.of(ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE));
 
-            PROPAGATE_LIGHT_BULK = createHandle("rust_propagate_light_bulk",
+            propagateLightBulk = createHandle("rust_propagate_light_bulk",
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            FIND_PATH = createHandle("rust_find_path",
+            findPath = createHandle("rust_find_path",
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            EXECUTE_COMMAND = createHandle("rust_execute_command",
+            executeCommand = createHandle("rust_execute_command",
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
 
             libLoaded = true;
             RustMC.LOGGER.info("[Rust-MC] Native library loaded successfully.");
-        } catch (Throwable t) {
+        } catch (Exception t) {
             libLoaded = false;
-            System.err.println("[Rust-MC] WARNING: Failed to load native library – all Rust optimizations disabled. Cause: " + t.getMessage());
+            RustMC.LOGGER.error("[Rust-MC] WARNING: Failed to load native library – all Rust optimizations disabled. Cause: {}", t.getMessage());
         }
 
         // Register a shutdown hook to clean up the temp file even on abnormal exit
         if (tmpLib != null) {
             final Path finalTmp = tmpLib;
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                try { Files.deleteIfExists(finalTmp); } catch (Exception ignored) {}
+                try { Files.deleteIfExists(finalTmp); } catch (Exception ignored) { /* Ignore during shutdown */ }
             }, "rust-mc-tmplib-cleanup"));
         }
 
         // Register shutdown hook to close shared arena
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try { SHARED_ARENA.close(); } catch (Exception ignored) {}
+            try { SHARED_ARENA.close(); } catch (Exception ignored) { /* Ignore during shutdown */ }
         }, "rust-mc-arena-close"));
     }
 
     private static MethodHandle createHandle(String name, FunctionDescriptor desc) {
-        if (LOOKUP == null) return null;
-        return LOOKUP.find(name)
+        if (lookup == null) return null;
+        return lookup.find(name)
                 .map(addr -> LINKER.downcallHandle(addr, desc))
                 .orElse(null);
     }
@@ -130,10 +130,10 @@ public class NativeBridge {
      * Call at world load time.
      */
     public static void noiseInit(long mcSeed) {
-        if (!libLoaded || NOISE_INIT == null) return;
+        if (!libLoaded || noiseInit == null) return;
         if (!noiseSeeded.compareAndSet(false, true)) return; // only seed once
         try {
-            NOISE_INIT.invokeExact((int) (mcSeed & 0xFFFFFFFFL));
+            noiseInit.invokeExact((int) (mcSeed & 0xFFFFFFFFL));
         } catch (Throwable t) {
             RustMC.LOGGER.warn("[Rust-MC] Failed to seed noise: {}", t.getMessage());
         }
@@ -146,72 +146,72 @@ public class NativeBridge {
 
     // ── Math helpers ───────────────────────────────────────────────────────────
     public static float fastInvSqrt(float x) {
-        try { return (float) FAST_INV_SQRT.invokeExact(x); }
+        try { return (float) fastInvSqrt.invokeExact(x); }
         catch (Throwable t) { return 1.0f / (float) Math.sqrt(x); }
     }
     public static float invokeSin(float x) {
-        try { return (float) SIN.invokeExact(x); }
+        try { return (float) sin.invokeExact(x); }
         catch (Throwable t) { return (float) Math.sin(x); }
     }
     public static float invokeCos(float x) {
-        try { return (float) COS.invokeExact(x); }
+        try { return (float) cos.invokeExact(x); }
         catch (Throwable t) { return (float) Math.cos(x); }
     }
     public static float invokeSqrt(float x) {
-        try { return (float) SQRT.invokeExact(x); }
+        try { return (float) sqrt.invokeExact(x); }
         catch (Throwable t) { return (float) Math.sqrt(x); }
     }
     public static float invokeTan(float x) {
-        try { return (float) TAN.invokeExact(x); }
+        try { return (float) tan.invokeExact(x); }
         catch (Throwable t) { return (float) Math.tan(x); }
     }
     public static double invokeAtan2(double y, double x) {
-        try { return (double) ATAN2.invokeExact(y, x); }
+        try { return (double) atan2.invokeExact(y, x); }
         catch (Throwable t) { return Math.atan2(y, x); }
     }
     public static int invokeFloor(double x) {
-        try { return (int) FLOOR.invokeExact(x); }
+        try { return (int) floor.invokeExact(x); }
         catch (Throwable t) { 
             int xi = (int) x;
-            return x < (double) xi ? xi - 1 : xi;
+            return x < xi ? xi - 1 : xi;
         }
     }
 
     // ── Compression helpers ────────────────────────────────────────────────────
     public static int invokeCompress(MemorySegment in, int inL, MemorySegment out, int outL) {
-        try { return (int) COMPRESS.invokeExact(in, inL, out, outL); }
+        try { return (int) compress.invokeExact(in, inL, out, outL); }
         catch (Throwable t) { return -1; }
     }
     public static int invokeDecompress(MemorySegment in, int inL, MemorySegment out, int outL) {
-        try { return (int) DECOMPRESS.invokeExact(in, inL, out, outL); }
+        try { return (int) decompress.invokeExact(in, inL, out, outL); }
         catch (Throwable t) { return -1; }
     }
     public static int invokeProcessPacket(MemorySegment in, int len) {
-        try { return (int) PROCESS_PACKET.invokeExact(in, len); }
+        try { return (int) processPacket.invokeExact(in, len); }
         catch (Throwable t) { return -1; }
     }
 
     // ── Noise helpers ──────────────────────────────────────────────────────────
     public static double noise2d(double x, double y) {
-        try { return (double) NOISE_2D.invokeExact(x, y); }
+        try { return (double) noise2d.invokeExact(x, y); }
         catch (Throwable t) { return 0.0; }
     }
     public static double noise3d(double x, double y, double z) {
-        try { return (double) NOISE_3D.invokeExact(x, y, z); }
+        try { return (double) noise3d.invokeExact(x, y, z); }
         catch (Throwable t) { return 0.0; }
     }
 
     // ── Lighting / Pathfinding / Command helpers ───────────────────────────────
     public static int propagateLightBulk(MemorySegment data, int len) {
-        try { return (int) PROPAGATE_LIGHT_BULK.invokeExact(data, len); }
+        try { return (int) propagateLightBulk.invokeExact(data, len); }
         catch (Throwable t) { return -1; }
     }
     public static int findPath(MemorySegment start, MemorySegment end, MemorySegment world, int limit) {
-        try { return (int) FIND_PATH.invokeExact(start, end, world, limit); }
+        try { return (int) findPath.invokeExact(start, end, world, limit); }
         catch (Throwable t) { return -1; }
     }
     public static int executeCommand(MemorySegment cmd, int len) {
-        try { return (int) EXECUTE_COMMAND.invokeExact(cmd, len); }
+        try { return (int) executeCommand.invokeExact(cmd, len); }
         catch (Throwable t) { return -1; }
     }
 
@@ -220,12 +220,12 @@ public class NativeBridge {
      * calls rust_find_path, and returns the path length (0 = at target, −1 = error).
      */
     public static int findPathRaw(int startX, int startY, int startZ, int endX, int endY, int endZ) {
-        if (FIND_PATH == null) return -1;
+        if (findPath == null) return -1;
         try (Arena arena = Arena.ofConfined()) {
-            MemorySegment start = arena.allocateFrom(ValueLayout.JAVA_INT, startX, startY, startZ);
-            MemorySegment end   = arena.allocateFrom(ValueLayout.JAVA_INT, endX,   endY,   endZ);
+            MemorySegment start = arena.allocateArray(ValueLayout.JAVA_INT, startX, startY, startZ);
+            MemorySegment end   = arena.allocateArray(ValueLayout.JAVA_INT, endX,   endY,   endZ);
             MemorySegment world = arena.allocate(ValueLayout.JAVA_INT, 1); // stub – future: pass block grid
-            return (int) FIND_PATH.invokeExact(start, end, world, 0);
+            return (int) findPath.invokeExact(start, end, world, 0);
         } catch (Throwable t) { return -1; }
     }
 }

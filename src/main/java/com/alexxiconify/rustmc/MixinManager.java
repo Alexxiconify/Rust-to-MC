@@ -32,6 +32,8 @@ public class MixinManager implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
+        if (LOG_MIXIN.equals(mixinClassName) || CMD_MIXIN.equals(mixinClassName))
+            return true;
         // LoggingMixin is always applied – its body guards against early load via null checks
         if (LIGHT_MIXIN.equals(mixinClassName))
             return !ModBridge.isLightingOwned();
@@ -56,7 +58,7 @@ public class MixinManager implements IMixinConfigPlugin {
     @Override public void acceptTargets(Set<String> myTargets, Set<String> otherTargets) {
         RustMC.LOGGER.debug("[Rust-MC] Mixins targets accepted: {}", myTargets);
     }
-    @Override public List<String> getMixins() { return null; }
+    @Override public List<String> getMixins() { return Collections.emptyList(); }
     @Override public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
         RustMC.LOGGER.debug("[Rust-MC] Pre-applying {} to {}", mixinClassName, targetClassName);
     }
