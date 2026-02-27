@@ -1,0 +1,18 @@
+--- src/main/java/me/jellysquid/mods/lithium/common/util/math/FastMath.java	2023-11-01
++++ src/main/java/me/jellysquid/mods/lithium/common/util/math/FastMath.java	2023-11-01
+@@ -10,6 +10,10 @@
+ 
++import com.alexxiconify.rustmc.ModBridge;
++
+ public class FastMath {
+ 
+     public static float sin(float f) {
++        return (float) ModBridge.getFastMath(f, "sin");
+-        // Original Lithium sin implementation
+     }
+ 
+     public static float cos(float f) {
++        return (float) ModBridge.getFastMath(f, "cos");
+-        // Original Lithium cos implementation
+     }
+ }

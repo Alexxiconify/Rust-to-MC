@@ -44,7 +44,10 @@ public class MixinManager implements IMixinConfigPlugin {
         if (PATH_MIXIN.equals(mixinClassName))
             return !ModBridge.isPathfindingOwned();
 
-        // Packet compression, commands, and logging: always apply;
+        if (PACKET_MIXIN.equals(mixinClassName))
+            return !ModBridge.RAKNETIFY && !ModBridge.VIAFABRICPLUS;
+
+        // Logging and commands: always apply unless specifically disabled
         // their bodies check NativeBridge.isReady() and config flags at runtime.
         return true;
     }
