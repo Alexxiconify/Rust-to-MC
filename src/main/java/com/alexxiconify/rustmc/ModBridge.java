@@ -9,6 +9,8 @@ public class ModBridge {
     public static final boolean IRIS      = isMod("iris");
     public static final boolean LITHIUM   = isMod("lithium");
     public static final boolean INDIUM    = isMod("indium"); // Sodium compat layer
+    public static final boolean SCALABLELUX = isMod("scalablelux");
+    public static final boolean MOONRISE  = isMod("moonrise");
 
     private static boolean isMod(String id) {
         return FabricLoader.getInstance().isModLoaded(id);
@@ -22,7 +24,7 @@ public class ModBridge {
      * other mod can own lighting without interference.
      */
     public static boolean isLightingOwned() {
-        return STARLIGHT || (SODIUM && RustMC.CONFIG.isBridgeSodium())
+        return STARLIGHT || SCALABLELUX || MOONRISE || (SODIUM && RustMC.CONFIG.isBridgeSodium())
                 || C2ME || (IRIS && RustMC.CONFIG.isBridgeIris());
     }
 
@@ -30,14 +32,14 @@ public class ModBridge {
      * Returns true when C2ME controls math/noise so we should skip our hooks.
      */
     public static boolean isMathOwned() {
-        return C2ME && RustMC.CONFIG.isBridgeC2ME();
+        return (C2ME || MOONRISE) && RustMC.CONFIG.isBridgeC2ME();
     }
 
     /**
      * Returns true when Lithium controls pathfinding so we should skip our hook.
      */
     public static boolean isPathfindingOwned() {
-        return LITHIUM && RustMC.CONFIG.isBridgeLithium();
+        return (LITHIUM || MOONRISE) && RustMC.CONFIG.isBridgeLithium();
     }
 
     /**

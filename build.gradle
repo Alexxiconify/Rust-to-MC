@@ -71,6 +71,7 @@ jar {
 
 tasks.register('rustBuild', Exec) {
     workingDir 'rust_mc_core'
+    environment 'RUSTFLAGS', '-C target-cpu=native'
     if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
         commandLine 'cmd', '/c', 'cargo build --release'
     } else {

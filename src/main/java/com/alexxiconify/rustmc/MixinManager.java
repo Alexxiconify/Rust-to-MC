@@ -49,8 +49,14 @@ public class MixinManager implements IMixinConfigPlugin {
         return true;
     }
 
-    @Override public void acceptTargets(Set<String> myTargets, Set<String> otherTargets) {}
-    @Override public List<String> getMixins() { return Collections.emptyList(); }
-    @Override public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {}
-    @Override public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {}
+    @Override public void acceptTargets(Set<String> myTargets, Set<String> otherTargets) {
+        RustMC.LOGGER.debug("[Rust-MC] Mixins targets accepted: {}", myTargets);
+    }
+    @Override public List<String> getMixins() { return null; }
+    @Override public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
+        RustMC.LOGGER.debug("[Rust-MC] Pre-applying {} to {}", mixinClassName, targetClassName);
+    }
+    @Override public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
+        RustMC.LOGGER.debug("[Rust-MC] Post-applied {} to {}", mixinClassName, targetClassName);
+    }
 }
