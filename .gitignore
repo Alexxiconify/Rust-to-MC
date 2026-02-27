@@ -55,7 +55,6 @@ crash-reports/
 # ─── Java / JVM ──────────────────────────────────────────────────────────────
 *.class
 *.jar
-!gradle/wrapper/gradle-wrapper.jar
 hs_err_pid*.log
 replay_pid*.log
 # ─── Minecraft run-client artefacts ──────────────────────────────────────────
