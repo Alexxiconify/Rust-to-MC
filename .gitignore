@@ -10,7 +10,7 @@ out/
 run/
 .fabric/
 .loom-cache/
-
+future_patches/
 # ─── Rust ────────────────────────────────────────────────────────────────────
 rust_mc_core/target/
 rust_mc_core/.rustc_info.json
