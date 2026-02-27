@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.15-SNAPSHOT'
+    id 'fabric-loom' version '1.15.0-alpha.29'
     id 'maven-publish'
 }
 
@@ -12,6 +12,8 @@ base {
 
 repositories {
     mavenCentral()
+    maven { url "https://maven.terraformersmc.com/" }
+    maven { url "https://maven.isxander.dev/releases" }
     maven { url "https://maven.fabricmc.net/" }
     maven { url 'https://jitpack.io' }
     maven { url = "https://maven.bawnorton.com/releases" }
@@ -22,15 +24,19 @@ repositories {
 }
 
 dependencies {
-    minecraft "com.mojang:minecraft:1.21.1"
-    mappings "net.fabricmc:yarn:1.21.1+build.3:v2"
-    modImplementation "net.fabricmc:fabric-loader:0.16.10"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:0.106.0+1.21.1"
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
     
     // Core dependencies from Oxidizium
     include implementation("org.joml:joml:1.10.8")
     include implementation("com.github.Tater-Certified:MixinConstraints:4856759a06")
     include implementation("com.github.zafarkhaja:java-semver:0.10.2")
+
+    // Config & UI
+    modImplementation "dev.isxander:yet-another-config-lib:${project.yacl_version}"
+    modImplementation "com.terraformersmc:modmenu:${project.modmenu_version}"
 }
 
 processResources {
@@ -89,6 +95,15 @@ tasks.register('moveRustBinaries') {
             println "Moved ${libName} to resources."
         } else {
             println "Warning: ${libName} not found in ${buildDir}"
+        }
+    }
+}
+
+loom {
+    runs {
+        all {
+            vmArg "--enable-preview"
+            vmArg "--enable-native-access=ALL-UNNAMED"
         }
     }
 }

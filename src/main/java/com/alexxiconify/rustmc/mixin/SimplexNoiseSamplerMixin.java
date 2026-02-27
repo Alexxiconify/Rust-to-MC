@@ -7,12 +7,13 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import com.alexxiconify.rustmc.NativeBridge;
+import com.alexxiconify.rustmc.RustMC;
 
 @Mixin(SimplexNoiseSampler.class)
 public class SimplexNoiseSamplerMixin {
     @Inject(method = "sample(DD)D", at = @At("HEAD"), cancellable = true)
     private void onSample(double x, double y, CallbackInfoReturnable<Double> cir) {
-        if (NativeBridge.isReady()) {
+        if (NativeBridge.isReady() && RustMC.CONFIG.isUseNativeNoise()) {
             cir.setReturnValue(NativeBridge.noise2d(x, y));
         }
     }

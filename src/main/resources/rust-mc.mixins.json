@@ -10,7 +10,8 @@
     "PacketDeflaterMixin",
     "SimplexNoiseSamplerMixin",
     "LightingMixin",
-    "PathfindingMixin"
+    "PathfindingMixin",
+    "LoggingMixin"
   ],
   "client": [
   ],

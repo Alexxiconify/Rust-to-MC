@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.alexxiconify.rustmc.NativeBridge;
+import com.alexxiconify.rustmc.RustMC;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -26,6 +27,7 @@ public class PacketDeflaterMixin {
     @Inject(method = "encode", at = @At("HEAD"), cancellable = true)
     private void onEncode(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf, ByteBuf byteBuf2, CallbackInfo ci) {
         if (!NativeBridge.isReady()) return;
+        if (!RustMC.CONFIG.isUseNativeCompression()) return;
         int i = byteBuf.readableBytes();
         if (i < this.compressionThreshold) {
             byteBuf2.writeInt(0);
@@ -34,7 +36,7 @@ public class PacketDeflaterMixin {
             byteBuf2.writeInt(i);
             try (Arena arena = Arena.ofConfined()) {
                 byte[] input = new byte[i];
-                byteBuf.readBytes(input);
+                byteBuf.getBytes(byteBuf.readerIndex(), input); // Get without advancing index
                 MemorySegment inSeg = arena.allocate(i);
                 inSeg.copyFrom(MemorySegment.ofArray(input));
                 

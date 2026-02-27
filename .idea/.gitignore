@@ -1,0 +1,37 @@
+﻿# ─── .idea/.gitignore ────────────────────────────────────────────────────────
+# Scoped to files inside .idea/ only.
+# Files kept (committed):  modules.xml, vcs.xml, inspectionProfiles/, .gitignore
+# Everything else below is local / machine-specific.
+# ─── Local / machine-specific ────────────────────────────────────────────────
+workspace.xml
+tasks.xml
+usage.statistics.xml
+shelf/
+contentModel.xml
+dictionaries/
+caches/
+# ─── Database / data-source tools ────────────────────────────────────────────
+dataSources/
+dataSources.local.xml
+sqlDataSources.xml
+dynamic.xml
+dbnavigator.xml
+# ─── HTTP client ─────────────────────────────────────────────────────────────
+httpRequests/
+# ─── GitHub Copilot state ────────────────────────────────────────────────────
+copilot*.xml
+copilot*.json
+# ─── Deployment / server config ──────────────────────────────────────────────
+deployment.xml
+# ─── SonarLint ───────────────────────────────────────────────────────────────
+sonarlint/
+# ─── Gradle tool-window cache ────────────────────────────────────────────────
+gradle.xml
+libraries/
+artifacts/
+# ─── Run configurations (uncomment to stop sharing launch configs) ────────────
+# runConfigurations/
+# ─── Rider nested .idea structure ────────────────────────────────────────────
+.idea.*/.idea/
+# ─── iml module files inside .idea ───────────────────────────────────────────
+*.iml

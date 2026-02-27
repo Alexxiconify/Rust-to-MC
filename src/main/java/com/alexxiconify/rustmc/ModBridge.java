@@ -21,10 +21,11 @@ public class ModBridge {
      */
     public static double getFastMath(double value, String type) {
         if (NativeBridge.isReady()) {
-            switch (type) {
-                case "sin": return NativeBridge.invokeSin((float) value);
-                case "cos": return NativeBridge.invokeCos((float) value);
-                case "invsqrt": return NativeBridge.fastInvSqrt((float) value);
+            switch (type.toLowerCase()) {
+                case "sin": return RustMC.CONFIG.isUseNativeSine() ? NativeBridge.invokeSin((float) value) : Math.sin(value);
+                case "cos": return RustMC.CONFIG.isUseNativeCos() ? NativeBridge.invokeCos((float) value) : Math.cos(value);
+                case "invsqrt": return RustMC.CONFIG.isUseNativeInvSqrt() ? NativeBridge.fastInvSqrt((float) value) : 1.0 / Math.sqrt(value);
+                case "sqrt": return RustMC.CONFIG.isUseNativeSqrt() ? NativeBridge.invokeSqrt((float) value) : Math.sqrt(value);
                 default: break;
             }
         }

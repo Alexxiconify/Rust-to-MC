@@ -35,6 +35,8 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
     };
 
     private static boolean shouldFilter(String content, Level level) {
+        if (RustMC.CONFIG == null || !RustMC.CONFIG.isSilenceLogs()) return false;
+        
         if (level.isLessSpecificThan(Level.WARN)) {
             if (content.contains("Loading") && content.contains("mod") && !content.contains("rust-mc")) return true;
             if (content.startsWith("\t- ")) return true;

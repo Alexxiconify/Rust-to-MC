@@ -17,12 +17,16 @@ The project consists of two main parts:
 1. **Fabric Mod (Java)**: Handles Minecraft integration and Mixins.
 2. **Rust Core (`rust_mc_core`)**: High-performance logic exposed via C-compatible FFI.
 
-## Setup
+## Installation & Requirements
 
-1. Clone the repository.
-2. Build the Rust core: `cd rust_mc_core && cargo build --release`.
-3. Build the Fabric mod: `./gradlew build`.
-4. The resulting JAR will be in `build/libs/`.
+**Important**: This mod uses Java 21's Foreign Function & Memory (FFM) API. To run it, you MUST add the following JVM arguments to your launcher:
+
+```bash
+--enable-preview --enable-native-access=ALL-UNNAMED
+```
+
+- **Java Version**: 21 or higher.
+- **Fabric Loader**: 0.15.0 or higher.
 
 ## Compatibility
 
