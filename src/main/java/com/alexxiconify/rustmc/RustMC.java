@@ -1,6 +1,7 @@
 package com.alexxiconify.rustmc;
 
 import net.fabricmc.api.ModInitializer;
+genimport net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.alexxiconify.rustmc.config.RustMCConfig;
@@ -20,8 +21,25 @@ public class RustMC implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        LOGGER.info("Rust to MC initializing...");
+        LOGGER.info("[Rust-MC] Initializing...");
         loadConfig();
+
+        // Reflect real native status into config so ModMenu Status screen is accurate
+        CONFIG.setNativeReady(NativeBridge.isReady());
+
+        if (NativeBridge.isReady()) {
+            LOGGER.info("[Rust-MC] Native optimizations ACTIVE.");
+            // Seed noise on every world load so it matches the world seed
+            ServerWorldEvents.LOAD.register((server, world) -> {
+                NativeBridge.noiseReset(); // allow re-seed on new world
+                NativeBridge.noiseInit(world.getSeed());
+                LOGGER.debug("[Rust-MC] Seeded noise with world seed {}", world.getSeed());
+            });
+        } else {
+            LOGGER.warn("[Rust-MC] Native library not available – running in vanilla-fallback mode.");
+        }
+
+        LOGGER.info("[Rust-MC] Ready.");
     }
 
     public static void loadConfig() {
@@ -35,7 +53,7 @@ public class RustMC implements ModInitializer {
                 CONFIG.copyFrom(loaded);
             }
         } catch (IOException e) {
-            LOGGER.error("Failed to load config", e);
+            LOGGER.error("[Rust-MC] Failed to load config", e);
         }
     }
 
@@ -43,7 +61,7 @@ public class RustMC implements ModInitializer {
         try {
             Files.writeString(CONFIG_PATH, GSON.toJson(CONFIG));
         } catch (IOException e) {
-            LOGGER.error("Failed to save config", e);
+            LOGGER.error("[Rust-MC] Failed to save config", e);
         }
     }
 }

@@ -1,11 +1,16 @@
-﻿# ─── Gradle ──────────────────────────────────────────────────────────────────
+﻿﻿# ─── Gradle ──────────────────────────────────────────────────────────────────
 .gradle/
 build/
 bin/
+out/
 !gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
 # ─── Fabric / Loom ───────────────────────────────────────────────────────────
 run/
 .fabric/
+.loom-cache/
+
 # ─── Rust ────────────────────────────────────────────────────────────────────
 rust_mc_core/target/
 rust_mc_core/.rustc_info.json
@@ -13,25 +18,29 @@ rust_mc_core/CACHEDIR.TAG
 rust_mc_core/flycheck*/
 **/*.rs.bk
 **/*.pdb
+
 # Compiled native outputs copied into resources (rebuilt each time)
 src/main/resources/rust_mc_core.dll
 src/main/resources/librust_mc_core.so
 src/main/resources/librust_mc_core.dylib
+
 # ─── IntelliJ IDEA ───────────────────────────────────────────────────────────
-# Do NOT blanket-ignore .idea/ – modules.xml, vcs.xml, inspectionProfiles/
-# should be committed so the project opens correctly for all contributors.
-# Per-file exclusions live in .idea/.gitignore.
+# Files committed:  modules.xml, vcs.xml, inspectionProfiles/, .gitignore
+# Everything else is local / machine-specific (see .idea/.gitignore).
 *.iml
 .idea/.idea.*/.idea/
+
 # ─── VS Code ─────────────────────────────────────────────────────────────────
 .vscode/
 !.vscode/extensions.json
 !.vscode/settings.json
+
 # ─── Eclipse ─────────────────────────────────────────────────────────────────
 .classpath
 .project
 .settings/
 .factorypath
+
 # ─── OS ──────────────────────────────────────────────────────────────────────
 .DS_Store
 .DS_Store?
@@ -41,28 +50,38 @@ src/main/resources/librust_mc_core.dylib
 ehthumbs.db
 Thumbs.db
 desktop.ini
-# ─── Logs & temp files ───────────────────────────────────────────────────────
+$RECYCLE.BIN/
+
+# ─── Logs & crash reports ─────────────────────────────────────────────────────
 *.log
 *.log.*
 logs/
 crash-reports/
+debug/
+replay_*/
+
+# ─── Temp / generated files ───────────────────────────────────────────────────
 *.tmp
 *.temp
-*.bak
 *.swp
 *.swo
 *~
-# ─── Java / JVM ──────────────────────────────────────────────────────────────
+*.orig
+*.rej
+*.bak
 *.class
+
+# ─── Test & coverage output ───────────────────────────────────────────────────
+test-results/
+coverage/
+*.exec
+
+# ─── Archives ────────────────────────────────────────────────────────────────
+*.zip
+*.tar.gz
 *.jar
-hs_err_pid*.log
-replay_pid*.log
-# ─── Minecraft run-client artefacts ──────────────────────────────────────────
-saves/
-screenshots/
-resourcepacks/
-shaderpacks/
-options.txt
-optionsof.txt
-servers.dat
-usercache.json
+
+# ─── Node (if any JS tooling is added later) ─────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-error.log*

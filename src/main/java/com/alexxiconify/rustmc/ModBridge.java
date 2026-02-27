@@ -3,11 +3,12 @@ package com.alexxiconify.rustmc;
 import net.fabricmc.loader.api.FabricLoader;
 
 public class ModBridge {
-    public static final boolean SODIUM = isMod("sodium");
+    public static final boolean SODIUM    = isMod("sodium");
     public static final boolean STARLIGHT = isMod("starlight");
-    public static final boolean C2ME = isMod("c2me");
-    public static final boolean IRIS = isMod("iris");
-    public static final boolean LITHIUM = isMod("lithium");
+    public static final boolean C2ME      = isMod("c2me");
+    public static final boolean IRIS      = isMod("iris");
+    public static final boolean LITHIUM   = isMod("lithium");
+    public static final boolean INDIUM    = isMod("indium"); // Sodium compat layer
 
     private static boolean isMod(String id) {
         return FabricLoader.getInstance().isModLoaded(id);
@@ -16,25 +17,40 @@ public class ModBridge {
     private ModBridge() {}
 
     /**
-     * Reconciles math requests between mods.
-     * If multiple mods want to optimize math, we provide a unified native path.
+     * Returns true if a rendering/lighting override mod is present.
+     * When true, the native lighting mixin should be disabled so the
+     * other mod can own lighting without interference.
      */
-    public static double getFastMath(double value, String type) {
-        if (NativeBridge.isReady()) {
-            switch (type.toLowerCase()) {
-                case "sin": return RustMC.CONFIG.isUseNativeSine() ? NativeBridge.invokeSin((float) value) : Math.sin(value);
-                case "cos": return RustMC.CONFIG.isUseNativeCos() ? NativeBridge.invokeCos((float) value) : Math.cos(value);
-                case "invsqrt": return RustMC.CONFIG.isUseNativeInvSqrt() ? NativeBridge.fastInvSqrt((float) value) : 1.0 / Math.sqrt(value);
-                case "sqrt": return RustMC.CONFIG.isUseNativeSqrt() ? NativeBridge.invokeSqrt((float) value) : Math.sqrt(value);
-                default: break;
-            }
-        }
-        return Double.NaN;
+    public static boolean isLightingOwned() {
+        return STARLIGHT || (SODIUM && RustMC.CONFIG.isBridgeSodium())
+                || C2ME || (IRIS && RustMC.CONFIG.isBridgeIris());
     }
 
-    public static boolean shouldBridgeLighting() {
-        // If Starlight is present, we might want to bridge our optimizations into it
-        // instead of just disabling ours entirely.
-        return STARLIGHT || SODIUM;
+    /**
+     * Returns true when C2ME controls math/noise so we should skip our hooks.
+     */
+    public static boolean isMathOwned() {
+        return C2ME && RustMC.CONFIG.isBridgeC2ME();
+    }
+
+    /**
+     * Returns true when Lithium controls pathfinding so we should skip our hook.
+     */
+    public static boolean isPathfindingOwned() {
+        return LITHIUM && RustMC.CONFIG.isBridgeLithium();
+    }
+
+    /**
+     * Unified fast-math dispatch: tries Rust native, falls back to Java.
+     */
+    public static double getFastMath(double value, String type) {
+        if (!NativeBridge.isReady()) return Double.NaN;
+        return switch (type.toLowerCase()) {
+            case "sin"     -> RustMC.CONFIG.isUseNativeSine()    ? NativeBridge.invokeSin((float) value)    : (float) Math.sin(value);
+            case "cos"     -> RustMC.CONFIG.isUseNativeCos()     ? NativeBridge.invokeCos((float) value)    : (float) Math.cos(value);
+            case "invsqrt" -> RustMC.CONFIG.isUseNativeInvSqrt() ? NativeBridge.fastInvSqrt((float) value)  : 1.0 / Math.sqrt(value);
+            case "sqrt"    -> RustMC.CONFIG.isUseNativeSqrt()    ? NativeBridge.invokeSqrt((float) value)   : (float) Math.sqrt(value);
+            default        -> Double.NaN;
+        };
     }
 }

@@ -1,5 +1,7 @@
 package com.alexxiconify.rustmc.mixin;
 
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import net.minecraft.network.handler.PacketDeflater;
 import org.spongepowered.asm.mixin.Final;
@@ -15,8 +17,6 @@ import com.alexxiconify.rustmc.RustMC;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import java.util.zip.Deflater;
-import java.lang.foreign.MemorySegment;
-import java.lang.foreign.Arena;
 
 @Mixin(PacketDeflater.class)
 public class PacketDeflaterMixin {
@@ -25,30 +25,34 @@ public class PacketDeflaterMixin {
 
     @SuppressWarnings("preview")
     @Inject(method = "encode", at = @At("HEAD"), cancellable = true)
-    private void onEncode(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf, ByteBuf byteBuf2, CallbackInfo ci) {
-        if (!NativeBridge.isReady()) return;
-        if (!RustMC.CONFIG.isUseNativeCompression()) return;
-        int i = byteBuf.readableBytes();
-        if (i < this.compressionThreshold) {
-            byteBuf2.writeInt(0);
-            byteBuf2.writeBytes(byteBuf);
-        } else {
-            byteBuf2.writeInt(i);
-            try (Arena arena = Arena.ofConfined()) {
-                byte[] input = new byte[i];
-                byteBuf.getBytes(byteBuf.readerIndex(), input); // Get without advancing index
-                MemorySegment inSeg = arena.allocate(i);
-                inSeg.copyFrom(MemorySegment.ofArray(input));
-                
-                int maxOut = i + 64; // zlib overhead
-                MemorySegment outSeg = arena.allocate(maxOut);
-                
-                int compressedLen = NativeBridge.invokeCompress(inSeg, i, outSeg, maxOut);
-                if (compressedLen > 0) {
-                    byte[] result = outSeg.asSlice(0, compressedLen).toArray(ValueLayout.JAVA_BYTE);
-                    byteBuf2.writeBytes(result);
-                    ci.cancel();
-                }
+    private void onEncode(ChannelHandlerContext ctx, ByteBuf in, ByteBuf out, CallbackInfo ci) {
+        if (!NativeBridge.isReady() || !RustMC.CONFIG.isUseNativeCompression()) return;
+
+        int readable = in.readableBytes();
+        if (readable < this.compressionThreshold) {
+            // Below threshold: write uncompressed with 0-length header (vanilla behaviour)
+            out.writeInt(0);
+            out.writeBytes(in);
+            ci.cancel();
+            return;
+        }
+
+        // Worst-case zlib output: input + 50% + 128 byte header
+        int maxOut = readable + (readable >> 1) + 128;
+        try (Arena arena = Arena.ofConfined()) {
+            byte[] inputBytes = new byte[readable];
+            in.getBytes(in.readerIndex(), inputBytes);
+
+            MemorySegment inSeg  = arena.allocate(readable);
+            MemorySegment outSeg = arena.allocate(maxOut);
+            inSeg.copyFrom(MemorySegment.ofArray(inputBytes));
+
+            int compressedLen = NativeBridge.invokeCompress(inSeg, readable, outSeg, maxOut);
+            if (compressedLen > 0) {
+                out.writeInt(readable); // uncompressed size header
+                out.writeBytes(outSeg.asSlice(0, compressedLen).toArray(ValueLayout.JAVA_BYTE));
+                ci.cancel();
+                // fall through to vanilla if compressedLen <= 0
             }
         }
     }

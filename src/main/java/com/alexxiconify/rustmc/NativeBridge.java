@@ -2,8 +2,10 @@ package com.alexxiconify.rustmc;
 
 import java.lang.foreign.*;
 import java.lang.invoke.MethodHandle;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @SuppressWarnings("preview")
 public class NativeBridge {
@@ -12,63 +14,100 @@ public class NativeBridge {
     private static final Linker LINKER = Linker.nativeLinker();
     private static SymbolLookup LOOKUP = null;
 
+    // Math
     public static MethodHandle FAST_INV_SQRT = null;
-    public static MethodHandle SIN = null;
-    public static MethodHandle COS = null;
-    public static MethodHandle SQRT = null;
+    public static MethodHandle SIN            = null;
+    public static MethodHandle COS            = null;
+    public static MethodHandle SQRT           = null;
 
-    public static MethodHandle COMPRESS = null;
-    public static MethodHandle DECOMPRESS = null;
+    // Network
+    public static MethodHandle COMPRESS       = null;
+    public static MethodHandle DECOMPRESS     = null;
     public static MethodHandle PROCESS_PACKET = null;
 
-    public static MethodHandle NOISE_2D = null;
+    // World-gen / Noise
+    public static MethodHandle NOISE_INIT     = null;
+    public static MethodHandle NOISE_2D       = null;
+    public static MethodHandle NOISE_3D       = null;
+
+    // Lighting / Pathfinding / Commands
     public static MethodHandle PROPAGATE_LIGHT_BULK = null;
-    public static MethodHandle FIND_PATH = null;
-    public static MethodHandle EXECUTE_COMMAND = null;
+    public static MethodHandle FIND_PATH            = null;
+    public static MethodHandle EXECUTE_COMMAND      = null;
+
+    /** Shared confined arena for hot-path allocations (single-threaded callers). */
+    public static final Arena SHARED_ARENA = Arena.ofShared();
 
     private static boolean libLoaded = false;
+    private static final AtomicBoolean noiseSeeded = new AtomicBoolean(false);
 
     public static boolean isReady() { return libLoaded; }
 
     static {
+        Path tmpLib = null;
         try {
             String libName = System.mapLibraryName("rust_mc_core");
             Path devPath = Paths.get("rust_mc_core/target/release/" + libName).toAbsolutePath();
 
-            if (java.nio.file.Files.exists(devPath)) {
+            if (Files.exists(devPath)) {
                 System.load(devPath.toString());
             } else {
-                java.io.InputStream is = NativeBridge.class.getResourceAsStream("/" + libName);
-                if (is == null) throw new IllegalStateException("Library " + libName + " not found in dev path or resources");
-                Path tmp = java.nio.file.Files.createTempFile("rust_mc_", "_" + libName);
-                java.nio.file.Files.copy(is, tmp, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                System.load(tmp.toString());
-                tmp.toFile().deleteOnExit();
+                try (java.io.InputStream is = NativeBridge.class.getResourceAsStream("/" + libName)) {
+                    if (is == null) throw new IllegalStateException("Library " + libName + " not found in dev path or resources");
+                    tmpLib = Files.createTempFile("rust_mc_", "_" + libName);
+                    Files.copy(is, tmpLib, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    System.load(tmpLib.toString());
+                }
             }
 
             LOOKUP = SymbolLookup.loaderLookup();
 
-            FAST_INV_SQRT = createHandle("rust_fast_inv_sqrt", FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
-            SIN = createHandle("rust_sin", FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
-            COS = createHandle("rust_cos", FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
+            FAST_INV_SQRT = createHandle("rust_fast_inv_sqrt",
+                    FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
+            SIN  = createHandle("rust_sin",  FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
+            COS  = createHandle("rust_cos",  FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
             SQRT = createHandle("rust_sqrt", FunctionDescriptor.of(ValueLayout.JAVA_FLOAT, ValueLayout.JAVA_FLOAT));
 
-            COMPRESS = createHandle("rust_compress", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            DECOMPRESS = createHandle("rust_decompress", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            PROCESS_PACKET = createHandle("rust_process_packet", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
+            COMPRESS = createHandle("rust_compress",
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
+            DECOMPRESS = createHandle("rust_decompress",
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
+            PROCESS_PACKET = createHandle("rust_process_packet",
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
 
-            NOISE_2D = createHandle("rust_noise_2d", FunctionDescriptor.of(ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE));
-            PROPAGATE_LIGHT_BULK = createHandle("rust_propagate_light_bulk", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            FIND_PATH = createHandle("rust_find_path", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            EXECUTE_COMMAND = createHandle("rust_execute_command", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
+            NOISE_INIT = createHandle("rust_noise_init",
+                    FunctionDescriptor.ofVoid(ValueLayout.JAVA_INT));
+            NOISE_2D = createHandle("rust_noise_2d",
+                    FunctionDescriptor.of(ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE));
+            NOISE_3D = createHandle("rust_noise_3d",
+                    FunctionDescriptor.of(ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE));
+
+            PROPAGATE_LIGHT_BULK = createHandle("rust_propagate_light_bulk",
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
+            FIND_PATH = createHandle("rust_find_path",
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
+            EXECUTE_COMMAND = createHandle("rust_execute_command",
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
 
             libLoaded = true;
             RustMC.LOGGER.info("[Rust-MC] Native library loaded successfully.");
         } catch (Throwable t) {
             libLoaded = false;
-            // Use System.err here since RustMC.LOGGER may not exist yet during early class-init
             System.err.println("[Rust-MC] WARNING: Failed to load native library – all Rust optimizations disabled. Cause: " + t.getMessage());
         }
+
+        // Register a shutdown hook to clean up the temp file even on abnormal exit
+        if (tmpLib != null) {
+            final Path finalTmp = tmpLib;
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try { Files.deleteIfExists(finalTmp); } catch (Exception ignored) {}
+            }, "rust-mc-tmplib-cleanup"));
+        }
+
+        // Register shutdown hook to close shared arena
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try { SHARED_ARENA.close(); } catch (Exception ignored) {}
+        }, "rust-mc-arena-close"));
     }
 
     private static MethodHandle createHandle(String name, FunctionDescriptor desc) {
@@ -78,6 +117,28 @@ public class NativeBridge {
                 .orElse(null);
     }
 
+    // ── Noise ──────────────────────────────────────────────────────────────────
+    /**
+     * Seeds the Rust Simplex noise generator with the world seed.
+     * Only the first call per process takes effect (OnceLock in Rust).
+     * Call at world load time.
+     */
+    public static void noiseInit(long mcSeed) {
+        if (!libLoaded || NOISE_INIT == null) return;
+        if (!noiseSeeded.compareAndSet(false, true)) return; // only seed once
+        try {
+            NOISE_INIT.invokeExact((int) (mcSeed & 0xFFFFFFFFL));
+        } catch (Throwable t) {
+            RustMC.LOGGER.warn("[Rust-MC] Failed to seed noise: {}", t.getMessage());
+        }
+    }
+
+    /** Resets the seed-once flag so the next world load can re-seed. */
+    public static void noiseReset() {
+        noiseSeeded.set(false);
+    }
+
+    // ── Math helpers ───────────────────────────────────────────────────────────
     public static float fastInvSqrt(float x) {
         try { return (float) FAST_INV_SQRT.invokeExact(x); }
         catch (Throwable t) { return 1.0f / (float) Math.sqrt(x); }
@@ -95,6 +156,7 @@ public class NativeBridge {
         catch (Throwable t) { return (float) Math.sqrt(x); }
     }
 
+    // ── Compression helpers ────────────────────────────────────────────────────
     public static int invokeCompress(MemorySegment in, int inL, MemorySegment out, int outL) {
         try { return (int) COMPRESS.invokeExact(in, inL, out, outL); }
         catch (Throwable t) { return -1; }
@@ -104,15 +166,17 @@ public class NativeBridge {
         catch (Throwable t) { return -1; }
     }
 
+    // ── Noise helpers ──────────────────────────────────────────────────────────
     public static double noise2d(double x, double y) {
         try { return (double) NOISE_2D.invokeExact(x, y); }
         catch (Throwable t) { return 0.0; }
     }
-    public static int executeCommand(MemorySegment cmd, int len) {
-        try { return (int) EXECUTE_COMMAND.invokeExact(cmd, len); }
-        catch (Throwable t) { return -1; }
+    public static double noise3d(double x, double y, double z) {
+        try { return (double) NOISE_3D.invokeExact(x, y, z); }
+        catch (Throwable t) { return 0.0; }
     }
 
+    // ── Lighting / Pathfinding / Command helpers ───────────────────────────────
     public static int propagateLightBulk(MemorySegment data, int len) {
         try { return (int) PROPAGATE_LIGHT_BULK.invokeExact(data, len); }
         catch (Throwable t) { return -1; }
@@ -121,14 +185,21 @@ public class NativeBridge {
         try { return (int) FIND_PATH.invokeExact(start, end, world, limit); }
         catch (Throwable t) { return -1; }
     }
+    public static int executeCommand(MemorySegment cmd, int len) {
+        try { return (int) EXECUTE_COMMAND.invokeExact(cmd, len); }
+        catch (Throwable t) { return -1; }
+    }
 
+    /**
+     * Convenience: allocates start/end i32[3] segments on the confined arena,
+     * calls rust_find_path, and returns the path length (0 = at target, −1 = error).
+     */
     public static int findPathRaw(int startX, int startY, int startZ, int endX, int endY, int endZ) {
         if (FIND_PATH == null) return -1;
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment start = arena.allocateFrom(ValueLayout.JAVA_INT, startX, startY, startZ);
             MemorySegment end   = arena.allocateFrom(ValueLayout.JAVA_INT, endX,   endY,   endZ);
-            // Pass a minimal dummy world segment (Rust only uses it if non-null in future work)
-            MemorySegment world = arena.allocate(ValueLayout.JAVA_INT, 1);
+            MemorySegment world = arena.allocate(ValueLayout.JAVA_INT, 1); // stub – future: pass block grid
             return (int) FIND_PATH.invokeExact(start, end, world, 0);
         } catch (Throwable t) { return -1; }
     }
