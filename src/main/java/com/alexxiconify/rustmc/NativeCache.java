@@ -4,7 +4,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * NativeCache provides storage for frequently accessed data.
- * Updated to remove preview FFM API dependencies.
  */
 public class NativeCache {
     private NativeCache() {}
