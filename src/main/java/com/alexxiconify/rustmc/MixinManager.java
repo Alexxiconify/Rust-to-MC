@@ -18,9 +18,9 @@ public class MixinManager implements IMixinConfigPlugin {
     private static final String PACKET_MIXIN = PKG + "PacketDeflaterMixin";
     private static final String DECODER_MIXIN= PKG + "DecoderHandlerMixin";
     private static final String PATH_MIXIN   = PKG + "PathfindingMixin";
-    private static final String LOG_MIXIN    = PKG + "LoggingMixin";
     private static final String NOISE_MIXIN  = PKG + "SimplexNoiseSamplerMixin";
     private static final String CMD_MIXIN    = PKG + "CommandManagerMixin";
+    private static final String BLOCK_MIXIN  = PKG + "BlockStateMixin";
 
     @Override
     public void onLoad(String mixinPackage) {
@@ -32,7 +32,7 @@ public class MixinManager implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        if (LOG_MIXIN.equals(mixinClassName) || CMD_MIXIN.equals(mixinClassName))
+        if (CMD_MIXIN.equals(mixinClassName))
             return true;
         // LoggingMixin is always applied – its body guards against early load via null checks
         if (LIGHT_MIXIN.equals(mixinClassName))
@@ -49,6 +49,9 @@ public class MixinManager implements IMixinConfigPlugin {
 
         if (PACKET_MIXIN.equals(mixinClassName) || DECODER_MIXIN.equals(mixinClassName))
             return !ModBridge.isNetworkingOwned();
+
+        if (BLOCK_MIXIN.equals(mixinClassName))
+            return RustMC.CONFIG.isUseNativeCulling();
 
         // Logging and commands: always apply unless specifically disabled
         // their bodies check NativeBridge.isReady() and config flags at runtime.

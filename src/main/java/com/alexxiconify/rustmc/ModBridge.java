@@ -188,7 +188,7 @@ public class ModBridge {
 
     /** Returns true if another mod completely owns the lighting threading model. */
     public static boolean isLightingOwned() {
-        return STARLIGHT || SCALABLELUX || FERRITECORE;
+        return STARLIGHT || SCALABLELUX || FERRITECORE || C2ME;
     }
 
     private static boolean isMod(String id) {

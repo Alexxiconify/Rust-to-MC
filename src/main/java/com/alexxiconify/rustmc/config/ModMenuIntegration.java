@@ -120,6 +120,9 @@ public class ModMenuIntegration implements ModMenuApi {
                 Cancels vanilla only when the mob is already at its target (result = 0).
                 Automatically disabled when Lithium Bridge is ON and Lithium is installed.""",
                 cfg::isUseNativePathfinding, v -> cfg.setUseNativePathfinding(v != null && v)))
+            .option(buildBooleanOption("Native Culling (Fixes Dripstone)", 
+                "Prevents aggressive face culling on 3D Dripstone models from Vanilla Tweaks.",
+                cfg::isUseNativeCulling, v -> cfg.setUseNativeCulling(v != null && v)))
             .option(buildBooleanOption("Native Commands (Experimental)", 
                 """
                 Passes server commands to Rust before Brigadier processes them.
