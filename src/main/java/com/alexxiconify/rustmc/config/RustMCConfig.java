@@ -16,6 +16,7 @@ public class RustMCConfig {
     private boolean useNativeCompression = true;
     private boolean useNativePathfinding = true;
     private boolean useNativeCulling     = true;
+    private boolean useFastLoadingScreen = true;
     private boolean useNativeCommands    = false; // experimental – off by default
 
     // Mod bridges
@@ -42,6 +43,7 @@ public class RustMCConfig {
         this.useNativeCompression = other.useNativeCompression;
         this.useNativePathfinding = other.useNativePathfinding;
         this.useNativeCulling    = other.useNativeCulling;
+        this.useFastLoadingScreen = other.useFastLoadingScreen;
         this.useNativeCommands   = other.useNativeCommands;
         this.bridgeSodium        = other.bridgeSodium;
         this.bridgeStarlight     = other.bridgeStarlight;
@@ -65,6 +67,7 @@ public class RustMCConfig {
     public boolean isUseNativeCompression(){ return useNativeCompression; }
     public boolean isUseNativePathfinding(){ return useNativePathfinding; }
     public boolean isUseNativeCulling()    { return useNativeCulling; }
+    public boolean isUseFastLoadingScreen(){ return useFastLoadingScreen; }
     public boolean isUseNativeCommands()   { return useNativeCommands; }
     public boolean isBridgeSodium()        { return bridgeSodium; }
     public boolean isBridgeStarlight()     { return bridgeStarlight; }
@@ -87,6 +90,7 @@ public class RustMCConfig {
     public void setUseNativeCompression(boolean val) { this.useNativeCompression = val; }
     public void setUseNativePathfinding(boolean val) { this.useNativePathfinding = val; }
     public void setUseNativeCulling(boolean val)     { this.useNativeCulling = val; }
+    public void setUseFastLoadingScreen(boolean val) { this.useFastLoadingScreen = val; }
     public void setUseNativeCommands(boolean val)    { this.useNativeCommands = val; }
     public void setBridgeSodium(boolean val)         { this.bridgeSodium = val; }
     public void setBridgeStarlight(boolean val)      { this.bridgeStarlight = val; }

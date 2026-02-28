@@ -16,7 +16,9 @@
     "minihud.RenderUtilsMixin",
     "ChunkBuilderMixin",
     "FrustumMixin",
-    "TickLimiterMixin"
+    "TickLimiterMixin",
+    "screen.SplashOverlayMixin",
+    "screen.LevelLoadingScreenMixin"
   ],
   "client": [
   ],
