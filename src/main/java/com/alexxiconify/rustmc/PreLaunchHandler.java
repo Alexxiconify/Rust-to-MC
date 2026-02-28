@@ -21,11 +21,28 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
 
     @Override
     public void onPreLaunch() {
+        configureParallelism();
         if (isWindows() && FabricLoader.getInstance().getEnvironmentType() == net.fabricmc.api.EnvType.CLIENT) {
             com.iafenvoy.elb.gui.PreLaunchWindow.display();
             startModLoadingProgressThread();
         }
         installLogFilter();
+    }
+
+    /**
+     * Maximises JVM-level parallelism before Minecraft starts.
+     * Sets ForkJoinPool common pool size to (cores - 1) so chunk loading,
+     * parallel stream ops, and Fabric's class loading all use more cores.
+     * One core is left free for the render/main thread.
+     */
+    private static void configureParallelism() {
+        int cores = Runtime.getRuntime().availableProcessors();
+        int workers = Math.max(1, cores - 1);
+        System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism",
+            String.valueOf(workers));
+        // Parallel class loading (reduces startup time on multicore CPUs)
+        System.setProperty("jdk.classFileVersionDelegation", "true");
+        LOGGER.info("[Rust-MC] ForkJoin parallelism set to {} (of {} cores)", workers, cores);
     }
 
     private static void installLogFilter() {

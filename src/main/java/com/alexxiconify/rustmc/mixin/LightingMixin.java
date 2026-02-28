@@ -14,27 +14,20 @@ import java.util.concurrent.BlockingQueue;
 
 /**
  * Routes pending light tasks through Rust's parallel propagation thread pool when:
- *  - Native lighting is enabled in config
- *  - No other mod owns lighting (ScalableLux / Starlight / StarrySky / C2ME)
+ *  - useNativeLighting is enabled in config
+ *  - No other mod owns lighting (ScalableLux / Starlight / C2ME / FerriteCore)
  *  - NativeBridge is ready
  *
- * When ScalableLux IS present, we yield completely — it's already faster than Rust here.
- * The batch queue is drained on the Rust side in parallel; results are written back
- * to the light level cache via the bulk JNI call (rustPropagateLightBulk).
+ * ScalableLux is already faster than Rust here, so we yield completely when it's present.
+ * The worker drains the queue every ~4 ms; rustPropagateLightBulk handles parallelism on the Rust side.
  */
 @Mixin(LightingProvider.class)
 public class LightingMixin {
 
-    // Pending encoded (x,y,z,type) tuples waiting to be sent to Rust in bulk.
+    // Queue of encoded (x, y, z, type) tuples for the Rust bulk propagation call.
     private static final BlockingQueue<int[]> PENDING = new ArrayBlockingQueue<>(4096);
     private static volatile boolean rustLightThreadRunning = false;
 
-    // Encode a position + type into a single int[] tuple for the JNI call.
-    private static int[] encode(int x, int y, int z, int type) {
-        return new int[]{x, y, z, type};
-    }
-
-    /** Best-effort drain — submits all queued positions to rustPropagateLightBulk. */
     private static void flushToRust() {
         if (PENDING.isEmpty()) return;
         int size = PENDING.size();
@@ -50,7 +43,6 @@ public class LightingMixin {
         NativeBridge.propagateLightBulk(flat, idx / 4);
     }
 
-    /** Starts a single background virtual thread that periodically flushes the queue. */
     private static synchronized void ensureRustThread() {
         if (rustLightThreadRunning) return;
         rustLightThreadRunning = true;
@@ -73,7 +65,6 @@ public class LightingMixin {
 
     @Inject(method = "hasUpdates()Z", at = @At("HEAD"))
     private void onHasUpdates(CallbackInfoReturnable<Boolean> cir) {
-        // Guard: yield to ScalableLux / Starlight / C2ME
         if (!RustMC.CONFIG.isUseNativeLighting() || ModBridge.isLightingOwned() || !NativeBridge.isReady()) return;
         ensureRustThread();
     }
