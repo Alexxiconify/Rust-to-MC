@@ -61,6 +61,7 @@ debug/
 replay_*/
 
 # ─── Temp / generated files ───────────────────────────────────────────────────
+PumpkinTemp/
 *.tmp
 *.temp
 *.swp

@@ -174,8 +174,8 @@ public class ModBridge {
 
     // Checks executed during startup
     public static void initialize() {
-        RustMC.LOGGER.info("[Rust-MC] Mod ecosystem detected: Starlight={}, Ferrite={}, Sodium={}, Lithium={}, MoreCulling={}, ScalableLux={}", 
-            STARLIGHT, FERRITECORE, SODIUM, LITHIUM, MORECULLING, SCALABLELUX);
+        RustMC.LOGGER.info("[Rust-MC] Mod ecosystem detected: Starlight={}, Ferrite={}, Sodium={}, Lithium={}, MoreCulling={}, ScalableLux={}, Oxidizium={}", 
+            STARLIGHT, FERRITECORE, SODIUM, LITHIUM, MORECULLING, SCALABLELUX, OXIDIZIUM);
     }
 
     public static boolean isStarlightLoaded() { return STARLIGHT; }
