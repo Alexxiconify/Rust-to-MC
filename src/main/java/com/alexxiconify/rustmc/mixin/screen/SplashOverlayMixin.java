@@ -25,8 +25,18 @@ public abstract class SplashOverlayMixin {
 
     @Inject(at = @At("TAIL"), method = "render")
     public void render(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (RustMC.CONFIG.isUseFastLoadingScreen() && this.reloadCompleteTime != -1L) {
-            this.client.setOverlay(null);
+        if (RustMC.CONFIG.isUseFastLoadingScreen()) {
+            if (this.reloadCompleteTime != -1L) {
+                this.client.setOverlay(null);
+            } else {
+                // Draw loaded mods info at the bottom right before fade out
+                int modsCount = net.fabricmc.loader.api.FabricLoader.getInstance().getAllMods().size();
+                String text = "Rust-MC: Fast Loading - " + modsCount + " Mods Loaded";
+                int textWidth = this.client.textRenderer.getWidth(text);
+                int screenWidth = context.getScaledWindowWidth();
+                int screenHeight = context.getScaledWindowHeight();
+                context.drawTextWithShadow(this.client.textRenderer, text, screenWidth - textWidth - 5, screenHeight - 15, 0xFFFFFF);
+            }
         }
     }
 

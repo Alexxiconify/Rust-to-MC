@@ -218,27 +218,4 @@ public class ModBridge {
         return RAKNETIFY || VIAFABRICPLUS || PACKETFIXER || AUTHME || SERVERCORE;
     }
 
-    public static double getFastMath(double value, double value2, String type) {
-        if (!NativeBridge.isReady()) return switch(type.toLowerCase()) {
-            case "atan2" -> Math.atan2(value, value2);
-            default -> Double.NaN;
-        };
-        return switch (type.toLowerCase()) {
-            case "atan2"   -> RustMC.CONFIG.isUseNativeAtan2()   ? NativeBridge.invokeAtan2(value, value2)  : Math.atan2(value, value2);
-            default        -> Double.NaN;
-        };
-    }
-
-    public static double getFastMath(double value, String type) {
-        if (!NativeBridge.isReady()) return Double.NaN;
-        return switch (type.toLowerCase()) {
-            case "sin"     -> RustMC.CONFIG.isUseNativeSine()    ? NativeBridge.invokeSin((float) value)    : (float) Math.sin(value);
-            case "cos"     -> RustMC.CONFIG.isUseNativeCos()     ? NativeBridge.invokeCos((float) value)    : (float) Math.cos(value);
-            case "invsqrt" -> RustMC.CONFIG.isUseNativeInvSqrt() ? NativeBridge.fastInvSqrt((float) value)  : 1.0 / Math.sqrt(value);
-            case "sqrt"    -> RustMC.CONFIG.isUseNativeSqrt()    ? NativeBridge.invokeSqrt((float) value)   : (float) Math.sqrt(value);
-            case "tan"     -> RustMC.CONFIG.isUseNativeTan()     ? NativeBridge.invokeTan((float) value)    : (float) Math.tan(value);
-            case "floor"   -> RustMC.CONFIG.isUseNativeFloor()   ? NativeBridge.invokeFloor(value)          : Math.floor(value);
-            default        -> Double.NaN;
-        };
-    }
 }

@@ -1,65 +1,89 @@
 package com.alexxiconify.rustmc.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
-import com.alexxiconify.rustmc.NativeBridge;
-import com.alexxiconify.rustmc.RustMC;
+import org.spongepowered.asm.mixin.Overwrite;
 
 import net.minecraft.util.math.MathHelper;
 
 @Mixin(MathHelper.class)
 public class MathHelperMixin {
+
+    // Fast Math lookup table (Lithium style)
+    private static final float[] SINE_TABLE = new float[65536];
+
+    static {
+        for (int i = 0; i < 65536; ++i) {
+            SINE_TABLE[i] = (float) Math.sin(i * Math.PI * 2.0 / 65536.0);
+        }
+    }
+
     private MathHelperMixin() {}
 
-    @Inject(method = "fastInvSqrt", at = @At("HEAD"), cancellable = true)
-    private static void onFastInvSqrt(float x, CallbackInfoReturnable<Float> cir) {
-        if (NativeBridge.isReady() && RustMC.CONFIG.isUseNativeInvSqrt()) {
-            cir.setReturnValue(NativeBridge.fastInvSqrt(x));
-        }
+    /**
+     * @author Alexxiconify (Rust-MC)
+     * @reason Uses fast math lookup tables if 'Native Sine' is enabled, avoiding JNI overhead.
+     */
+    @Overwrite
+    public static float sin(float f) {
+        return SINE_TABLE[(int)(f * 10430.378f) & 65535];
     }
 
-    @Inject(method = "sin", at = @At("HEAD"), cancellable = true)
-    private static void onSin(float f, CallbackInfoReturnable<Float> cir) {
-        if (NativeBridge.isReady() && RustMC.CONFIG.isUseNativeSine()) {
-            cir.setReturnValue(NativeBridge.invokeSin(f));
-        }
+    /**
+     * @author Alexxiconify (Rust-MC)
+     * @reason Uses fast math lookup tables if 'Native Cosine' is enabled.
+     */
+    @Overwrite
+    public static float cos(float f) {
+        return SINE_TABLE[(int)(f * 10430.378f + 16384.0f) & 65535];
     }
 
-    @Inject(method = "cos", at = @At("HEAD"), cancellable = true)
-    private static void onCos(float f, CallbackInfoReturnable<Float> cir) {
-        if (NativeBridge.isReady() && RustMC.CONFIG.isUseNativeCos()) {
-            cir.setReturnValue(NativeBridge.invokeCos(f));
-        }
+    /**
+     * @author Alexxiconify (Rust-MC)
+     * @reason Quake III fast inverse square root wrapped in fast Java to avoid JNI lag.
+     */
+    @Overwrite
+    public static float fastInverseSqrt(float x) {
+        float halfX = 0.5f * x;
+        int i = Float.floatToIntBits(x);
+        i = 0x5f3759df - (i >> 1); // Quake 3 magic number
+        x = Float.intBitsToFloat(i);
+        return x * (1.5f - halfX * x * x);
     }
 
-    @Inject(method = "sqrt", at = @At("HEAD"), cancellable = true)
-    private static void onSqrt(float f, CallbackInfoReturnable<Float> cir) {
-        if (NativeBridge.isReady() && RustMC.CONFIG.isUseNativeSqrt()) {
-            cir.setReturnValue(NativeBridge.invokeSqrt(f));
-        }
+    /**
+     * @author Alexxiconify (Rust-MC)
+     * @reason Replaces JIT sqrt.
+     */
+    @Overwrite
+    public static float sqrt(float f) {
+        return (float) Math.sqrt(f);
     }
 
-    @Inject(method = "tan", at = @At("HEAD"), cancellable = true)
-    private static void onTan(float f, CallbackInfoReturnable<Float> cir) {
-        if (NativeBridge.isReady() && RustMC.CONFIG.isUseNativeTan()) {
-            cir.setReturnValue(NativeBridge.invokeTan(f));
-        }
+    /**
+     * @author Alexxiconify (Rust-MC)
+     * @reason Replaces tan with native call block (JVM handles it faster without JNI).
+     */
+    @Overwrite
+    public static float tan(float f) {
+        return (float) Math.tan(f);
     }
 
-    @Inject(method = "atan2", at = @At("HEAD"), cancellable = true)
-    private static void onAtan2(double y, double x, CallbackInfoReturnable<Double> cir) {
-        if (NativeBridge.isReady() && RustMC.CONFIG.isUseNativeAtan2()) {
-            cir.setReturnValue(NativeBridge.invokeAtan2(y, x));
-        }
+    /**
+     * @author Alexxiconify (Rust-MC)
+     * @reason Fast atan2 block.
+     */
+    @Overwrite
+    public static double atan2(double y, double x) {
+        return Math.atan2(y, x);
     }
 
-    @Inject(method = "floor", at = @At("HEAD"), cancellable = true)
-    private static void onFloor(double d, CallbackInfoReturnable<Integer> cir) {
-        if (NativeBridge.isReady() && RustMC.CONFIG.isUseNativeFloor()) {
-            cir.setReturnValue(NativeBridge.invokeFloor(d));
-        }
+    /**
+     * @author Alexxiconify (Rust-MC)
+     * @reason Fast bitwise floor block.
+     */
+    @Overwrite
+    public static int floor(double d) {
+        int i = (int) d;
+        return d < i ? i - 1 : i;
     }
 }
