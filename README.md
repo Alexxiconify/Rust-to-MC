@@ -19,12 +19,6 @@ The project consists of two main parts:
 
 ## Installation & Requirements
 
-**Important**: This mod uses Java 21's Foreign Function & Memory (FFM) API. To run it, you MUST add the following JVM arguments to your launcher:
-
-```bash
---enable-preview --enable-native-access=ALL-UNNAMED
-```
-
 - **Java Version**: 21 or higher.
 - **Fabric Loader**: 0.15.0 or higher.
 

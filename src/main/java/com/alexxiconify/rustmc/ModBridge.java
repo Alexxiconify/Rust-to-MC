@@ -20,6 +20,9 @@ public class ModBridge {
     public static final boolean LIGHTY    = isMod("lighty");
     public static final boolean PACKETFIXER = isMod("packetfixer");
     public static final boolean AUTHME    = isMod("authme");
+    public static final boolean DISTANT_HORIZONS = isMod("distanthorizons");
+    public static final boolean FREECAM   = isMod("freecam");
+    public static final boolean MORECULLING_MOD = isMod("moreculling");
 
     // Client & Utility Mods Requested for Compatibility
     public static final boolean ACCURATEBLOCKPLACEMENT = isMod("accurateblockplacement");
@@ -81,7 +84,6 @@ public class ModBridge {
     public static final boolean FIX_MC_STATS = isMod("fix-mc-stats");
     public static final boolean FORCECLOSEWORLDLOADINGSCREEN = isMod("forcecloseworldloadingscreen");
     public static final boolean FORGECONFIGAPIPORT = isMod("forgeconfigapiport");
-    public static final boolean FREECAM = isMod("freecam");
     public static final boolean FUSION = isMod("fusion");
     public static final boolean FZZY_CONFIG = isMod("fzzy_config");
     public static final boolean GNETUM = isMod("gnetum");
@@ -216,6 +218,14 @@ public class ModBridge {
      */
     public static boolean isNetworkingOwned() {
         return RAKNETIFY || VIAFABRICPLUS || PACKETFIXER || AUTHME || SERVERCORE;
+    }
+
+    /**
+     * Returns true when another mod's frustum would conflict with our Rust frustum planes:
+     * Sodium replaces the frustum, MoreCulling hooks it, DH uses multi-pass renders.
+     */
+    public static boolean isFrustumOwned() {
+        return SODIUM || MORECULLING_MOD || DISTANT_HORIZONS;
     }
 
 }

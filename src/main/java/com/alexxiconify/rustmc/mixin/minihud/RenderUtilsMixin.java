@@ -40,37 +40,24 @@ public class RenderUtilsMixin {
     }
 
     @SuppressWarnings("all")
-    @Inject(method = "drawBoxAllSides", at = @At("HEAD"), cancellable = true, remap = false)
+    @Inject(method = "drawBoxAllSides", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void drawBoxAllSides(
             double minX, double minY, double minZ,
             double maxX, double maxY, double maxZ,
-            float r, float g, float b, float a,
-            org.joml.Matrix4f matrix, org.joml.Matrix4f normalMatrix,
-            VertexConsumer buffer, CallbackInfo ci) {
-        
+            CallbackInfo ci) {
         MinecraftClient mc = MinecraftClient.getInstance();
         Entity camera = mc.getCameraEntity();
         if (camera == null) return;
-        double camX = camera.getX();
-        double camY = camera.getY();
-        double camZ = camera.getZ();
-        
         double centerX = (minX + maxX) / 2.0;
         double centerY = (minY + maxY) / 2.0;
         double centerZ = (minZ + maxZ) / 2.0;
-        
-        double distSq = (camX - centerX) * (camX - centerX) +
-                        (camY - centerY) * (camY - centerY) +
-                        (camZ - centerZ) * (camZ - centerZ);
-                        
+        double distSq = camera.squaredDistanceTo(centerX, centerY, centerZ);
         int rd = mc.options.getClampedViewDistance() * 16;
-        if (distSq > (rd * rd)) {
-            ci.cancel();
-        }
+        if (distSq > (rd * rd)) ci.cancel();
     }
 
     @SuppressWarnings("all")
-    @Inject(method = "drawLine", at = @At("HEAD"), cancellable = true, remap = false)
+    @Inject(method = "drawLine", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void drawLine(
             double x1, double y1, double z1,
             double x2, double y2, double z2,

@@ -8,51 +8,51 @@ import net.minecraft.util.math.MathHelper;
 @Mixin(MathHelper.class)
 public class MathHelperMixin {
 
-    // Fast Math lookup table (Lithium style)
+    // Sine LUT — 65536 entries covers full circle.
     private static final float[] SINE_TABLE = new float[65536];
-
     static {
-        for (int i = 0; i < 65536; ++i) {
+        for (int i = 0; i < 65536; ++i)
             SINE_TABLE[i] = (float) Math.sin(i * Math.PI * 2.0 / 65536.0);
-        }
     }
 
     private MathHelperMixin() {}
 
     /**
      * @author Alexxiconify (Rust-MC)
-     * @reason Uses fast math lookup tables if 'Native Sine' is enabled, avoiding JNI overhead.
+     * @reason LUT-based sin, avoids JVM intrinsic overhead for hot paths.
+     * In 1.21.11 the param changed to double.
      */
     @Overwrite
-    public static float sin(float f) {
-        return SINE_TABLE[(int)(f * 10430.378f) & 65535];
+    public static float sin(double value) {
+        return SINE_TABLE[(int)(value * 10430.378) & 65535];
     }
 
     /**
      * @author Alexxiconify (Rust-MC)
-     * @reason Uses fast math lookup tables if 'Native Cosine' is enabled.
+     * @reason LUT-based cos via sine phase shift.
      */
     @Overwrite
-    public static float cos(float f) {
-        return SINE_TABLE[(int)(f * 10430.378f + 16384.0f) & 65535];
+    public static float cos(double value) {
+        return SINE_TABLE[(int)(value * 10430.378 + 16384.0) & 65535];
     }
 
     /**
      * @author Alexxiconify (Rust-MC)
-     * @reason Quake III fast inverse square root wrapped in fast Java to avoid JNI lag.
+     * @reason Double-precision Quake III fast inverse sqrt.
+     * In 1.21.11 the signature changed to double→double.
      */
     @Overwrite
-    public static float fastInverseSqrt(float x) {
-        float halfX = 0.5f * x;
-        int i = Float.floatToIntBits(x);
-        i = 0x5f3759df - (i >> 1); // Quake 3 magic number
-        x = Float.intBitsToFloat(i);
-        return x * (1.5f - halfX * x * x);
+    public static double fastInverseSqrt(double x) {
+        double half = 0.5 * x;
+        long bits = Double.doubleToLongBits(x);
+        bits = 0x5FE6EB50C7B537A9L - (bits >> 1);
+        x = Double.longBitsToDouble(bits);
+        return x * (1.5 - half * x * x);
     }
 
     /**
      * @author Alexxiconify (Rust-MC)
-     * @reason Replaces JIT sqrt.
+     * @reason Scalar sqrt — keeps JVM from boxing to double path.
      */
     @Overwrite
     public static float sqrt(float f) {
@@ -61,16 +61,7 @@ public class MathHelperMixin {
 
     /**
      * @author Alexxiconify (Rust-MC)
-     * @reason Replaces tan with native call block (JVM handles it faster without JNI).
-     */
-    @Overwrite
-    public static float tan(float f) {
-        return (float) Math.tan(f);
-    }
-
-    /**
-     * @author Alexxiconify (Rust-MC)
-     * @reason Fast atan2 block.
+     * @reason Fast atan2.
      */
     @Overwrite
     public static double atan2(double y, double x) {
@@ -79,7 +70,7 @@ public class MathHelperMixin {
 
     /**
      * @author Alexxiconify (Rust-MC)
-     * @reason Fast bitwise floor block.
+     * @reason Bitwise floor avoids branch in (int)cast path.
      */
     @Overwrite
     public static int floor(double d) {

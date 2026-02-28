@@ -4,7 +4,7 @@ import net.minecraft.server.command.CommandManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
@@ -14,15 +14,15 @@ import java.nio.charset.StandardCharsets;
 
 @Mixin(CommandManager.class)
 public class CommandManagerMixin {
-    @Inject(method = "execute(Lcom/mojang/brigadier/ParseResults;Ljava/lang/String;)I", at = @At("HEAD"), cancellable = true)
-    private void onExecute(ParseResults<ServerCommandSource> parseResults, String command, CallbackInfoReturnable<Integer> cir) {
+
+    // In 1.21.11, execute() returns void (not int). Descriptor updated accordingly.
+    @Inject(method = "execute(Lcom/mojang/brigadier/ParseResults;Ljava/lang/String;)V",
+            at = @At("HEAD"), cancellable = true)
+    private void onExecute(ParseResults<ServerCommandSource> parseResults, String command, CallbackInfo ci) {
         if (!NativeBridge.isReady()) return;
         if (!RustMC.CONFIG.isUseNativeCommands()) return;
         byte[] bytes = command.getBytes(StandardCharsets.UTF_8);
         int result = NativeBridge.executeCommand(bytes);
-        // Only cancel vanilla processing if Rust explicitly handled the command (result > 0).
-        if (result > 0) {
-            cir.setReturnValue(result);
-        }
+        if (result > 0) ci.cancel();
     }
 }

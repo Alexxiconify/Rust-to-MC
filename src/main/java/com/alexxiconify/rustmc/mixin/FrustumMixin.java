@@ -18,7 +18,7 @@ public class FrustumMixin {
     private void onIsVisible(Box box, CallbackInfoReturnable<Boolean> cir) {
         // If Sodium, MoreCulling, or an equivalent mod is present, they drastically rewrite
         // the rendering pipeline. We yield to them to prevent conflicts and crashes.
-        if (ModBridge.isLightingOwned() || !NativeBridge.isReady()) {
+        if (ModBridge.isFrustumOwned() || !NativeBridge.isReady()) {
             return;
         }
 

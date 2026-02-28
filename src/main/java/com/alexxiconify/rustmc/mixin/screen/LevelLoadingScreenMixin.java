@@ -11,19 +11,12 @@ import com.alexxiconify.rustmc.RustMC;
 
 @Mixin(LevelLoadingScreen.class)
 public abstract class LevelLoadingScreenMixin {
-    private boolean initialJoin = true;
 
     @Inject(at = @At("HEAD"), method = "render", cancellable = true)
     public void render(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (RustMC.CONFIG.isUseFastLoadingScreen() && !initialJoin) {
+        if (RustMC.CONFIG.isUseFastLoadingScreen()) {
             ci.cancel();
         }
     }
-
-    @Inject(at = @At("HEAD"), method = "removed")
-    public void removed(CallbackInfo ci) {
-        if (RustMC.CONFIG.isUseFastLoadingScreen()) {
-            initialJoin = false;
-        }
-    }
 }
+
