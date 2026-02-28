@@ -1,42 +1,30 @@
 package com.alexxiconify.rustmc;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.MemorySegment;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * NativeCache provides off-heap memory storage for frequently accessed, but rarely modified data.
- * This reduces garbage collection pressure on the JVM by storing the data in Rust/C memory.
+ * NativeCache provides storage for frequently accessed data.
+ * Updated to remove preview FFM API dependencies.
  */
-@SuppressWarnings("preview")
 public class NativeCache {
     private NativeCache() {}
     
-    private static final ConcurrentHashMap<String, Long> POINTER_CACHE = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, byte[]> CACHE = new ConcurrentHashMap<>();
     
     /**
-     * Stores a byte array in off-heap memory and returns a unique handle (string).
+     * Stores a byte array and returns the key.
+     * In a full JNI implementation, this would involve passing to Rust.
      */
-    public static String storeOffHeap(String key, byte[] data) {
-        if (!NativeBridge.isReady()) return null;
-        
-        Arena arena = Arena.ofAuto();
-        MemorySegment segment = arena.allocate(data.length);
-        segment.copyFrom(MemorySegment.ofArray(data));
-        
-        // In a real JNI environment we would pass this segment to Rust to be stored in a global
-        // static OnceLock<HashMap> or similar. For this iteration, we keep the JVM representation
-        // alive via the Auto arena.
-        long address = segment.address();
-        POINTER_CACHE.put(key, address);
-        
+    public static String store(String key, byte[] data) {
+        CACHE.put(key, data);
         return key;
     }
 
-    /**
-     * Simple native cache retrieval simulation.
-     */
+    public static byte[] get(String key) {
+        return CACHE.get(key);
+    }
+
     public static boolean has(String key) {
-        return POINTER_CACHE.containsKey(key);
+        return CACHE.containsKey(key);
     }
 }

@@ -29,7 +29,7 @@ public abstract class SplashOverlayMixin {
             if (this.reloadCompleteTime != -1L) {
                 this.client.setOverlay(null);
             } else {
-                // Draw loaded mods info at the bottom right before fade out
+                if (this.client.textRenderer == null) return;
                 int modsCount = net.fabricmc.loader.api.FabricLoader.getInstance().getAllMods().size();
                 String text = "Rust-MC: Fast Loading - " + modsCount + " Mods Loaded";
                 int textWidth = this.client.textRenderer.getWidth(text);

@@ -1,8 +1,5 @@
 package com.alexxiconify.rustmc.mixin;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
 import net.minecraft.network.handler.PacketDeflater;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -23,7 +20,6 @@ public class PacketDeflaterMixin {
     @Shadow @Final private Deflater deflater;
     @Shadow private int compressionThreshold;
 
-    @SuppressWarnings("preview")
     @Inject(method = "encode", at = @At("HEAD"), cancellable = true)
     private void onEncode(ChannelHandlerContext ctx, ByteBuf in, ByteBuf out, CallbackInfo ci) {
         if (!NativeBridge.isReady() || !RustMC.CONFIG.isUseNativeCompression()) return;
@@ -37,23 +33,14 @@ public class PacketDeflaterMixin {
             return;
         }
 
-        // Worst-case zlib output: input + 50% + 128 byte header
-        int maxOut = readable + (readable >> 1) + 128;
-        try (Arena arena = Arena.ofConfined()) {
-            byte[] inputBytes = new byte[readable];
-            in.getBytes(in.readerIndex(), inputBytes);
+        byte[] inputBytes = new byte[readable];
+        in.getBytes(in.readerIndex(), inputBytes);
 
-            MemorySegment inSeg  = arena.allocate(readable);
-            MemorySegment outSeg = arena.allocate(maxOut);
-            inSeg.copyFrom(MemorySegment.ofArray(inputBytes));
-
-            int compressedLen = NativeBridge.invokeCompress(inSeg, readable, outSeg, maxOut);
-            if (compressedLen > 0) {
-                out.writeInt(readable); // uncompressed size header
-                out.writeBytes(outSeg.asSlice(0, compressedLen).toArray(ValueLayout.JAVA_BYTE));
-                ci.cancel();
-                // fall through to vanilla if compressedLen <= 0
-            }
+        byte[] compressed = NativeBridge.invokeCompress(inputBytes);
+        if (compressed != null && compressed.length > 0) {
+            out.writeInt(readable); // uncompressed size header
+            out.writeBytes(compressed);
+            ci.cancel();
         }
     }
 }

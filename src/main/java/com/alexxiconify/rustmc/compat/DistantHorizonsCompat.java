@@ -15,7 +15,7 @@ public class DistantHorizonsCompat {
             Object graphicsConfig = clientConfig.getClass().getField("graphics").get(clientConfig);
             Object advancedConfig = graphicsConfig.getClass().getField("advanced").get(graphicsConfig);
             java.lang.reflect.Field fadeField = advancedConfig.getClass().getField("fadeNearbyDistantHorizonsLODs");
-            
+            // fadeNearbyDistantHorizonsLODs is a public field in DH config; setAccessible is redundant.
             fadeField.set(advancedConfig, false);
             RustMC.LOGGER.info("[Rust-MC] Set Distant Horizons chunk fade-out to FALSE.");
         } catch (Exception e) {

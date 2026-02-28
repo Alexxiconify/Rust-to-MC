@@ -1,9 +1,11 @@
 package com.iafenvoy.elb.config;
 
-import net.fabricmc.loader.api.FabricLoader;
 import com.alexxiconify.rustmc.RustMC;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import net.fabricmc.loader.api.FabricLoader;
+
+import java.awt.Color;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
@@ -12,11 +14,22 @@ import java.nio.file.Path;
 public class ElbConfig {
     private static ElbConfig instance = null;
 
-    public String logoPath = null;
-    public String barTitle = "Minecraft %version%";
-    public String barMessage = "Minecraft is launching, please wait";
-    public String memoryBarColor = "-65536";
-    public String messageBarColor = "16711935";
+    private String logoPath = "";
+    private String barTitle = "Early Loading Bar %version%";
+    private String barMessage = "Loading Minecraft %version%...";
+    private String memoryBarColor = String.valueOf(Color.RED.getRGB());
+    private String messageBarColor = String.valueOf(Color.MAGENTA.getRGB());
+
+    public String getLogoPath() { return logoPath; }
+    public void setLogoPath(String logoPath) { this.logoPath = logoPath; }
+    public String getBarTitle() { return barTitle; }
+    public void setBarTitle(String barTitle) { this.barTitle = barTitle; }
+    public String getBarMessage() { return barMessage; }
+    public void setBarMessage(String barMessage) { this.barMessage = barMessage; }
+    public String getMemoryBarColor() { return memoryBarColor; }
+    public void setMemoryBarColor(String memoryBarColor) { this.memoryBarColor = memoryBarColor; }
+    public String getMessageBarColor() { return messageBarColor; }
+    public void setMessageBarColor(String messageBarColor) { this.messageBarColor = messageBarColor; }
 
     public static ElbConfig getInstance() {
         if (instance == null) {

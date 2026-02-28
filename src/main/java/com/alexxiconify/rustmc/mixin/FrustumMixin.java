@@ -24,14 +24,16 @@ public class FrustumMixin {
 
         if (RustMC.CONFIG.isUseNativeCulling()) {
             // box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ
-            int result = NativeBridge.invokeFrustumIntersect(
-                box.minX, box.minY, box.minZ, 
-                box.maxX, box.maxY, box.maxZ
-            );
+            int result = -1;
+            try {
+                result = NativeBridge.invokeFrustumIntersect(
+                    box.minX, box.minY, box.minZ, 
+                    box.maxX, box.maxY, box.maxZ
+                );
+            } catch (Exception ignored) {
+                // Fallback to vanilla if native call fails or is not linked
+            }
             
-            // If the native method returns -1, it means the Rust struct wasn't initialized with
-            // the current camera vectors yet, so we fall back to vanilla.
-            // If it returns 0 or 1, we use that boolean result.
             if (result >= 0) {
                 cir.setReturnValue(result == 1);
             }
