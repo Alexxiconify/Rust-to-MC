@@ -23,6 +23,8 @@ public class RustMC implements ModInitializer {
     public void onInitialize() {
         LOGGER.info("[Rust-MC] Initializing...");
         loadConfig();
+        // Attempt to disable DH fade if DH is present
+        com.alexxiconify.rustmc.compat.DistantHorizonsCompat.disableFade();
 
         // Reflect real native status into config so ModMenu Status screen is accurate
         CONFIG.setNativeReady(NativeBridge.isReady());

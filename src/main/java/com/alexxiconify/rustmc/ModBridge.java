@@ -170,24 +170,32 @@ public class ModBridge {
     public static final boolean XAEROZOOMOUT = isMod("xaerozoomout");
     public static final boolean YEETUSEXPERIMENTUS = isMod("yeetusexperimentus");
     public static final boolean YET_ANOTHER_CONFIG_LIB_V3 = isMod("yet_another_config_lib_v3");
+    public static final boolean SERVER_TRANSLATIONS_API = isMod("server_translations_api");
+
+    // Checks executed during startup
+    public static void initialize() {
+        RustMC.LOGGER.info("[Rust-MC] Mod ecosystem detected: Starlight={}, Ferrite={}, Sodium={}, Lithium={}, MoreCulling={}, ScalableLux={}", 
+            STARLIGHT, FERRITECORE, SODIUM, LITHIUM, MORECULLING, SCALABLELUX);
+    }
+
+    public static boolean isStarlightLoaded() { return STARLIGHT; }
+    public static boolean isFerriteCoreLoaded() { return FERRITECORE; }
+    public static boolean isServerTranslationAPILoaded() { return SERVER_TRANSLATIONS_API; }
+    public static boolean isSodiumLoaded() { return SODIUM; }
+    public static boolean isLithiumLoaded() { return LITHIUM; }
+    public static boolean isMoreCullingLoaded() { return MORECULLING; }
+    public static boolean isScalableLuxLoaded() { return SCALABLELUX; }
+
+    /** Returns true if another mod completely owns the lighting threading model. */
+    public static boolean isLightingOwned() {
+        return STARLIGHT || SCALABLELUX || FERRITECORE;
+    }
 
     private static boolean isMod(String id) {
         return FabricLoader.getInstance().isModLoaded(id);
     }
 
     private ModBridge() {}
-
-    /**
-     * Returns true if a rendering/lighting override mod is present.
-     * When true, the native lighting mixin should be disabled so the
-     * other mod can own lighting without interference.
-     */
-    public static boolean isLightingOwned() {
-        return STARLIGHT || SCALABLELUX || MOONRISE || LIGHTY || (SODIUM && RustMC.CONFIG.isBridgeSodium())
-                || C2ME || (IRIS && RustMC.CONFIG.isBridgeIris()) || BADOPTIMIZATIONS
-                || SODIUM_EXTRA || SODIUM_FULLBRIGHT || IMMEDIATELYFAST || MORECULLING
-                || ENTITYCULLING || OPTIPAINTING || FASTIPPING;
-    }
 
     /**
      * Returns true when C2ME controls math/noise so we should skip our hooks.

@@ -12,7 +12,11 @@
     "LightingMixin",
     "PathfindingMixin",
     "LoggingMixin",
-    "DecoderHandlerMixin"
+    "DecoderHandlerMixin",
+    "minihud.RenderUtilsMixin",
+    "ChunkBuilderMixin",
+    "FrustumMixin",
+    "TickLimiterMixin"
   ],
   "client": [
   ],

@@ -15,6 +15,7 @@ public class RustMCConfig {
     private boolean useNativeLighting    = true;
     private boolean useNativeCompression = true;
     private boolean useNativePathfinding = true;
+    private boolean useNativeCulling     = true;
     private boolean useNativeCommands    = false; // experimental – off by default
 
     // Mod bridges
@@ -40,6 +41,7 @@ public class RustMCConfig {
         this.useNativeLighting   = other.useNativeLighting;
         this.useNativeCompression = other.useNativeCompression;
         this.useNativePathfinding = other.useNativePathfinding;
+        this.useNativeCulling    = other.useNativeCulling;
         this.useNativeCommands   = other.useNativeCommands;
         this.bridgeSodium        = other.bridgeSodium;
         this.bridgeStarlight     = other.bridgeStarlight;
@@ -62,6 +64,7 @@ public class RustMCConfig {
     public boolean isUseNativeLighting()   { return useNativeLighting; }
     public boolean isUseNativeCompression(){ return useNativeCompression; }
     public boolean isUseNativePathfinding(){ return useNativePathfinding; }
+    public boolean isUseNativeCulling()    { return useNativeCulling; }
     public boolean isUseNativeCommands()   { return useNativeCommands; }
     public boolean isBridgeSodium()        { return bridgeSodium; }
     public boolean isBridgeStarlight()     { return bridgeStarlight; }
@@ -83,6 +86,7 @@ public class RustMCConfig {
     public void setUseNativeLighting(boolean val)    { this.useNativeLighting = val; }
     public void setUseNativeCompression(boolean val) { this.useNativeCompression = val; }
     public void setUseNativePathfinding(boolean val) { this.useNativePathfinding = val; }
+    public void setUseNativeCulling(boolean val)     { this.useNativeCulling = val; }
     public void setUseNativeCommands(boolean val)    { this.useNativeCommands = val; }
     public void setBridgeSodium(boolean val)         { this.bridgeSodium = val; }
     public void setBridgeStarlight(boolean val)      { this.bridgeStarlight = val; }
