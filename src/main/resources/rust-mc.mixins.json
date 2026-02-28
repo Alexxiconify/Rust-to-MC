@@ -14,11 +14,13 @@
     "PathfindingMixin",
     "DecoderHandlerMixin",
     "BlockStateMixin",
+    "ParticleManagerMixin",
     "minihud.RenderUtilsMixin",
     "FrustumMixin",
     "CrashReportSectionMixin",
     "screen.SplashOverlayMixin",
-    "screen.LevelLoadingScreenMixin"
+    "screen.LevelLoadingScreenMixin",
+    "compat.XaeroMinimapLimiterMixin"
   ],
   "client": [
   ],

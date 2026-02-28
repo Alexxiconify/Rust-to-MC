@@ -18,6 +18,7 @@ public class RustMCConfig {
     private boolean useNativeCulling     = true;
     private boolean useFastLoadingScreen = true;
     private boolean useNativeCommands    = false; // experimental – off by default
+    private boolean limitXaeroMinimap    = true;
 
     // Mod bridges
     private boolean bridgeSodium    = true;
@@ -46,6 +47,7 @@ public class RustMCConfig {
         this.useNativeCulling    = other.useNativeCulling;
         this.useFastLoadingScreen = other.useFastLoadingScreen;
         this.useNativeCommands   = other.useNativeCommands;
+        this.limitXaeroMinimap   = other.limitXaeroMinimap;
         this.bridgeSodium        = other.bridgeSodium;
         this.bridgeStarlight     = other.bridgeStarlight;
         this.bridgeC2ME          = other.bridgeC2ME;
@@ -71,6 +73,7 @@ public class RustMCConfig {
     public boolean isUseNativeCulling()    { return useNativeCulling; }
     public boolean isUseFastLoadingScreen(){ return useFastLoadingScreen; }
     public boolean isUseNativeCommands()   { return useNativeCommands; }
+    public boolean isLimitXaeroMinimap()   { return limitXaeroMinimap; }
     public boolean isBridgeSodium()        { return bridgeSodium; }
     public boolean isBridgeStarlight()     { return bridgeStarlight; }
     public boolean isBridgeC2ME()          { return bridgeC2ME; }
@@ -95,6 +98,7 @@ public class RustMCConfig {
     public void setUseNativeCulling(boolean val)     { this.useNativeCulling = val; }
     public void setUseFastLoadingScreen(boolean val) { this.useFastLoadingScreen = val; }
     public void setUseNativeCommands(boolean val)    { this.useNativeCommands = val; }
+    public void setLimitXaeroMinimap(boolean val)    { this.limitXaeroMinimap = val; }
     public void setBridgeSodium(boolean val)         { this.bridgeSodium = val; }
     public void setBridgeStarlight(boolean val)      { this.bridgeStarlight = val; }
     public void setBridgeC2ME(boolean val)           { this.bridgeC2ME = val; }

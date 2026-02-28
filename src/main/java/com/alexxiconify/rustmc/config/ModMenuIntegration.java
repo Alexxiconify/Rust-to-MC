@@ -130,6 +130,9 @@ public class ModMenuIntegration implements ModMenuApi {
                 Currently a no-op (Rust returns -1 so vanilla always runs).
                 Leave OFF unless testing custom command interception.""",
                 cfg::isUseNativeCommands, v -> cfg.setUseNativeCommands(v != null && v)))
+            .option(buildBooleanOption("Limit Xaero Minimap", 
+                "Limits Xaero's Minimap rendering to roughly standard frame times to save CPU/GPU.",
+                cfg::isLimitXaeroMinimap, v -> cfg.setLimitXaeroMinimap(v != null && v)))
             .build();
     }
 
