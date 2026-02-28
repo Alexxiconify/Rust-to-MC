@@ -38,6 +38,7 @@ public class NativeBridge {
     private static MethodHandle findPath            = null;
     private static MethodHandle executeCommand      = null;
     private static MethodHandle frustumIntersect    = null;
+    private static MethodHandle getSystemMemory     = null;
 
     /** Shared confined arena for hot-path allocations (single-threaded callers). */
     public static final Arena SHARED_ARENA = Arena.ofShared();
@@ -97,6 +98,8 @@ public class NativeBridge {
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
             frustumIntersect = createHandle("rust_frustum_intersect",
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE, ValueLayout.JAVA_DOUBLE)); // Added frustumIntersect lookup
+            getSystemMemory = createHandle("rust_get_system_memory",
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS));
 
             libLoaded = true;
             RustMC.LOGGER.info("[Rust-MC] Native library loaded successfully.");
@@ -221,6 +224,12 @@ public class NativeBridge {
     public static int executeCommand(MemorySegment cmd, int len) {
         try { return (int) executeCommand.invokeExact(cmd, len); }
         catch (Throwable t) { return -1; }
+    }
+
+    public static void getSystemMemory(MemorySegment outTotal, MemorySegment outUsed) {
+        if (!libLoaded || getSystemMemory == null) return;
+        try { getSystemMemory.invokeExact(outTotal, outUsed); }
+        catch (Throwable ignored) { /* Native call failed */ }
     }
 
     /**

@@ -3,14 +3,20 @@ package com.alexxiconify.rustmc;
 import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.filter.AbstractFilter;
 import org.apache.logging.log4j.core.LogEvent;
 
 public class PreLaunchHandler implements PreLaunchEntrypoint {
+    public static final Logger LOGGER = LogManager.getLogger("Rust-MC/PreLaunch");
+
     @Override
     public void onPreLaunch() {
+        if (isWindows() && net.fabricmc.loader.api.FabricLoader.getInstance().getEnvironmentType() == net.fabricmc.api.EnvType.CLIENT) {
+            com.iafenvoy.elb.gui.PreLaunchWindow.display();
+        }
         try {
             LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
             Configuration config = ctx.getConfiguration();
@@ -45,5 +51,9 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
             }
         }
         return false;
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name").toLowerCase().contains("windows");
     }
 }

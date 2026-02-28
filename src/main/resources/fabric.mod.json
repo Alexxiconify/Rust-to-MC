@@ -15,11 +15,11 @@
   "icon": "assets/rust-mc/icon.png",
   "environment": "*",
   "entrypoints": {
-    "main": [
-      "com.alexxiconify.rustmc.RustMC"
-    ],
     "preLaunch": [
       "com.alexxiconify.rustmc.PreLaunchHandler"
+    ],
+    "main": [
+      "com.alexxiconify.rustmc.RustMC"
     ],
     "modmenu": [
       "com.alexxiconify.rustmc.config.ModMenuIntegration"

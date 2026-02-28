@@ -1,43 +1,25 @@
 package com.alexxiconify.rustmc.compat;
 
 import com.alexxiconify.rustmc.RustMC;
-
-import java.lang.reflect.Method;
+import net.fabricmc.loader.api.FabricLoader;
 
 public class DistantHorizonsCompat {
     private DistantHorizonsCompat() {}
 
     public static void disableFade() {
+        if (!FabricLoader.getInstance().isModLoaded("distant-horizons")) return;
         try {
-            // Attempt to use DH API to disable LOD fade as requested
-            Class<?> apiClass = Class.forName("com.seibel.distanthorizons.api.DistantHorizonsAPI");
+            // Target: Config.CLIENT.graphics.advanced.fadeNearbyDistantHorizonsLODs
+            Class<?> configClass = Class.forName("com.seibel.distanthorizons.core.config.Config");
+            Object clientConfig = configClass.getField("CLIENT").get(null);
+            Object graphicsConfig = clientConfig.getClass().getField("graphics").get(clientConfig);
+            Object advancedConfig = graphicsConfig.getClass().getField("advanced").get(graphicsConfig);
+            java.lang.reflect.Field fadeField = advancedConfig.getClass().getField("fadeNearbyDistantHorizonsLODs");
             
-            // Accessing configuration through the generic interface hierarchy
-            Object interfaces = apiClass.getMethod("getInterfaces").invoke(null);
-            
-            Method getConfigMethod = interfaces.getClass().getMethod("getConfig");
-            Object config = getConfigMethod.invoke(interfaces);
-            
-            Object clientConfig = config.getClass().getMethod("getClient").invoke(config);
-            Object graphicsConfig = clientConfig.getClass().getMethod("getGraphics").invoke(clientConfig);
-            Object advanced = graphicsConfig.getClass().getMethod("getAdvancedGraphicsFeatures").invoke(graphicsConfig);
-            
-            disableFadeImpl(advanced);
-            RustMC.LOGGER.info("[Rust-MC] Distant Horizons fade disabled via API.");
+            fadeField.set(advancedConfig, false);
+            RustMC.LOGGER.info("[Rust-MC] Set Distant Horizons chunk fade-out to FALSE.");
         } catch (Exception e) {
-            RustMC.LOGGER.warn("[Rust-MC] Failed to disable Distant Horizons fade via API: {}", e.getMessage());
-        }
-    }
-
-    private static void disableFadeImpl(Object advanced) {
-        try {
-            // Set the specific lod fade setting config value to false
-            Object lodFadeSetting = advanced.getClass().getMethod("getLodFade").invoke(advanced);
-            if (lodFadeSetting != null) {
-                lodFadeSetting.getClass().getMethod("setValue", Object.class).invoke(lodFadeSetting, false);
-            }
-        } catch (Exception e) {
-            RustMC.LOGGER.warn("[Rust-MC] Could not find getLodFade in DH API, trying fallback.", e);
+            RustMC.LOGGER.warn("[Rust-MC] Failed to disable Distant Horizons chunk fade via reflection: {}", e.getMessage());
         }
     }
 }

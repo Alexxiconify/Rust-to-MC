@@ -30,6 +30,7 @@ public class ModMenuIntegration implements ModMenuApi {
                 .category(buildMathCategory(cfg))
                 .category(buildFeaturesCategory(cfg))
                 .category(buildBridgesCategory(cfg))
+                .category(buildElbCategory())
                 .category(buildDevCategory(cfg))
                 .save(RustMC::saveConfig)
                 .build()
@@ -151,6 +152,35 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildBooleanOption("Lithium Bridge", 
                 "When ON and Lithium is installed, disables the native pathfinding hook so Lithium owns it.",
                 cfg::isBridgeLithium, v -> cfg.setBridgeLithium(v != null && v)))
+            .option(buildBooleanOption("Disable DH Chunk Fade", 
+                "Disables the LOD fade-out effect in Distant Horizons for a sharper (but snappier) look.",
+                cfg::isDisableDhFade, v -> cfg.setDisableDhFade(v != null && v)))
+            .build();
+    }
+
+    private ConfigCategory buildElbCategory() {
+        com.iafenvoy.elb.config.ElbConfig elb = com.iafenvoy.elb.config.ElbConfig.getInstance();
+        return ConfigCategory.createBuilder()
+            .name(Text.literal("Early Loading Bar"))
+            .tooltip(Text.literal("Customize the pre-launch window appearance."))
+            .option(Option.<String>createBuilder()
+                .name(Text.literal("Window Title"))
+                .description(OptionDescription.of(Text.literal("The title of the pre-launch window. Use %version% for MC version.")))
+                .binding("Minecraft %version%", () -> elb.barTitle, val -> elb.barTitle = val)
+                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
+                .build())
+            .option(Option.<String>createBuilder()
+                .name(Text.literal("Loading Message"))
+                .description(OptionDescription.of(Text.literal("The text shown below the progress bars.")))
+                .binding("Minecraft is launching, please wait", () -> elb.barMessage, val -> elb.barMessage = val)
+                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
+                .build())
+            .option(Option.<String>createBuilder()
+                .name(Text.literal("Logo Path"))
+                .description(OptionDescription.of(Text.literal("Absolute path to a custom .png or .jpg logo (optional).")))
+                .binding(null, () -> elb.logoPath, val -> elb.logoPath = val)
+                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
+                .build())
             .build();
     }
 

@@ -23,8 +23,10 @@ public class RustMC implements ModInitializer {
     public void onInitialize() {
         LOGGER.info("[Rust-MC] Initializing...");
         loadConfig();
-        // Attempt to disable DH fade if DH is present
-        com.alexxiconify.rustmc.compat.DistantHorizonsCompat.disableFade();
+        // Attempt to disable DH fade if enabled and DH is present
+        if (CONFIG.isDisableDhFade()) {
+            com.alexxiconify.rustmc.compat.DistantHorizonsCompat.disableFade();
+        }
 
         // Reflect real native status into config so ModMenu Status screen is accurate
         CONFIG.setNativeReady(NativeBridge.isReady());
@@ -39,6 +41,12 @@ public class RustMC implements ModInitializer {
             });
         } else {
             LOGGER.warn("[Rust-MC] Native library not available – running in vanilla-fallback mode.");
+        }
+
+        // Close Early Loading Bar if it's still open
+        if (FabricLoader.getInstance().getEnvironmentType() == net.fabricmc.api.EnvType.CLIENT) {
+            net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STARTED.register(client ->
+                com.iafenvoy.elb.gui.PreLaunchWindow.remove());
         }
 
         LOGGER.info("[Rust-MC] Ready.");
@@ -63,6 +71,7 @@ public class RustMC implements ModInitializer {
     public static void saveConfig() {
         try {
             Files.writeString(CONFIG_PATH, GSON.toJson(CONFIG));
+            com.iafenvoy.elb.config.ElbConfig.getInstance().save();
         } catch (IOException e) {
             LOGGER.error("[Rust-MC] Failed to save config", e);
         }

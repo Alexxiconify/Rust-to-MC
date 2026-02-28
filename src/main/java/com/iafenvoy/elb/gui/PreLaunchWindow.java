@@ -1,107 +1,130 @@
 package com.iafenvoy.elb.gui;
 
+import com.alexxiconify.rustmc.NativeBridge;
+import com.alexxiconify.rustmc.RustMC;
 import com.iafenvoy.elb.config.ElbConfig;
+import net.fabricmc.loader.api.FabricLoader;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-import java.nio.file.FileSystems;
+import java.io.InputStream;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
-import java.util.Objects;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
-public class PreLaunchWindow {
-    private static final JDialog frame = new JDialog();
-    private static boolean disposed = false;
+public class PreLaunchWindow extends JFrame {
+    private static PreLaunchWindow instance;
+    private final JProgressBar modBar;
+    private final JProgressBar memoryBar;
+    private final JLabel messageLabel;
+    private boolean disposed = false;
 
-    static {
-        frame.setTitle(ElbConfig.getInstance().barTitle);
-        frame.setResizable(false);
-        frame.setSize(300, 110); // Increased height for second bar
-        frame.setLocationRelativeTo(null);
-        frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-        frame.setAlwaysOnTop(true);
-        frame.setLayout(new GridLayout(3, 1)); // Use grid layout for 3 components (RAM, Progress, Mods)
-        frame.addKeyListener(new PreLaunchWindowKeyListener());
-        
-        if (ElbConfig.getInstance().logoPath != null && Files.exists(FileSystems.getDefault().getPath(ElbConfig.getInstance().logoPath), LinkOption.NOFOLLOW_LINKS))
-            frame.setIconImage(new ImageIcon(ElbConfig.getInstance().logoPath).getImage());
-        else {
-            java.net.URL iconUrl = PreLaunchWindow.class.getResource("/minecraft_256x256.png");
-            if (iconUrl != null) frame.setIconImage(new ImageIcon(iconUrl).getImage());
+    public PreLaunchWindow() {
+        ElbConfig config = ElbConfig.getInstance();
+        setTitle(config.barTitle);
+        setUndecorated(true);
+        setSize(400, 150);
+        setLocationRelativeTo(null);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
+
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        panel.setBackground(new Color(45, 45, 45));
+
+        if (config.logoPath != null && !config.logoPath.isEmpty()) {
+            try {
+                Path path = Paths.get(config.logoPath);
+                if (Files.exists(path)) {
+                    ImageIcon icon = new ImageIcon(path.toString());
+                    Image img = icon.getImage().getScaledInstance(100, 100, Image.SCALE_SMOOTH);
+                    JLabel logoLabel = new JLabel(new ImageIcon(img));
+                    logoLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+                    panel.add(logoLabel);
+                }
+            } catch (Exception e) {
+                RustMC.LOGGER.error("Failed to load custom logo", e);
+            }
         }
 
-        JProgressBar memoryBar = new JProgressBar();
-        memoryBar.setStringPainted(true);
-        memoryBar.setBackground(Color.DARK_GRAY);
-        memoryBar.setForeground(new Color(0xAA0000)); // Darker red
-        frame.add(memoryBar);
-
-        JProgressBar modBar = new JProgressBar();
+        modBar = new JProgressBar(0, 100);
         modBar.setStringPainted(true);
-        modBar.setBackground(Color.DARK_GRAY);
-        modBar.setForeground(new Color(0x00AA00)); // Green for mods
-        frame.add(modBar);
+        modBar.setForeground(new Color(Integer.parseInt(config.messageBarColor)));
+        panel.add(modBar);
 
-        JProgressBar statusProgress = new JProgressBar();
-        statusProgress.setIndeterminate(true);
-        statusProgress.setBackground(Color.DARK_GRAY);
-        statusProgress.setForeground(new Color(0x0000AA)); // Blue
-        statusProgress.setStringPainted(true);
-        statusProgress.setString(ElbConfig.getInstance().barMessage);
-        frame.add(statusProgress);
+        panel.add(Box.createVerticalStrut(10));
+
+        memoryBar = new JProgressBar(0, 100);
+        memoryBar.setStringPainted(true);
+        memoryBar.setForeground(new Color(Integer.parseInt(config.memoryBarColor)));
+        panel.add(memoryBar);
+
+        panel.add(Box.createVerticalStrut(10));
+
+        messageLabel = new JLabel(config.barMessage);
+        messageLabel.setForeground(Color.WHITE);
+        messageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panel.add(messageLabel);
+
+        add(panel, BorderLayout.CENTER);
 
         new Thread(() -> {
-            int totalMods = net.fabricmc.loader.api.FabricLoader.getInstance().getAllMods().size();
-            modBar.setMaximum(totalMods);
-            modBar.setValue(totalMods); // Since we are in PreLaunch, metadata is already there
-            modBar.setString("Mods Detected: " + totalMods);
+            try (java.lang.foreign.Arena arena = java.lang.foreign.Arena.ofConfined()) {
+                java.lang.foreign.MemorySegment totalPtr = arena.allocate(java.lang.foreign.ValueLayout.JAVA_LONG);
+                java.lang.foreign.MemorySegment usedPtr = arena.allocate(java.lang.foreign.ValueLayout.JAVA_LONG);
 
-            while (!disposed) {
-                long memMax = Runtime.getRuntime().maxMemory();
-                long memUsed = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-                long maxInMb = bytesToMb(memMax);
-                long usedInMb = bytesToMb(memUsed);
-                memoryBar.setMaximum((int) maxInMb);
-                memoryBar.setValue((int) usedInMb);
-                memoryBar.setString(String.format("RAM: %d/%d MB", usedInMb, maxInMb));
-                
-                try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+                while (!disposed) {
+                    com.alexxiconify.rustmc.NativeBridge.getSystemMemory(totalPtr, usedPtr);
+                    long maxInMb = totalPtr.get(java.lang.foreign.ValueLayout.JAVA_LONG, 0);
+                    long usedInMb = usedPtr.get(java.lang.foreign.ValueLayout.JAVA_LONG, 0);
+
+                    if (maxInMb > 0) {
+                        memoryBar.setMaximum((int) maxInMb);
+                        memoryBar.setValue((int) usedInMb);
+                        memoryBar.setString(String.format("RAM: %d/%d MB (System)", usedInMb, maxInMb));
+                    } else {
+                        long memMax = Runtime.getRuntime().maxMemory();
+                        long memUsed = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+                        memoryBar.setMaximum((int) (memMax / 1024 / 1024));
+                        memoryBar.setValue((int) (memUsed / 1024 / 1024));
+                        memoryBar.setString(String.format("RAM: %d/%d MB (JVM)", memUsed / 1024 / 1024, memMax / 1024 / 1024));
+                    }
+
+                    try { Thread.sleep(100); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                }
+            } catch (Exception e) {
+                while (!disposed) {
+                    long memMax = Runtime.getRuntime().maxMemory();
+                    long memUsed = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+                    memoryBar.setMaximum((int) (memMax / 1024 / 1024));
+                    memoryBar.setValue((int) (memUsed / 1024 / 1024));
+                    memoryBar.setString(String.format("RAM: %d/%d MB (JVM)", memUsed / 1024 / 1024, memMax / 1024 / 1024));
+                    try { Thread.sleep(100); } catch (InterruptedException ex) { Thread.currentThread().interrupt(); }
+                }
             }
         }).start();
     }
 
     public static void display() {
-        if (disposed) throw new IllegalStateException("Pre-launch window has been disposed!");
-        frame.setVisible(true);
-    }
-
-    public static void remove() {
-        if (disposed) return;
-        frame.setVisible(false);
-        frame.dispose();
-        disposed = true;
-    }
-
-    public static class PreLaunchWindowKeyListener extends KeyAdapter {
-        private static Tetris tetris = null;
-
-        @Override
-        public void keyTyped(KeyEvent e) {
-            if (e.getKeyChar() == 't' && tetris == null) {
-                tetris = new Tetris();
-                tetris.setAlwaysOnTop(true);
-                tetris.setVisible(true);
-            }
+        if (instance == null) {
+            instance = new PreLaunchWindow();
+            instance.setVisible(true);
         }
     }
 
-    public static void main(String[] args) {
-        display();
+    public static void remove() {
+        if (instance != null) {
+            instance.disposed = true;
+            instance.dispose();
+            instance = null;
+        }
     }
 
-    private static long bytesToMb(long bytes) {
-        return bytes / 1024L / 1024L;
+    public static void updateProgress(int progress, String message) {
+        if (instance != null) {
+            instance.modBar.setValue(progress);
+            if (message != null) instance.messageLabel.setText(message);
+        }
     }
 }

@@ -25,6 +25,7 @@ public class RustMCConfig {
     private boolean bridgeC2ME      = true;
     private boolean bridgeIris      = true;
     private boolean bridgeLithium   = true;
+    private boolean disableDhFade  = true;
 
     // Developer
     private boolean silenceLogs = true;
@@ -50,6 +51,7 @@ public class RustMCConfig {
         this.bridgeC2ME          = other.bridgeC2ME;
         this.bridgeIris          = other.bridgeIris;
         this.bridgeLithium       = other.bridgeLithium;
+        this.disableDhFade       = other.disableDhFade;
         this.silenceLogs         = other.silenceLogs;
         this.nativeReady         = other.nativeReady;
     }
@@ -74,6 +76,7 @@ public class RustMCConfig {
     public boolean isBridgeC2ME()          { return bridgeC2ME; }
     public boolean isBridgeIris()          { return bridgeIris; }
     public boolean isBridgeLithium()       { return bridgeLithium; }
+    public boolean isDisableDhFade()       { return disableDhFade; }
     public boolean isSilenceLogs()         { return silenceLogs; }
     public boolean isNativeReady()         { return nativeReady; }
 
@@ -97,6 +100,7 @@ public class RustMCConfig {
     public void setBridgeC2ME(boolean val)           { this.bridgeC2ME = val; }
     public void setBridgeIris(boolean val)           { this.bridgeIris = val; }
     public void setBridgeLithium(boolean val)        { this.bridgeLithium = val; }
+    public void setDisableDhFade(boolean val)        { this.disableDhFade = val; }
     public void setSilenceLogs(boolean val)          { this.silenceLogs = val; }
     public void setNativeReady(boolean val)          { this.nativeReady = val; }
 }
