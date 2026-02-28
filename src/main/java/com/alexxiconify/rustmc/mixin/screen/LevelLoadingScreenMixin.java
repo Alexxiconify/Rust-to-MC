@@ -1,14 +1,13 @@
 package com.alexxiconify.rustmc.mixin.screen;
 
+import com.alexxiconify.rustmc.RustMC;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.world.LevelLoadingScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
-import com.alexxiconify.rustmc.RustMC;
-import net.minecraft.client.MinecraftClient;
 
 @Mixin(LevelLoadingScreen.class)
 public abstract class LevelLoadingScreenMixin {
@@ -23,7 +22,6 @@ public abstract class LevelLoadingScreenMixin {
         int w = context.getScaledWindowWidth();
         int h = context.getScaledWindowHeight();
 
-        // --- RAM bar ---
         long used = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
         long max  = Runtime.getRuntime().maxMemory();
         float ratio = (float) used / max;
@@ -31,21 +29,18 @@ public abstract class LevelLoadingScreenMixin {
         int barW = Math.min(400, w - 20);
         int barH = 5;
         int bx   = (w - barW) / 2;
-        int by   = h - 24;
+        int by   = h - 22;
 
-        context.fill(bx, by, bx + barW, by + barH, 0xFF1A1A1A);
-        int fill = ramColor(ratio);
-        context.fill(bx, by, bx + (int)(barW * ratio), by + barH, fill);
+        context.fill(bx, by, bx + barW, by + barH, RustMC.CONFIG.getLoadingBarBgColor());
+        context.fill(bx, by, bx + (int)(barW * ratio), by + barH, ramColor(ratio));
 
-        // RAM label
-        String ramText = String.format("RAM %dMB / %dMB (%.0f%%)",
-                used >> 20, max >> 20, ratio * 100f);
-        context.drawCenteredTextWithShadow(client.textRenderer, ramText, w / 2, by + barH + 3, 0xDDFFFF);
+        String ramText = String.format("RAM %dMB / %dMB (%.0f%%)", used >> 20, max >> 20, ratio * 100f);
+        context.drawCenteredTextWithShadow(client.textRenderer, ramText, w / 2, by + barH + 2, RustMC.CONFIG.getLoadingBarTextColor());
     }
 
-    private static int ramColor(float r) {
-        if (r < 0.6f) return 0xFF22AA44;
-        if (r < 0.8f) return 0xFFCCAA00;
-        return 0xFFCC2222;
+    private int ramColor(float r) {
+        if (r < 0.6f) return RustMC.CONFIG.getLoadingBarLowColor();
+        if (r < 0.8f) return RustMC.CONFIG.getLoadingBarMidColor();
+        return RustMC.CONFIG.getLoadingBarHighColor();
     }
 }

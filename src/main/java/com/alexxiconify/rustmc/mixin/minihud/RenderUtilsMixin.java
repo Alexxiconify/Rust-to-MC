@@ -16,66 +16,57 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class RenderUtilsMixin {
     private RenderUtilsMixin() {}
 
-    // In a production mod we'd probably use Redirects, but for direct hook injecting to
-    // cancel massive wireframes, we intercept HEAD and cleanly cancel execution if too far away.
-    
-    @SuppressWarnings("all") // Suppress Mixin 13 parameter warning count which matches the target
-    // Target drawOutlinedBox to cull MiniHUD/Litematica shapes that are too far away
-    @Inject(method = "drawOutlinedBox(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumer;DDDDDDFFFF)V", at = @At("HEAD"), cancellable = true, require = 0)
-    private static void cullOutlinedBox(MatrixStack matrices, VertexConsumer consumer, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, float r, float g, float b, float a, CallbackInfo ci) {
+    /** Returns viewDist^2 (with +32 block pad), or -1 if no camera entity. */
+    private static double cullRadiusSq() {
         MinecraftClient mc = MinecraftClient.getInstance();
-        Entity camera = mc.getCameraEntity();
-        if (camera != null) {
-            double centerX = (minX + maxX) * 0.5;
-            double centerY = (minY + maxY) * 0.5;
-            double centerZ = (minZ + maxZ) * 0.5;
-            double distSq = camera.squaredDistanceTo(centerX, centerY, centerZ);
-            double viewDist = mc.options.getClampedViewDistance() * 16.0;
-            // Pad by 32 blocks so edges of render distance aren't harsh
-            double cullDist = viewDist + 32.0;
-            if (distSq > cullDist * cullDist) {
-                ci.cancel();
-            }
-        }
+        Entity cam = mc.getCameraEntity();
+        if (cam == null) return -1;
+        double d = mc.options.getClampedViewDistance() * 16.0 + 32.0;
+        return d * d;
+    }
+
+    @SuppressWarnings("all")
+    @Inject(method = "drawOutlinedBox(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumer;DDDDDDFFFF)V",
+            at = @At("HEAD"), cancellable = true, require = 0)
+    private static void cullOutlinedBox(MatrixStack matrices, VertexConsumer consumer,
+            double minX, double minY, double minZ,
+            double maxX, double maxY, double maxZ,
+            float r, float g, float b, float a, CallbackInfo ci) {
+        double rSq = cullRadiusSq();
+        if (rSq < 0) return;
+        MinecraftClient mc = MinecraftClient.getInstance();
+        Entity cam = mc.getCameraEntity();
+        double cx = (minX + maxX) * 0.5, cy = (minY + maxY) * 0.5, cz = (minZ + maxZ) * 0.5;
+        if (cam.squaredDistanceTo(cx, cy, cz) > rSq) ci.cancel();
     }
 
     @SuppressWarnings("all")
     @Inject(method = "drawBoxAllSides", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void drawBoxAllSides(
+    private static void cullDrawBoxAllSides(
             double minX, double minY, double minZ,
             double maxX, double maxY, double maxZ,
             CallbackInfo ci) {
+        double rSq = cullRadiusSq();
+        if (rSq < 0) return;
         MinecraftClient mc = MinecraftClient.getInstance();
-        Entity camera = mc.getCameraEntity();
-        if (camera == null) return;
-        double centerX = (minX + maxX) / 2.0;
-        double centerY = (minY + maxY) / 2.0;
-        double centerZ = (minZ + maxZ) / 2.0;
-        double distSq = camera.squaredDistanceTo(centerX, centerY, centerZ);
-        int rd = mc.options.getClampedViewDistance() * 16;
-        if (distSq > (rd * rd)) ci.cancel();
+        Entity cam = mc.getCameraEntity();
+        double cx = (minX + maxX) * 0.5, cy = (minY + maxY) * 0.5, cz = (minZ + maxZ) * 0.5;
+        if (cam.squaredDistanceTo(cx, cy, cz) > rSq) ci.cancel();
     }
 
     @SuppressWarnings("all")
     @Inject(method = "drawLine", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
-    private static void drawLine(
+    private static void cullDrawLine(
             double x1, double y1, double z1,
             double x2, double y2, double z2,
             float r, float g, float b, float a,
             org.joml.Matrix4f matrix, org.joml.Matrix4f normalMatrix,
             VertexConsumer buffer, CallbackInfo ci) {
+        double rSq = cullRadiusSq();
+        if (rSq < 0) return;
         MinecraftClient mc = MinecraftClient.getInstance();
-        Entity camera = mc.getCameraEntity();
-        if (camera != null) {
-            double centerX = (x1 + x2) * 0.5;
-            double centerY = (y1 + y2) * 0.5;
-            double centerZ = (z1 + z2) * 0.5;
-            double distSq = camera.squaredDistanceTo(centerX, centerY, centerZ);
-            double viewDist = mc.options.getClampedViewDistance() * 16.0;
-            double cullDist = viewDist + 32.0;
-            if (distSq > cullDist * cullDist) {
-                ci.cancel();
-            }
-        }
+        Entity cam = mc.getCameraEntity();
+        double cx = (x1 + x2) * 0.5, cy = (y1 + y2) * 0.5, cz = (z1 + z2) * 0.5;
+        if (cam.squaredDistanceTo(cx, cy, cz) > rSq) ci.cancel();
     }
 }

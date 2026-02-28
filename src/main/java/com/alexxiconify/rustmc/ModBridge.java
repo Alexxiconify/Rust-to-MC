@@ -87,6 +87,7 @@ public class ModBridge {
     public static final boolean FUSION = isMod("fusion");
     public static final boolean FZZY_CONFIG = isMod("fzzy_config");
     public static final boolean GNETUM = isMod("gnetum");
+    public static final boolean REESES_SODIUM = isMod("reeses-sodium-options");
     public static final boolean HELD_ITEM_INFO = isMod("held-item-info");
     public static final boolean IMMEDIATELYFAST = isMod("immediatelyfast");
     public static final boolean IXERIS = isMod("ixeris");
@@ -226,6 +227,16 @@ public class ModBridge {
      */
     public static boolean isFrustumOwned() {
         return SODIUM || MORECULLING_MOD || DISTANT_HORIZONS;
+    }
+
+    /** Gnetum owns HUD frame distribution — yield to it for HUD rendering. */
+    public static boolean isHudOwned() {
+        return GNETUM;
+    }
+
+    /** Reese's Sodium Options / Sodium Extra integrate Iris+visual configs in Sodium UI. */
+    public static boolean isVisualConfigIntegrated() {
+        return REESES_SODIUM || SODIUM_EXTRA;
     }
 
 }

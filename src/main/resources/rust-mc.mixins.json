@@ -20,7 +20,8 @@
     "CrashReportSectionMixin",
     "screen.SplashOverlayMixin",
     "screen.LevelLoadingScreenMixin",
-    "compat.XaeroMinimapLimiterMixin"
+    "compat.XaeroMinimapLimiterMixin",
+    "compat.MiniHUDLightUpdateMixin"
   ],
   "client": [
   ],

@@ -17,7 +17,7 @@ public class RustMCConfig {
     private boolean useNativePathfinding = true;
     private boolean useNativeCulling     = true;
     private boolean useFastLoadingScreen = true;
-    private boolean useNativeCommands    = false; // experimental – off by default
+    private boolean useNativeCommands    = false;
     private boolean limitXaeroMinimap    = true;
 
     // Mod bridges
@@ -26,85 +26,111 @@ public class RustMCConfig {
     private boolean bridgeC2ME      = true;
     private boolean bridgeIris      = true;
     private boolean bridgeLithium   = true;
-    private boolean disableDhFade  = true;
+    private boolean disableDhFade   = true;
+
+    // Loading screen colors (ARGB int)
+    private int loadingBarBgColor      = 0xFF1A1A1A;
+    private int loadingBarLowColor     = 0xFF22AA44;
+    private int loadingBarMidColor     = 0xFFCCAA00;
+    private int loadingBarHighColor    = 0xFFCC2222;
+    private int loadingBarTextColor    = 0xDDFFFFFF;
+    private int loadingBarSubtextColor = 0x9900FFFF;
 
     // Developer
     private boolean silenceLogs = true;
     private boolean nativeReady = false;
 
-    public void copyFrom(RustMCConfig other) {
-        this.useNativeSine       = other.useNativeSine;
-        this.useNativeCos        = other.useNativeCos;
-        this.useNativeSqrt       = other.useNativeSqrt;
-        this.useNativeInvSqrt    = other.useNativeInvSqrt;
-        this.useNativeTan        = other.useNativeTan;
-        this.useNativeAtan2      = other.useNativeAtan2;
-        this.useNativeFloor      = other.useNativeFloor;
-        this.useNativeNoise      = other.useNativeNoise;
-        this.useNativeLighting   = other.useNativeLighting;
-        this.useNativeCompression = other.useNativeCompression;
-        this.useNativePathfinding = other.useNativePathfinding;
-        this.useNativeCulling    = other.useNativeCulling;
-        this.useFastLoadingScreen = other.useFastLoadingScreen;
-        this.useNativeCommands   = other.useNativeCommands;
-        this.limitXaeroMinimap   = other.limitXaeroMinimap;
-        this.bridgeSodium        = other.bridgeSodium;
-        this.bridgeStarlight     = other.bridgeStarlight;
-        this.bridgeC2ME          = other.bridgeC2ME;
-        this.bridgeIris          = other.bridgeIris;
-        this.bridgeLithium       = other.bridgeLithium;
-        this.disableDhFade       = other.disableDhFade;
-        this.silenceLogs         = other.silenceLogs;
-        this.nativeReady         = other.nativeReady;
+    public void copyFrom(RustMCConfig o) {
+        useNativeSine         = o.useNativeSine;
+        useNativeCos          = o.useNativeCos;
+        useNativeSqrt         = o.useNativeSqrt;
+        useNativeInvSqrt      = o.useNativeInvSqrt;
+        useNativeTan          = o.useNativeTan;
+        useNativeAtan2        = o.useNativeAtan2;
+        useNativeFloor        = o.useNativeFloor;
+        useNativeNoise        = o.useNativeNoise;
+        useNativeLighting     = o.useNativeLighting;
+        useNativeCompression  = o.useNativeCompression;
+        useNativePathfinding  = o.useNativePathfinding;
+        useNativeCulling      = o.useNativeCulling;
+        useFastLoadingScreen  = o.useFastLoadingScreen;
+        useNativeCommands     = o.useNativeCommands;
+        limitXaeroMinimap     = o.limitXaeroMinimap;
+        bridgeSodium          = o.bridgeSodium;
+        bridgeStarlight       = o.bridgeStarlight;
+        bridgeC2ME            = o.bridgeC2ME;
+        bridgeIris            = o.bridgeIris;
+        bridgeLithium         = o.bridgeLithium;
+        disableDhFade         = o.disableDhFade;
+        loadingBarBgColor     = o.loadingBarBgColor;
+        loadingBarLowColor    = o.loadingBarLowColor;
+        loadingBarMidColor    = o.loadingBarMidColor;
+        loadingBarHighColor   = o.loadingBarHighColor;
+        loadingBarTextColor   = o.loadingBarTextColor;
+        loadingBarSubtextColor = o.loadingBarSubtextColor;
+        silenceLogs           = o.silenceLogs;
+        nativeReady           = o.nativeReady;
     }
 
     // Getters
-    public boolean isUseNativeSine()       { return useNativeSine; }
-    public boolean isUseNativeCos()        { return useNativeCos; }
-    public boolean isUseNativeSqrt()       { return useNativeSqrt; }
-    public boolean isUseNativeInvSqrt()    { return useNativeInvSqrt; }
-    public boolean isUseNativeTan()        { return useNativeTan; }
-    public boolean isUseNativeAtan2()      { return useNativeAtan2; }
-    public boolean isUseNativeFloor()      { return useNativeFloor; }
-    public boolean isUseNativeNoise()      { return useNativeNoise; }
-    public boolean isUseNativeLighting()   { return useNativeLighting; }
-    public boolean isUseNativeCompression(){ return useNativeCompression; }
-    public boolean isUseNativePathfinding(){ return useNativePathfinding; }
-    public boolean isUseNativeCulling()    { return useNativeCulling; }
-    public boolean isUseFastLoadingScreen(){ return useFastLoadingScreen; }
-    public boolean isUseNativeCommands()   { return useNativeCommands; }
-    public boolean isLimitXaeroMinimap()   { return limitXaeroMinimap; }
-    public boolean isBridgeSodium()        { return bridgeSodium; }
-    public boolean isBridgeStarlight()     { return bridgeStarlight; }
-    public boolean isBridgeC2ME()          { return bridgeC2ME; }
-    public boolean isBridgeIris()          { return bridgeIris; }
-    public boolean isBridgeLithium()       { return bridgeLithium; }
-    public boolean isDisableDhFade()       { return disableDhFade; }
-    public boolean isSilenceLogs()         { return silenceLogs; }
-    public boolean isNativeReady()         { return nativeReady; }
+    public boolean isUseNativeSine()        { return useNativeSine; }
+    public boolean isUseNativeCos()         { return useNativeCos; }
+    public boolean isUseNativeSqrt()        { return useNativeSqrt; }
+    public boolean isUseNativeInvSqrt()     { return useNativeInvSqrt; }
+    public boolean isUseNativeTan()         { return useNativeTan; }
+    public boolean isUseNativeAtan2()       { return useNativeAtan2; }
+    public boolean isUseNativeFloor()       { return useNativeFloor; }
+    public boolean isUseNativeNoise()       { return useNativeNoise; }
+    public boolean isUseNativeLighting()    { return useNativeLighting; }
+    public boolean isUseNativeCompression() { return useNativeCompression; }
+    public boolean isUseNativePathfinding() { return useNativePathfinding; }
+    public boolean isUseNativeCulling()     { return useNativeCulling; }
+    public boolean isUseFastLoadingScreen() { return useFastLoadingScreen; }
+    public boolean isUseNativeCommands()    { return useNativeCommands; }
+    public boolean isLimitXaeroMinimap()    { return limitXaeroMinimap; }
+    public boolean isBridgeSodium()         { return bridgeSodium; }
+    public boolean isBridgeStarlight()      { return bridgeStarlight; }
+    public boolean isBridgeC2ME()           { return bridgeC2ME; }
+    public boolean isBridgeIris()           { return bridgeIris; }
+    public boolean isBridgeLithium()        { return bridgeLithium; }
+    public boolean isDisableDhFade()        { return disableDhFade; }
+    public int getLoadingBarBgColor()       { return loadingBarBgColor; }
+    public int getLoadingBarLowColor()      { return loadingBarLowColor; }
+    public int getLoadingBarMidColor()      { return loadingBarMidColor; }
+    public int getLoadingBarHighColor()     { return loadingBarHighColor; }
+    public int getLoadingBarTextColor()     { return loadingBarTextColor; }
+    public int getLoadingBarSubtextColor()  { return loadingBarSubtextColor; }
+    public boolean isSilenceLogs()          { return silenceLogs; }
+    public boolean isNativeReady()          { return nativeReady; }
 
     // Setters
-    public void setUseNativeSine(boolean val)        { this.useNativeSine = val; }
-    public void setUseNativeCos(boolean val)         { this.useNativeCos = val; }
-    public void setUseNativeSqrt(boolean val)        { this.useNativeSqrt = val; }
-    public void setUseNativeInvSqrt(boolean val)     { this.useNativeInvSqrt = val; }
-    public void setUseNativeTan(boolean val)         { this.useNativeTan = val; }
-    public void setUseNativeAtan2(boolean val)       { this.useNativeAtan2 = val; }
-    public void setUseNativeFloor(boolean val)       { this.useNativeFloor = val; }
-    public void setUseNativeNoise(boolean val)       { this.useNativeNoise = val; }
-    public void setUseNativeLighting(boolean val)    { this.useNativeLighting = val; }
-    public void setUseNativeCompression(boolean val) { this.useNativeCompression = val; }
-    public void setUseNativePathfinding(boolean val) { this.useNativePathfinding = val; }
-    public void setUseNativeCulling(boolean val)     { this.useNativeCulling = val; }
-    public void setUseFastLoadingScreen(boolean val) { this.useFastLoadingScreen = val; }
-    public void setUseNativeCommands(boolean val)    { this.useNativeCommands = val; }
-    public void setLimitXaeroMinimap(boolean val)    { this.limitXaeroMinimap = val; }
-    public void setBridgeSodium(boolean val)         { this.bridgeSodium = val; }
-    public void setBridgeStarlight(boolean val)      { this.bridgeStarlight = val; }
-    public void setBridgeC2ME(boolean val)           { this.bridgeC2ME = val; }
-    public void setBridgeIris(boolean val)           { this.bridgeIris = val; }
-    public void setBridgeLithium(boolean val)        { this.bridgeLithium = val; }
-    public void setDisableDhFade(boolean val)        { this.disableDhFade = val; }
-    public void setSilenceLogs(boolean val)          { this.silenceLogs = val; }
-    public void setNativeReady(boolean val)          { this.nativeReady = val; }
+    public void setUseNativeSine(boolean v)        { useNativeSine = v; }
+    public void setUseNativeCos(boolean v)         { useNativeCos = v; }
+    public void setUseNativeSqrt(boolean v)        { useNativeSqrt = v; }
+    public void setUseNativeInvSqrt(boolean v)     { useNativeInvSqrt = v; }
+    public void setUseNativeTan(boolean v)         { useNativeTan = v; }
+    public void setUseNativeAtan2(boolean v)       { useNativeAtan2 = v; }
+    public void setUseNativeFloor(boolean v)       { useNativeFloor = v; }
+    public void setUseNativeNoise(boolean v)       { useNativeNoise = v; }
+    public void setUseNativeLighting(boolean v)    { useNativeLighting = v; }
+    public void setUseNativeCompression(boolean v) { useNativeCompression = v; }
+    public void setUseNativePathfinding(boolean v) { useNativePathfinding = v; }
+    public void setUseNativeCulling(boolean v)     { useNativeCulling = v; }
+    public void setUseFastLoadingScreen(boolean v) { useFastLoadingScreen = v; }
+    public void setUseNativeCommands(boolean v)    { useNativeCommands = v; }
+    public void setLimitXaeroMinimap(boolean v)    { limitXaeroMinimap = v; }
+    public void setBridgeSodium(boolean v)         { bridgeSodium = v; }
+    public void setBridgeStarlight(boolean v)      { bridgeStarlight = v; }
+    public void setBridgeC2ME(boolean v)           { bridgeC2ME = v; }
+    public void setBridgeIris(boolean v)           { bridgeIris = v; }
+    public void setBridgeLithium(boolean v)        { bridgeLithium = v; }
+    public void setDisableDhFade(boolean v)        { disableDhFade = v; }
+    public void setLoadingBarBgColor(int v)        { loadingBarBgColor = v; }
+    public void setLoadingBarLowColor(int v)       { loadingBarLowColor = v; }
+    public void setLoadingBarMidColor(int v)       { loadingBarMidColor = v; }
+    public void setLoadingBarHighColor(int v)      { loadingBarHighColor = v; }
+    public void setLoadingBarTextColor(int v)      { loadingBarTextColor = v; }
+    public void setLoadingBarSubtextColor(int v)   { loadingBarSubtextColor = v; }
+    public void setSilenceLogs(boolean v)          { silenceLogs = v; }
+    public void setNativeReady(boolean v)          { nativeReady = v; }
 }
