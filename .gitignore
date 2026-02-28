@@ -62,6 +62,7 @@ replay_*/
 
 # ─── Temp / generated files ───────────────────────────────────────────────────
 PumpkinTemp/
+KennyTVModTemp/
 *.tmp
 *.temp
 *.swp

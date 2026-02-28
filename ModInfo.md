@@ -5,37 +5,37 @@ Currently Supported / Implemented
 These mods have active compatibility hooks, native code dispatching, or mixin disabling logic implemented within Rust-MC.
 
 Sodium
-Tracked in 
+Tracked in
 ModBridge
 . Base visual compatibility.
 Lithium
-Tracked in 
+Tracked in
 ModBridge
 . Base optimization compatibility.
 Starlight
-Tracked in 
+Tracked in
 ModBridge
 . Rust-MC disables native lighting hooks if Starlight is present to prevent conflicts.
 FerriteCore
-Tracked in 
+Tracked in
 ModBridge
 . Rust-MC disables native lighting hooks if FerriteCore is present (as it alters memory models heavily).
 ScalableLux
-Tracked in 
+Tracked in
 ModBridge
- and 
+ and
 ScalableLuxCompat
 . Rust-MC disables native lighting hooks and hooks into ScalableLux's fast-path API.
 MoreCulling
-Tracked in 
+Tracked in
 ModBridge
 .
 Distant Horizons
-Tracked via 
+Tracked via
 DistantHorizonsCompat
 . Rust-MC automatically disables Distant Horizon's chunk fade-in via reflection to optimize rendering.
 MiniHUD
-Handled via 
+Handled via
 RenderUtilsMixin
 . Rust-MC culls MiniHUD wireframe shapes that fall outside the vanilla render distance.
 Planned / To Be Implemented
@@ -46,7 +46,6 @@ Planned: Integrate Rust-MC's visual configurations (like Culling toggles) direct
 Remove Reloading Screen (RRLS / KennyTV's Epic Force Close Loading Screen)
 Planned: Implement a feature to drop the resource pack loading screen entirely, allowing background loading of assets while the user joins the world/server.
 (This list is dynamically updated as new integrations are built).
-
 
 Comment
 Ctrl+Alt+M
