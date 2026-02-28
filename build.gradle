@@ -99,13 +99,4 @@ tasks.register('moveRustBinaries') {
     }
 }
 
-loom {
-    runs {
-        all {
-            vmArg "--enable-preview"
-            vmArg "--enable-native-access=ALL-UNNAMED"
-        }
-    }
-}
-
 processResources.dependsOn 'moveRustBinaries'

@@ -37,7 +37,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
         "Checking for updates", "Incompatible with", "Redirecting Mixin",
         "Reference map", "Force-disabling mixin", "Force disabled MC-",
         "Quick reload listener", "Reloading texture", "No refMap loaded",
-        "Mixin transformation of", "Critical injection failure"
+        "Mixin transformation of"
     };
 
     private static boolean shouldFilter(String content, Level level) {
