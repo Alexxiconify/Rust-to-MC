@@ -42,6 +42,7 @@ public class RustMC implements ModInitializer {
         LOGGER.info("[Rust-MC] Ready.");
     }
 
+    @SuppressWarnings("null")
     public static void loadConfig() {
         if (!Files.exists(CONFIG_PATH)) {
             saveConfig();
