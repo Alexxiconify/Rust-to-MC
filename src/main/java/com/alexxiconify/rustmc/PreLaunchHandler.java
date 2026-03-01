@@ -11,15 +11,17 @@ import org.apache.logging.log4j.core.appender.AbstractAppender;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.filter.AbstractFilter;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 public class PreLaunchHandler implements PreLaunchEntrypoint {
     public static final Logger LOGGER = LogManager.getLogger("Rust-MC/PreLaunch");
 
-    // Live counters updated by the Log4j appender in real time
-    static final AtomicInteger MIXIN_EVENTS   = new AtomicInteger(0);
-    static final AtomicInteger LOADED_EVENTS  = new AtomicInteger(0); // "Loaded X mods"
-    static volatile boolean    gameInitSeen = false;
+    // Stage flags + timestamps set by the Log4j appender as game-load milestones are logged
+    static volatile boolean stageDatafixer = false;
+    static volatile boolean stageResources = false;
+    static volatile boolean stageSound     = false;
+    static volatile boolean stageGameReady = false;
+    static volatile long tsDatafixer = 0;
+    static volatile long  tsResources = 0;
+    static volatile long  tsSound = 0;
 
     @Override
     public void onPreLaunch() {
@@ -54,7 +56,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
             LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
             Configuration config = ctx.getConfiguration();
 
-            @SuppressWarnings("java:S4830") // SonarLint false positive on anonymous Log4j class
+            @SuppressWarnings("java:S4830")
             AbstractAppender counter = new AbstractAppender("RustMCElbCounter", null,
                     org.apache.logging.log4j.core.layout.PatternLayout.createDefaultLayout(), true,
                     org.apache.logging.log4j.core.config.Property.EMPTY_ARRAY) {
@@ -62,21 +64,23 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
                 public void append(LogEvent event) {
                     if (event == null || event.getMessage() == null) return;
                     String msg = event.getMessage().getFormattedMessage();
-                    if (msg.contains("[Mixin]") || msg.contains("Applying mixin") || msg.contains("mixin.")) {
-                        MIXIN_EVENTS.incrementAndGet();
-                    } else if (msg.contains("Loaded ") && msg.contains("mod")) {
-                        LOADED_EVENTS.incrementAndGet();
-                    } else if (msg.contains("Preparing spawn area") || msg.contains("Time elapsed:")) {
-                        gameInitSeen = true;
+                    // Stage signals visible after async appender starts (post preLaunch)
+                    if (!stageDatafixer && msg.contains("Datafixer Bootstrap")) {
+                        stageDatafixer = true; tsDatafixer = System.currentTimeMillis();
+                    } else if (!stageResources && msg.startsWith("Reloading ResourceManager:")) {
+                        stageResources = true; tsResources = System.currentTimeMillis();
+                    } else if (!stageSound && msg.contains("Sound engine started")) {
+                        stageSound = true; tsSound = System.currentTimeMillis();
+                    } else if (!stageGameReady && msg.contains("Game took")) {
+                        stageGameReady = true;
                     }
                 }
             };
             counter.start();
             config.addAppender(counter);
-            // Cast to core Logger to access the single-arg addAppender overload
             ((org.apache.logging.log4j.core.Logger) LogManager.getRootLogger()).addAppender(counter);
             ctx.updateLoggers();
-        } catch (Exception | NoClassDefFoundError ignored) { // Log4j not yet wired; skip
+        } catch (Exception | NoClassDefFoundError ignored) { // Log4j not wired at preLaunch
         }
     }
 
@@ -93,47 +97,52 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
     private static void startModLoadingProgressThread() {
         Thread.ofVirtual().name("rustmc-elb-progress").start(() -> {
             int modCount = FabricLoader.getInstance().getAllMods().size();
-            // Each mod on average fires ~3 mixin log lines; use that as expected max
-            int expectedMixins = Math.max(1, modCount * 3);
             long startMs = System.currentTimeMillis();
-            AtomicInteger last = new AtomicInteger(-1);
-            long deadline = startMs + 120_000L;
+            int last = -1;
+            long deadline = startMs + 180_000L;
 
             while (System.currentTimeMillis() < deadline) {
-                int progress = computeProgress(expectedMixins, startMs);
-                if (progress != last.getAndSet(progress)) {
-                    String label = progressLabel(progress, modCount);
-                    com.iafenvoy.elb.gui.PreLaunchWindow.updateProgress(progress, label);
+                int progress = computeProgress(startMs);
+                if (progress != last) {
+                    last = progress;
+                    com.iafenvoy.elb.gui.PreLaunchWindow.updateProgress(progress, progressLabel(progress, modCount));
                 }
-                try {
-                    Thread.sleep(150);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
+                try { Thread.sleep(200); }
+                catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
             }
         });
     }
 
-    private static int computeProgress(int expectedMixins, long startMs) {
-        if (gameInitSeen)           return 95;
-        if (LOADED_EVENTS.get() > 0) return 82;
-
-        int mixins = MIXIN_EVENTS.get();
-        if (mixins > 0) {
-            // Scale 20→80% based on mixin count vs expected
-            return 20 + (int) Math.min(60, (long) mixins * 60 / expectedMixins);
-        }
-        // Time-based ramp 0→20% in first ~30 s (before first mixin event)
+    /**
+     * Stage-based progress using log signals that fire AFTER the async appender starts.
+     * All stages are also time-capped so the bar always advances even on slow machines.
+     *   0-25%  : Datafixer / bootstrap (done when stageDatafixer seen, or ~7 s elapsed)
+     *  25-60%  : Mixin application / class loading (until stageResources)
+     *  60-80%  : Resource pack loading (until stageSound)
+     *  80-95%  : Asset stitching / sound init (until stageGameReady)
+     *  95-99%  : Waiting for game loop to take over
+     */
+    private static int computeProgress(long startMs) {
+        if (stageGameReady)  return 96;
+        if (stageSound)      return timeRamp(80, 95, tsSound,     5_000);
+        if (stageResources)  return timeRamp(60, 80, tsResources, 8_000);
+        if (stageDatafixer)  return timeRamp(25, 60, tsDatafixer, 15_000);
         long elapsed = System.currentTimeMillis() - startMs;
-        return (int) Math.min(18, elapsed / 1666);
+        return (int) Math.min(24, 5 + elapsed / 417);
+    }
+
+    /** Linearly interpolates from lo to hi over durationMs after the current stage started. */
+    private static int timeRamp(int lo, int hi, long stageStartMs, long durationMs) {
+        long elapsed = System.currentTimeMillis() - stageStartMs;
+        return lo + (int) Math.min(hi - lo - 1, (hi - lo) * elapsed / durationMs);
     }
 
     private static String progressLabel(int pct, int modCount) {
-        if (pct >= 95) return "Starting world...";
-        if (pct >= 82) return "Initializing " + modCount + " mods...";
-        if (pct >= 20) return "Applying mixin transforms... (" + MIXIN_EVENTS.get() + ")";
-        return "Discovering mods... (" + modCount + " found)";
+        if (pct >= 95) return "Starting...";
+        if (pct >= 80) return "Loading sounds & assets...";
+        if (pct >= 60) return "Loading resource packs...";
+        if (pct >= 25) return "Applying mixins \u2014 " + modCount + " mods...";
+        return "Bootstrapping JVM...";
     }
 
     // ─── Spam Filter ────────────────────────────────────────────────────────
@@ -142,16 +151,23 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
         try {
             LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
             Configuration config = ctx.getConfiguration();
-            config.addFilter(new AbstractFilter() {
+            AbstractFilter filter = new AbstractFilter() {
                 @Override
                 public Result filter(LogEvent event) {
                     if (event == null || event.getMessage() == null) return Result.NEUTRAL;
                     return shouldFilter(event.getMessage().getFormattedMessage(), event.getLevel())
                         ? Result.DENY : Result.NEUTRAL;
                 }
+            };
+            filter.start();
+            // Cast to AbstractAppender — the Appender interface has no addFilter
+            config.getAppenders().forEach((name, appender) -> {
+                if (!name.equals("RustMCElbCounter") && appender instanceof org.apache.logging.log4j.core.appender.AbstractAppender aa) {
+                    aa.addFilter(filter);
+                }
             });
             ctx.updateLoggers();
-        } catch (Exception | NoClassDefFoundError ignored) { // Log4j not yet fully initialized
+        } catch (Exception | NoClassDefFoundError ignored) { // Log4j not wired at preLaunch
         }
     }
 

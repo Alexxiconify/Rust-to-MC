@@ -6,6 +6,7 @@
   "compatibilityLevel": "JAVA_21",
   "plugin": "com.alexxiconify.rustmc.MixinManager",
   "mixins": [
+    "BootstrapMixin",
     "MathHelperMixin",
     "CommandManagerMixin",
     "PacketDeflaterMixin",
@@ -22,8 +23,6 @@
     "screen.LevelLoadingScreenMixin",
     "compat.XaeroMinimapLimiterMixin",
     "compat.MiniHUDLightUpdateMixin"
-  ],
-  "client": [
   ],
   "injectors": {
     "defaultRequire": 1
