@@ -51,6 +51,8 @@ public class NativeBridge {
     private static native float rustFastInvSqrt(float x);
     private static native float rustSin(float x);
     private static native float rustCos(float x);
+    private static native float rustSqrt(float x);
+    private static native double rustAtan2(double y, double x);
     private static native double rustNoise2d(double x, double y);
     private static native double rustNoise3d(double x, double y, double z);
     private static native long[] rustGetSystemMemory();
@@ -61,6 +63,9 @@ public class NativeBridge {
     private static native int rustExecuteCommand(byte[] cmd);
     private static native int rustProcessPacket(byte[] buf, int len);
     private static native int rustFrustumIntersect(double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
+    private static native float rustClamp(float value, float min, float max);
+    private static native double rustLerp(double delta, double start, double end);
+    private static native double rustAbsMax(double a, double b);
 
     // --- Wrapper Methods ---
 
@@ -99,6 +104,36 @@ public class NativeBridge {
         if (!libLoaded) return (float) Math.cos(x);
         try { return rustCos(x); }
         catch (UnsatisfiedLinkError e) { return (float) Math.cos(x); }
+    }
+
+    public static float invokeSqrt(float x) {
+        if (!libLoaded) return (float) Math.sqrt(x);
+        try { return rustSqrt(x); }
+        catch (UnsatisfiedLinkError e) { return (float) Math.sqrt(x); }
+    }
+
+    public static double invokeAtan2(double y, double x) {
+        if (!libLoaded) return Math.atan2(y, x);
+        try { return rustAtan2(y, x); }
+        catch (UnsatisfiedLinkError e) { return Math.atan2(y, x); }
+    }
+
+    public static float invokeClamp(float value, float min, float max) {
+        if (!libLoaded) return Math.clamp(value, min, max);
+        try { return rustClamp(value, min, max); }
+        catch (UnsatisfiedLinkError e) { return Math.clamp(value, min, max); }
+    }
+
+    public static double invokeLerp(double delta, double start, double end) {
+        if (!libLoaded) return start + delta * (end - start);
+        try { return rustLerp(delta, start, end); }
+        catch (UnsatisfiedLinkError e) { return start + delta * (end - start); }
+    }
+
+    public static double invokeAbsMax(double a, double b) {
+        if (!libLoaded) return Math.max(Math.abs(a), Math.abs(b));
+        try { return rustAbsMax(a, b); }
+        catch (UnsatisfiedLinkError e) { return Math.max(Math.abs(a), Math.abs(b)); }
     }
 
     public static double noise2d(double x, double y) {

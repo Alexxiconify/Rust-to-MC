@@ -51,12 +51,18 @@ public class MathHelperMixin {
     /** @author Alexxiconify @reason Scalar sqrt */
     @Overwrite
     public static float sqrt(float f) {
+        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeInvSqrt()) {
+            return com.alexxiconify.rustmc.NativeBridge.invokeSqrt(f);
+        }
         return (float) Math.sqrt(f);
     }
 
     /** @author Alexxiconify @reason Fast atan2 */
     @Overwrite
     public static double atan2(double y, double x) {
+        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeInvSqrt()) {
+            return com.alexxiconify.rustmc.NativeBridge.invokeAtan2(y, x);
+        }
         return Math.atan2(y, x);
     }
 
@@ -68,5 +74,32 @@ public class MathHelperMixin {
             return d < i ? i - 1 : i;
         }
         return (int) Math.floor(d);
+    }
+
+    /** @author Alexxiconify @reason Native clamp */
+    @Overwrite
+    public static float clamp(float value, float min, float max) {
+        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeSqrt()) {
+            return com.alexxiconify.rustmc.NativeBridge.invokeClamp(value, min, max);
+        }
+        return Math.clamp(value, min, max);
+    }
+
+    /** @author Alexxiconify @reason Native lerp */
+    @Overwrite
+    public static double lerp(double delta, double start, double end) {
+        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeSqrt()) {
+            return com.alexxiconify.rustmc.NativeBridge.invokeLerp(delta, start, end);
+        }
+        return start + delta * (end - start);
+    }
+
+    /** @author Alexxiconify @reason Native absMax */
+    @Overwrite
+    public static double absMax(double a, double b) {
+        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeSqrt()) {
+            return com.alexxiconify.rustmc.NativeBridge.invokeAbsMax(a, b);
+        }
+        return Math.max(Math.abs(a), Math.abs(b));
     }
 }

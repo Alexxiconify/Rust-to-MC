@@ -134,7 +134,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
     /** Linearly interpolates from lo to hi over durationMs after the current stage started. */
     private static int timeRamp(int lo, int hi, long stageStartMs, long durationMs) {
         long elapsed = System.currentTimeMillis() - stageStartMs;
-        return lo + (int) Math.min(hi - lo - 1, (hi - lo) * elapsed / durationMs);
+        return lo + (int) Math.min((hi - lo - 1), ((long) hi - (long) lo) * elapsed / durationMs);
     }
 
     private static String progressLabel(int pct, int modCount) {
