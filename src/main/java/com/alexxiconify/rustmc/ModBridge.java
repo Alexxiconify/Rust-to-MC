@@ -91,6 +91,7 @@ public class ModBridge {
     public static final boolean HELD_ITEM_INFO = isMod("held-item-info");
     public static final boolean IMMEDIATELYFAST = isMod("immediatelyfast");
     public static final boolean IXERIS = isMod("ixeris");
+
     public static final boolean JADE = isMod("jade");
     public static final boolean JEB = isMod("jeb");
     public static final boolean LAMBDYNLIGHTS = isMod("lambdynlights");

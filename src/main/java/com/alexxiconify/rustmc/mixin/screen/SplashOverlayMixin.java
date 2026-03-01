@@ -16,19 +16,20 @@ public abstract class SplashOverlayMixin {
 
     @Shadow @Final private MinecraftClient client;
 
-    // Inject at HEAD with cancel so we paint a dark background before vanilla's
-    // white logo background — eliminates the white flash on startup.
-    @Inject(at = @At("HEAD"), method = "render", cancellable = true)
+    // Paint dark bg BEFORE vanilla renders its white background (eliminates white flash).
+    // Not cancellable — we let vanilla's logo/progress bar still render on top.
+    @Inject(at = @At("HEAD"), method = "render")
     public void renderHead(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (!RustMC.CONFIG.isUseFastLoadingScreen()) return;
+        if (RustMC.CONFIG == null || !RustMC.CONFIG.isUseFastLoadingScreen()) return;
         int w = context.getScaledWindowWidth();
         int h = context.getScaledWindowHeight();
-        context.fill(0, 0, w, h, RustMC.CONFIG.getLoadingBarBgColor() | 0xFF000000);
+        // Fill full screen with dark color first — vanilla then draws its logo on top
+        context.fill(0, 0, w, h, 0xFF0D0D0D);
     }
 
     @Inject(at = @At("TAIL"), method = "render")
     public void renderTail(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (!RustMC.CONFIG.isUseFastLoadingScreen()) return;
+        if (RustMC.CONFIG == null || !RustMC.CONFIG.isUseFastLoadingScreen()) return;
         if (this.client.textRenderer == null) return;
 
         int w = context.getScaledWindowWidth();
@@ -43,22 +44,23 @@ public abstract class SplashOverlayMixin {
         int bx   = (w - barW) / 2;
         int by   = h - 22;
 
-        // Background track
-        context.fill(bx, by, bx + barW, by + barH, RustMC.CONFIG.getLoadingBarBgColor());
-        // Filled portion
+        // Track + fill
+        context.fill(bx, by, bx + barW, by + barH, 0xFF1A1A1A);
         context.fill(bx, by, bx + (int)(barW * ratio), by + barH, ramColor(ratio));
 
-        // RAM label — directly below bar, no empty gap
+        // Labels — tight below/above bar, no empty gap
         String ramText = String.format("RAM %dMB / %dMB (%.0f%%)", used >> 20, max >> 20, ratio * 100f);
-        context.drawCenteredTextWithShadow(this.client.textRenderer, ramText, w / 2, by + barH + 2, RustMC.CONFIG.getLoadingBarTextColor());
+        context.drawCenteredTextWithShadow(this.client.textRenderer, ramText, w / 2, by + barH + 2,
+            RustMC.CONFIG.getLoadingBarTextColor());
 
-        // Mod count — directly above bar
         int modCount = net.fabricmc.loader.api.FabricLoader.getInstance().getAllMods().size();
         context.drawCenteredTextWithShadow(this.client.textRenderer,
-                "Rust-MC  \u2022  " + modCount + " mods", w / 2, by - 9, RustMC.CONFIG.getLoadingBarSubtextColor());
+            "Rust-MC  \u2022  " + modCount + " mods", w / 2, by - 9,
+            RustMC.CONFIG.getLoadingBarSubtextColor());
     }
 
     private int ramColor(float r) {
+        if (RustMC.CONFIG == null) return 0xFF00AA00;
         if (r < 0.6f) return RustMC.CONFIG.getLoadingBarLowColor();
         if (r < 0.8f) return RustMC.CONFIG.getLoadingBarMidColor();
         return RustMC.CONFIG.getLoadingBarHighColor();
