@@ -21,4 +21,82 @@ public class DistantHorizonsCompat {
             RustMC.LOGGER.debug("[Rust-MC] Could not disable DH fade ({}), skipping.", e.getMessage());
         }
     }
+
+    private static long rustFrustumPtr = 0;
+    private static int currentMinY = -64;
+    private static int currentMaxY = 320;
+
+    public static void registerFrustumCuller() {
+        if (!FabricLoader.getInstance().isModLoaded("distanthorizons") || !com.alexxiconify.rustmc.NativeBridge.isReady()) return;
+        try {
+            rustFrustumPtr = com.alexxiconify.rustmc.NativeBridge.createRustFrustum();
+            if (rustFrustumPtr == 0) {
+                RustMC.LOGGER.warn("[Rust-MC] Failed to create Rust frustum for DH compat.");
+                return;
+            }
+
+            Class<?> apiClass = Class.forName("com.seibel.distanthorizons.api.DhApi");
+            Object overridesInjector = apiClass.getField("overrides").get(null);
+            
+            java.lang.reflect.Method bindMethod = null;
+            for (java.lang.reflect.Method m : overridesInjector.getClass().getMethods()) {
+                if (m.getName().equals("bind") && m.getParameterCount() == 2) {
+                    bindMethod = m;
+                    break;
+                }
+            }
+
+            Class<?> cullingFrustumClass = Class.forName("com.seibel.distanthorizons.api.interfaces.override.rendering.IDhApiCullingFrustum");
+            
+            java.lang.reflect.InvocationHandler handler = new java.lang.reflect.InvocationHandler() {
+                @Override
+                public Object invoke(Object proxy, java.lang.reflect.Method method, Object[] args) throws Throwable {
+                    String name = method.getName();
+                    if (name.equals("getPriority")) {
+                        return Integer.MAX_VALUE; // Highest priority
+                    } else if (name.equals("update") && args.length == 3) {
+                        currentMinY = (int) args[0];
+                        currentMaxY = (int) args[1];
+                        Object mat = args[2];
+                        float[] vpArray = (float[]) mat.getClass().getMethod("getValuesAsArray").invoke(mat);
+                        com.alexxiconify.rustmc.NativeBridge.updateRustFrustum(rustFrustumPtr, vpArray);
+                        return null;
+                    } else if (name.equals("intersects") && args.length == 4) {
+                        int minX = (int) args[0];
+                        int minZ = (int) args[1];
+                        int width = (int) args[2];
+                        boolean res = com.alexxiconify.rustmc.NativeBridge.testRustFrustum(rustFrustumPtr, minX, currentMinY, minZ, minX + width, currentMaxY, minZ + width);
+                        return res;
+                    } else if (name.equals("hashCode")) {
+                        return System.identityHashCode(proxy);
+                    } else if (name.equals("equals")) {
+                        return proxy == args[0];
+                    } else if (name.equals("toString")) {
+                        return "RustMCDhApiCullingFrustumProxy";
+                    }
+                    return null;
+                }
+            };
+
+            Object proxyInstance = java.lang.reflect.Proxy.newProxyInstance(
+                DistantHorizonsCompat.class.getClassLoader(),
+                new Class<?>[]{cullingFrustumClass},
+                handler
+            );
+
+            if (bindMethod != null) {
+                bindMethod.invoke(overridesInjector, cullingFrustumClass, proxyInstance);
+                RustMC.LOGGER.info("[Rust-MC] Successfully registered Rust stateful frustum culler with Distant Horizons via API.");
+            } else {
+                RustMC.LOGGER.warn("[Rust-MC] Could not find bind method on DH overrides injector.");
+            }
+
+        } catch (Exception e) {
+            RustMC.LOGGER.error("[Rust-MC] Failed to register DH frustum culler: {}", e.getMessage());
+            if (rustFrustumPtr != 0) {
+                com.alexxiconify.rustmc.NativeBridge.destroyRustFrustum(rustFrustumPtr);
+                rustFrustumPtr = 0;
+            }
+        }
+    }
 }

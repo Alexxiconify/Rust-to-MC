@@ -28,6 +28,10 @@ public class RustMC implements ModInitializer {
             com.alexxiconify.rustmc.compat.DistantHorizonsCompat.disableFade();
         }
 
+        if (CONFIG.isUseNativeCulling()) {
+            com.alexxiconify.rustmc.compat.DistantHorizonsCompat.registerFrustumCuller();
+        }
+
         // Reflect real native status into config so ModMenu Status screen is accurate
         CONFIG.setNativeReady(NativeBridge.isReady());
 

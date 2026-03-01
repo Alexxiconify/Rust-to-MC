@@ -22,7 +22,8 @@
     "screen.SplashOverlayMixin",
     "screen.LevelLoadingScreenMixin",
     "compat.XaeroMinimapLimiterMixin",
-    "compat.MiniHUDLightUpdateMixin"
+    "compat.MiniHUDLightUpdateMixin",
+    "BoxMixin"
   ],
   "injectors": {
     "defaultRequire": 1

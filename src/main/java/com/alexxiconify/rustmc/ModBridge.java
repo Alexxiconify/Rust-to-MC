@@ -224,10 +224,10 @@ public class ModBridge {
 
     /**
      * Returns true when another mod's frustum would conflict with our Rust frustum planes:
-     * Sodium replaces the frustum, MoreCulling hooks it, DH uses multi-pass renders.
+     * Sodium replaces the frustum, MoreCulling hooks it. (We now override DH).
      */
     public static boolean isFrustumOwned() {
-        return SODIUM || MORECULLING_MOD || DISTANT_HORIZONS;
+        return SODIUM || MORECULLING_MOD;
     }
 
     /** Gnetum owns HUD frame distribution — yield to it for HUD rendering. */

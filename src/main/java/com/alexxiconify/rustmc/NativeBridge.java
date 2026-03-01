@@ -62,10 +62,16 @@ public class NativeBridge {
     private static native int rustFindPath(int[] start, int[] end);
     private static native int rustExecuteCommand(byte[] cmd);
     private static native int rustProcessPacket(byte[] buf, int len);
-    private static native int rustFrustumIntersect(double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
+    // Frustum state management
+    private static native long rustFrustumCreate();
+    private static native void rustFrustumUpdate(long ptr, float[] vpMatrix);
+    private static native boolean rustFrustumTest(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
+    private static native void rustFrustumDestroy(long ptr);
     private static native float rustClamp(float value, float min, float max);
     private static native double rustLerp(double delta, double start, double end);
     private static native double rustAbsMax(double a, double b);
+    @SuppressWarnings("java:S107")
+    private static native boolean rustRayIntersectsBox(double rx, double ry, double rz, double dx, double dy, double dz, double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
 
     // --- Wrapper Methods ---
 
@@ -196,8 +202,37 @@ public class NativeBridge {
     }
 
     public static int invokeFrustumIntersect(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
-        if (!libLoaded) return -1;
-        try { return rustFrustumIntersect(minX, minY, minZ, maxX, maxY, maxZ); }
-        catch (UnsatisfiedLinkError e) { return -1; }
+        return -1; // Fallback to Vanilla for now since stateful frustums are only implemented for DH
+    }
+
+    public static long createRustFrustum() {
+        if (!libLoaded) return 0;
+        try { return rustFrustumCreate(); }
+        catch (UnsatisfiedLinkError e) { return 0; }
+    }
+
+    public static void updateRustFrustum(long ptr, float[] vpMatrix) {
+        if (!libLoaded || ptr == 0 || vpMatrix == null || vpMatrix.length < 16) return;
+        try { rustFrustumUpdate(ptr, vpMatrix); }
+        catch (UnsatisfiedLinkError ignored) { /* Optional native method */ }
+    }
+
+    public static boolean testRustFrustum(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        if (!libLoaded || ptr == 0) return true; // Default to visible if Rust is not available or ptr is 0
+        try { return rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ); }
+        catch (UnsatisfiedLinkError e) { return true; }
+    }
+
+    public static void destroyRustFrustum(long ptr) {
+        if (!libLoaded || ptr == 0) return;
+        try { rustFrustumDestroy(ptr); }
+        catch (UnsatisfiedLinkError ignored) { /* Optional native method */ }
+    }
+
+    @SuppressWarnings("java:S107")
+    public static boolean invokeRayIntersectsBox(double rx, double ry, double rz, double dx, double dy, double dz, double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        if (!libLoaded) return false; // Handled by Vanilla logic fallback in the mixin
+        try { return rustRayIntersectsBox(rx, ry, rz, dx, dy, dz, minX, minY, minZ, maxX, maxY, maxZ); }
+        catch (UnsatisfiedLinkError e) { return false; }
     }
 }
