@@ -28,15 +28,14 @@ public class DistantHorizonsCompat {
     private static int currentMinY = -64;
     private static int currentMaxY = 320;
 
-    @SuppressWarnings("java:S3776") // Cognitive complexity is fine for proxy generation
+    private static java.lang.reflect.Method getValuesAsArrayMethod = null;
+
+    @SuppressWarnings("java:S3776")
     public static void registerFrustumCuller() {
         if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID) || !com.alexxiconify.rustmc.NativeBridge.isReady()) return;
         try {
             rustFrustumPtr = com.alexxiconify.rustmc.NativeBridge.createRustFrustum();
-            if (rustFrustumPtr == 0) {
-                RustMC.LOGGER.warn("[Rust-MC] Failed to create Rust frustum for DH compat.");
-                return;
-            }
+            if (rustFrustumPtr == 0) return;
 
             Class<?> apiClass = Class.forName("com.seibel.distanthorizons.api.DhApi");
             Object overridesInjector = apiClass.getField("overrides").get(null);
@@ -56,12 +55,15 @@ public class DistantHorizonsCompat {
                 public Object invoke(Object proxy, java.lang.reflect.Method method, Object[] args) throws Throwable {
                     String name = method.getName();
                     if (name.equals("getPriority")) {
-                        return Integer.MAX_VALUE; // Highest priority
+                        return Integer.MAX_VALUE;
                     } else if (name.equals("update") && args.length == 3) {
                         currentMinY = (int) args[0];
                         currentMaxY = (int) args[1];
                         Object mat = args[2];
-                        float[] vpArray = (float[]) mat.getClass().getMethod("getValuesAsArray").invoke(mat);
+                        if (getValuesAsArrayMethod == null) {
+                            getValuesAsArrayMethod = mat.getClass().getMethod("getValuesAsArray");
+                        }
+                        float[] vpArray = (float[]) getValuesAsArrayMethod.invoke(mat);
                         com.alexxiconify.rustmc.NativeBridge.updateRustFrustum(rustFrustumPtr, vpArray);
                         return null;
                     } else if (name.equals("intersects") && args.length == 4) {
@@ -69,12 +71,6 @@ public class DistantHorizonsCompat {
                         int minZ = (int) args[1];
                         int width = (int) args[2];
                         return com.alexxiconify.rustmc.NativeBridge.testRustFrustum(rustFrustumPtr, minX, currentMinY, minZ, (double) minX + width, currentMaxY, (double) minZ + width);
-                    } else if (name.equals("hashCode")) {
-                        return System.identityHashCode(proxy);
-                    } else if (name.equals("equals")) {
-                        return proxy == args[0];
-                    } else if (name.equals("toString")) {
-                        return "RustMCDhApiCullingFrustumProxy";
                     }
                     return null;
                 }
@@ -88,13 +84,8 @@ public class DistantHorizonsCompat {
 
             if (bindMethod != null) {
                 bindMethod.invoke(overridesInjector, cullingFrustumClass, proxyInstance);
-                RustMC.LOGGER.info("[Rust-MC] Successfully registered Rust stateful frustum culler with Distant Horizons via API.");
-            } else {
-                RustMC.LOGGER.warn("[Rust-MC] Could not find bind method on DH overrides injector.");
             }
-
         } catch (Exception e) {
-            RustMC.LOGGER.error("[Rust-MC] Failed to register DH frustum culler: {}", e.getMessage());
             if (rustFrustumPtr != 0) {
                 com.alexxiconify.rustmc.NativeBridge.destroyRustFrustum(rustFrustumPtr);
                 rustFrustumPtr = 0;

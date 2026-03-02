@@ -230,6 +230,11 @@ public class ModBridge {
         return SODIUM || MORECULLING_MOD;
     }
 
+    /** Returns true if interaction/raycasting logic is potentially handled by other mods. */
+    public static boolean isInteractionOwned() {
+        return TWEAKEROO || LITEMATICA || MORECULLING;
+    }
+
     /** Gnetum owns HUD frame distribution — yield to it for HUD rendering. */
     public static boolean isHudOwned() {
         return GNETUM;

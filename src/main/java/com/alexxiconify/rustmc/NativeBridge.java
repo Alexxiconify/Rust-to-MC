@@ -232,9 +232,9 @@ public class NativeBridge {
 
     @SuppressWarnings("java:S107")
     public static boolean invokeRayIntersectsBox(double rx, double ry, double rz, double dx, double dy, double dz, double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
-        if (!libLoaded) return false; // Handled by Vanilla logic fallback in the mixin
+        if (!libLoaded) return true; // Safe fallback: assume intersection to trigger Vanilla calc
         try { return rustRayIntersectsBox(rx, ry, rz, dx, dy, dz, minX, minY, minZ, maxX, maxY, maxZ); }
-        catch (UnsatisfiedLinkError e) { return false; }
+        catch (UnsatisfiedLinkError e) { return true; }
     }
 
     public static float[] invokeComputeAmbientOcclusion(float[] vertexData, int vertexCount) {

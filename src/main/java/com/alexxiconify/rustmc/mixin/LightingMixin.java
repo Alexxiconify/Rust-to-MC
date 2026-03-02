@@ -28,19 +28,24 @@ public class LightingMixin {
     private static final BlockingQueue<int[]> PENDING = new ArrayBlockingQueue<>(4096);
     private static volatile boolean rustLightThreadRunning = false;
 
+    private static int[] flatBuffer = new int[4096 * 4];
+
     private static void flushToRust() {
         if (PENDING.isEmpty()) return;
         int size = PENDING.size();
-        int[] flat = new int[size * 4];
+        if (size * 4 > flatBuffer.length) {
+            flatBuffer = new int[size * 8]; // Grow buffer if needed
+        }
+        
         int idx = 0;
         int[] entry;
-        while ((entry = PENDING.poll()) != null && idx + 4 <= flat.length) {
-            flat[idx++] = entry[0];
-            flat[idx++] = entry[1];
-            flat[idx++] = entry[2];
-            flat[idx++] = entry[3];
+        while ((entry = PENDING.poll()) != null && idx + 4 <= flatBuffer.length) {
+            System.arraycopy(entry, 0, flatBuffer, idx, 4);
+            idx += 4;
         }
-        NativeBridge.propagateLightBulk(flat, idx / 4);
+        if (idx > 0) {
+            NativeBridge.propagateLightBulk(flatBuffer, idx / 4);
+        }
     }
 
     private static synchronized void ensureRustThread() {

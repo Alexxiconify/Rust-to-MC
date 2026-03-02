@@ -24,7 +24,7 @@ public abstract class BoxMixin {
 
     @Inject(method = "raycast(Lnet/minecraft/util/math/Vec3d;Lnet/minecraft/util/math/Vec3d;)Ljava/util/Optional;", at = @At("HEAD"), cancellable = true)
     private void rustRaycast(Vec3d min, Vec3d max, CallbackInfoReturnable<Optional<Vec3d>> cir) {
-        if (RustMC.CONFIG.isUseNativeCulling() && NativeBridge.isReady()) {
+        if (RustMC.CONFIG.isUseNativeCulling() && NativeBridge.isReady() && !com.alexxiconify.rustmc.ModBridge.isInteractionOwned()) {
             // "min" is actually the ray origin, "max" is the ray destination (vanilla named it poorly)
             double dirX = max.x - min.x;
             double dirY = max.y - min.y;
