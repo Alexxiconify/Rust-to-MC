@@ -4,10 +4,12 @@ import com.alexxiconify.rustmc.RustMC;
 import net.fabricmc.loader.api.FabricLoader;
 
 public class DistantHorizonsCompat {
+    private static final String DH_MOD_ID = "distanthorizons";
+
     private DistantHorizonsCompat() {}
 
     public static void disableFade() {
-        if (!FabricLoader.getInstance().isModLoaded("distanthorizons")) return;
+        if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID)) return;
         try {
             // DH config API: try the modern accessor path (DH 2.3+)
             Class<?> apiClass = Class.forName("com.seibel.distanthorizons.api.DhApi");
@@ -26,8 +28,9 @@ public class DistantHorizonsCompat {
     private static int currentMinY = -64;
     private static int currentMaxY = 320;
 
+    @SuppressWarnings("java:S3776") // Cognitive complexity is fine for proxy generation
     public static void registerFrustumCuller() {
-        if (!FabricLoader.getInstance().isModLoaded("distanthorizons") || !com.alexxiconify.rustmc.NativeBridge.isReady()) return;
+        if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID) || !com.alexxiconify.rustmc.NativeBridge.isReady()) return;
         try {
             rustFrustumPtr = com.alexxiconify.rustmc.NativeBridge.createRustFrustum();
             if (rustFrustumPtr == 0) {
@@ -65,8 +68,7 @@ public class DistantHorizonsCompat {
                         int minX = (int) args[0];
                         int minZ = (int) args[1];
                         int width = (int) args[2];
-                        boolean res = com.alexxiconify.rustmc.NativeBridge.testRustFrustum(rustFrustumPtr, minX, currentMinY, minZ, minX + width, currentMaxY, minZ + width);
-                        return res;
+                        return com.alexxiconify.rustmc.NativeBridge.testRustFrustum(rustFrustumPtr, minX, currentMinY, minZ, (double) minX + width, currentMaxY, (double) minZ + width);
                     } else if (name.equals("hashCode")) {
                         return System.identityHashCode(proxy);
                     } else if (name.equals("equals")) {
@@ -98,5 +100,20 @@ public class DistantHorizonsCompat {
                 rustFrustumPtr = 0;
             }
         }
+    }
+
+    /**
+     * Public API hook for DH vertex builders or shaders to offload Ambient Occlusion 
+     * calculations to the Rust wgpu Compute Shader pipeline.
+     * Expects vertices formatted as contiguous floats: [posX, posY, posZ, pad, normX, normY, normZ, pad].
+     */
+    public static float[] computeRustAmbientOcclusion(float[] vertexData) {
+        if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID) || !com.alexxiconify.rustmc.NativeBridge.isReady()) {
+            return new float[0];
+        }
+        int vertexCount = vertexData.length / 8; // 8 floats per vertex struct in WGSL
+        if (vertexCount == 0) return new float[0];
+        
+        return com.alexxiconify.rustmc.NativeBridge.invokeComputeAmbientOcclusion(vertexData, vertexCount);
     }
 }

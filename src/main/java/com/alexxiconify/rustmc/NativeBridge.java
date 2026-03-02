@@ -72,6 +72,7 @@ public class NativeBridge {
     private static native double rustAbsMax(double a, double b);
     @SuppressWarnings("java:S107")
     private static native boolean rustRayIntersectsBox(double rx, double ry, double rz, double dx, double dy, double dz, double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
+    private static native float[] rustComputeAmbientOcclusion(float[] vertexData, int vertexCount);
 
     // --- Wrapper Methods ---
 
@@ -234,5 +235,11 @@ public class NativeBridge {
         if (!libLoaded) return false; // Handled by Vanilla logic fallback in the mixin
         try { return rustRayIntersectsBox(rx, ry, rz, dx, dy, dz, minX, minY, minZ, maxX, maxY, maxZ); }
         catch (UnsatisfiedLinkError e) { return false; }
+    }
+
+    public static float[] invokeComputeAmbientOcclusion(float[] vertexData, int vertexCount) {
+        if (!libLoaded || vertexData == null || vertexCount <= 0) return new float[0];
+        try { return rustComputeAmbientOcclusion(vertexData, vertexCount); }
+        catch (UnsatisfiedLinkError e) { return new float[0]; }
     }
 }
