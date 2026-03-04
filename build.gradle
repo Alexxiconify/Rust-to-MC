@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.15.0-alpha.29'
+    id 'fabric-loom' version '1.14.7'
     id 'maven-publish'
 }
 
@@ -31,7 +31,7 @@ dependencies {
     
     // Core dependencies from Oxidizium
     include implementation("org.joml:joml:1.10.8")
-    include implementation("com.github.Tater-Certified:MixinConstraints:4856759a06")
+    include implementation("com.moulberry:mixinconstraints:1.1.0")
     include implementation("com.github.zafarkhaja:java-semver:0.10.2")
 
     // Config & UI
@@ -40,11 +40,12 @@ dependencies {
 }
 
 processResources {
-    inputs.property "version", project.version
+    def targetVersion = project.version.toString()
+    inputs.property "version", targetVersion
     filteringCharset = "UTF-8"
 
     filesMatching("fabric.mod.json") {
-        expand "version": project.version
+        expand "version": targetVersion
     }
 }
 
@@ -61,8 +62,9 @@ java {
 }
 
 jar {
+    def archivesName = project.base.archivesName.get()
     from("LICENSE") {
-        rename { "${it}_${project.base.archivesName.get()}" }
+        rename { "${it}_${archivesName}" }
     }
 }
 
