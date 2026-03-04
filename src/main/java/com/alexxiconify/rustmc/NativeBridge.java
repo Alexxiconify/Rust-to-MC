@@ -73,6 +73,7 @@ public class NativeBridge {
     @SuppressWarnings("java:S107")
     private static native boolean rustRayIntersectsBox(double rx, double ry, double rz, double dx, double dy, double dz, double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
     private static native float[] rustComputeAmbientOcclusion(float[] vertexData, int vertexCount);
+    private static native float[] rustComputeAmbientOcclusionDirect(java.nio.ByteBuffer vertexData, int vertexCount);
 
     // --- Wrapper Methods ---
 
@@ -240,6 +241,12 @@ public class NativeBridge {
     public static float[] invokeComputeAmbientOcclusion(float[] vertexData, int vertexCount) {
         if (!libLoaded || vertexData == null || vertexCount <= 0) return new float[0];
         try { return rustComputeAmbientOcclusion(vertexData, vertexCount); }
+        catch (UnsatisfiedLinkError e) { return new float[0]; }
+    }
+
+    public static float[] invokeComputeAmbientOcclusionDirect(java.nio.ByteBuffer vertexData, int vertexCount) {
+        if (!libLoaded || vertexData == null || vertexCount <= 0 || !vertexData.isDirect()) return new float[0];
+        try { return rustComputeAmbientOcclusionDirect(vertexData, vertexCount); }
         catch (UnsatisfiedLinkError e) { return new float[0]; }
     }
 }
