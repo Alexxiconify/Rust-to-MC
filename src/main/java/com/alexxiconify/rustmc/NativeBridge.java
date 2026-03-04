@@ -74,6 +74,8 @@ public class NativeBridge {
     private static native boolean rustRayIntersectsBox(double rx, double ry, double rz, double dx, double dy, double dz, double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
     private static native float[] rustComputeAmbientOcclusion(float[] vertexData, int vertexCount);
     private static native float[] rustComputeAmbientOcclusionDirect(java.nio.ByteBuffer vertexData, int vertexCount);
+    private static native void rustAddFrameTime(long nanos);
+    private static native float[] rustGetFrameHistory();
 
     // --- Wrapper Methods ---
 
@@ -203,6 +205,7 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError e) { return -1; }
     }
 
+    @SuppressWarnings("unused")
     public static int invokeFrustumIntersect(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
         return -1; // Fallback to Vanilla for now since stateful frustums are only implemented for DH
     }
@@ -246,7 +249,28 @@ public class NativeBridge {
 
     public static float[] invokeComputeAmbientOcclusionDirect(java.nio.ByteBuffer vertexData, int vertexCount) {
         if (!libLoaded || vertexData == null || vertexCount <= 0 || !vertexData.isDirect()) return new float[0];
-        try { return rustComputeAmbientOcclusionDirect(vertexData, vertexCount); }
-        catch (UnsatisfiedLinkError e) { return new float[0]; }
+        try {
+            return rustComputeAmbientOcclusionDirect(vertexData, vertexCount);
+        } catch (UnsatisfiedLinkError e) {
+            return new float[0];
+        }
+    }
+
+    public static void invokeAddFrameTime(long nanos) {
+        if (!libLoaded) return;
+        try {
+            rustAddFrameTime(nanos);
+        } catch (UnsatisfiedLinkError ignored) {
+            // Optional native method
+        }
+    }
+
+    public static float[] invokeGetFrameHistory() {
+        if (!libLoaded) return new float[0];
+        try {
+            return rustGetFrameHistory();
+        } catch (UnsatisfiedLinkError e) {
+            return new float[0];
+        }
     }
 }

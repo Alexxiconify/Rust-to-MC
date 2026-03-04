@@ -23,7 +23,9 @@
     "screen.LevelLoadingScreenMixin",
     "compat.XaeroMinimapLimiterMixin",
     "compat.MiniHUDLightUpdateMixin",
-    "BoxMixin"
+    "BoxMixin",
+    "MinecraftClientMixin",
+    "DebugHudMixin"
   ],
   "injectors": {
     "defaultRequire": 1

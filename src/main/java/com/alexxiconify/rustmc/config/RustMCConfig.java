@@ -10,6 +10,7 @@ public class RustMCConfig {
     private boolean useNativeAtan2    = true;
     private boolean useNativeFloor    = true;
     private boolean useNativeNoise    = true;
+    private boolean useNativeF3       = true;
 
     // World / system features
     private boolean useNativeLighting    = true;
@@ -49,6 +50,7 @@ public class RustMCConfig {
         useNativeAtan2        = o.useNativeAtan2;
         useNativeFloor        = o.useNativeFloor;
         useNativeNoise        = o.useNativeNoise;
+        useNativeF3           = o.useNativeF3;
         useNativeLighting     = o.useNativeLighting;
         useNativeCompression  = o.useNativeCompression;
         useNativePathfinding  = o.useNativePathfinding;
@@ -81,6 +83,7 @@ public class RustMCConfig {
     public boolean isUseNativeAtan2()       { return useNativeAtan2; }
     public boolean isUseNativeFloor()       { return useNativeFloor; }
     public boolean isUseNativeNoise()       { return useNativeNoise; }
+    public boolean isUseNativeF3()          { return useNativeF3; }
     public boolean isUseNativeLighting()    { return useNativeLighting; }
     public boolean isUseNativeCompression() { return useNativeCompression; }
     public boolean isUseNativePathfinding() { return useNativePathfinding; }
@@ -112,6 +115,7 @@ public class RustMCConfig {
     public void setUseNativeAtan2(boolean v)       { useNativeAtan2 = v; }
     public void setUseNativeFloor(boolean v)       { useNativeFloor = v; }
     public void setUseNativeNoise(boolean v)       { useNativeNoise = v; }
+    public void setUseNativeF3(boolean v)          { useNativeF3 = v; }
     public void setUseNativeLighting(boolean v)    { useNativeLighting = v; }
     public void setUseNativeCompression(boolean v) { useNativeCompression = v; }
     public void setUseNativePathfinding(boolean v) { useNativePathfinding = v; }
