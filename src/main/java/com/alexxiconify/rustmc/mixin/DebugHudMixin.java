@@ -18,16 +18,4 @@ public class DebugHudMixin {
             // Future hardware-accelerated graph rendering
         }
     }
-
-    private long lastCacheUpdate = 0;
-
-    @Inject(method = "drawLeftText(Lnet/minecraft/client/gui/DrawContext;)V", at = @At("HEAD"), cancellable = true)
-    private void onDrawLeftText(DrawContext context, CallbackInfo ci) {
-        if (!RustMC.CONFIG.isUseNativeF3()) return;
-        
-        long now = System.currentTimeMillis();
-        if (now - lastCacheUpdate < 20) { // 50 Hz update rate for F3 text
-             // Future: Implement string building throttling
-        }
-    }
 }
