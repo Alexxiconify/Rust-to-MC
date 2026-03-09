@@ -79,7 +79,6 @@ libs/
 test-results/
 coverage/
 *.exec
-
 # ─── Archives ────────────────────────────────────────────────────────────────
 *.zip
 *.tar.gz
@@ -89,3 +88,6 @@ coverage/
 node_modules/
 npm-debug.log*
 yarn-error.log*
+
+/temp_xaero/
+/temp_xaerolib/
