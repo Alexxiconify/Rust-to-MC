@@ -28,13 +28,15 @@ public class LightingMixin {
     private static final BlockingQueue<int[]> PENDING = new ArrayBlockingQueue<>(4096);
     private static volatile boolean rustLightThreadRunning = false;
 
+    private static final int MAX_BUFFER_SIZE = 32768; // Cap at 32K entries (128KB)
     private static int[] flatBuffer = new int[4096 * 4];
 
     private static void flushToRust() {
         if (PENDING.isEmpty()) return;
-        int size = PENDING.size();
-        if (size * 4 > flatBuffer.length) {
-            flatBuffer = new int[size * 8]; // Grow buffer if needed
+        int size = Math.min(PENDING.size(), MAX_BUFFER_SIZE);
+        int needed = size * 4;
+        if (needed > flatBuffer.length) {
+            flatBuffer = new int[Math.min(needed * 2, MAX_BUFFER_SIZE * 4)];
         }
         
         int idx = 0;

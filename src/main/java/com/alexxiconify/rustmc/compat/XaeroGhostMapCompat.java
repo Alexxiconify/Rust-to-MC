@@ -8,41 +8,70 @@ import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.util.Identifier;
 import net.minecraft.client.network.ClientPlayerEntity;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+/**
+ * Manages the ghost map texture for Xaero's Minimap/WorldMap overlay.
+ * Generates the texture on a background thread to avoid blocking the render thread.
+ * Uses a 128x128 texture (GPU upscales) to reduce compute and memory cost.
+ */
 public class XaeroGhostMapCompat {
-    private static NativeImageBackedTexture ghostTexture = null;
+    private static volatile NativeImageBackedTexture ghostTexture = null;
     private static final Identifier GHOST_TEXTURE_ID = Identifier.of(RustMC.MOD_ID, "textures/gui/ghost_map.png");
     private static double lastUpdateX = -10000;
     private static double lastUpdateZ = -10000;
+    private static final int TEXTURE_SIZE = 128;
+    private static final double MOVE_THRESHOLD = 16.0;
+    private static final AtomicBoolean generating = new AtomicBoolean(false);
+    private static volatile int[] pendingPixels = null;
+
+    private static final ExecutorService GHOST_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "rustmc-ghost-map-gen");
+        t.setDaemon(true);
+        t.setPriority(Thread.MIN_PRIORITY);
+        return t;
+    });
 
     private XaeroGhostMapCompat() {}
 
+    /**
+     * Returns the ghost map texture Identifier, triggering an async update if needed.
+     * Must be called from the render thread.
+     */
     public static Identifier getGhostTexture() {
         MinecraftClient mc = MinecraftClient.getInstance();
         ClientPlayerEntity player = mc.player;
         if (player == null || !NativeBridge.isReady()) return null;
-        
-        // Prevent loading ghost map if both features are disabled via config
-        if (RustMC.CONFIG.getGhostMapMode() == com.alexxiconify.rustmc.config.RustMCConfig.GhostMapMode.NONE) {
-            return null;
-        }
+
+        if (!RustMC.CONFIG.isGhostMapEnabled()) return null;
 
         double px = player.getX();
         double pz = player.getZ();
 
-        if (Math.abs(px - lastUpdateX) > 8 || Math.abs(pz - lastUpdateZ) > 8 || ghostTexture == null) {
-            updateTexture(px, pz);
-            lastUpdateX = px;
-            lastUpdateZ = pz;
+        // Upload pending pixels from background thread if available
+        if (pendingPixels != null) {
+            uploadPixels(pendingPixels);
+            pendingPixels = null;
         }
 
-        return GHOST_TEXTURE_ID;
+        // Trigger async regen if player moved far enough
+        if (Math.abs(px - lastUpdateX) > MOVE_THRESHOLD
+                || Math.abs(pz - lastUpdateZ) > MOVE_THRESHOLD
+                || ghostTexture == null) {
+            lastUpdateX = px;
+            lastUpdateZ = pz;
+            requestAsyncUpdate(px, pz);
+        }
+
+        return ghostTexture != null ? GHOST_TEXTURE_ID : null;
     }
 
-    private static void updateTexture(double centerX, double centerZ) {
-        int size = 256;
-        double scale = 1.0;
-        
-        // Ensure noise is seeded with the configured custom seed in multiplayer scenarios
+    private static void requestAsyncUpdate(double centerX, double centerZ) {
+        if (!generating.compareAndSet(false, true)) return;
+
+        // Seed handling for multiplayer
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc != null && !mc.isInSingleplayer()) {
             net.minecraft.client.network.ServerInfo serverInfo = mc.getCurrentServerEntry();
@@ -50,37 +79,60 @@ public class XaeroGhostMapCompat {
                 applyServerSeed(serverInfo.address);
             }
         }
-        
-        int[] pixels = NativeBridge.generateGhostMap(centerX, centerZ, size, scale);
 
+        GHOST_EXECUTOR.submit(() -> {
+            try {
+                int[] pixels = NativeBridge.generateGhostMap(centerX, centerZ, TEXTURE_SIZE, 1.0);
+                // Convert ARGB -> ABGR for NativeImage
+                for (int i = 0; i < pixels.length; i++) {
+                    int p = pixels[i];
+                    int a = (p >> 24) & 0xFF;
+                    int r = (p >> 16) & 0xFF;
+                    int g = (p >> 8) & 0xFF;
+                    int b = p & 0xFF;
+                    pixels[i] = (a << 24) | (b << 16) | (g << 8) | r;
+                }
+                pendingPixels = pixels;
+            } finally {
+                generating.set(false);
+            }
+        });
+    }
+
+    private static void uploadPixels(int[] pixels) {
         if (ghostTexture == null) {
-            // Trying constructor with name which might be required in this mapping version
-            ghostTexture = new NativeImageBackedTexture("rustmc_ghost_map", size, size, false);
+            ghostTexture = new NativeImageBackedTexture("rustmc_ghost_map", TEXTURE_SIZE, TEXTURE_SIZE, false);
             MinecraftClient.getInstance().getTextureManager().registerTexture(GHOST_TEXTURE_ID, ghostTexture);
         }
 
         NativeImage image = ghostTexture.getImage();
         if (image != null) {
-            for (int y = 0; y < size; y++) {
-                for (int x = 0; x < size; x++) {
-                    int p = pixels[y * size + x];
-                    int a = (p >> 24) & 0xFF;
-                    int r = (p >> 16) & 0xFF;
-                    int g = (p >> 8) & 0xFF;
-                    int b = p & 0xFF;
-                    image.setColor(x, y, (a << 24) | (b << 16) | (g << 8) | r);
+            for (int y = 0; y < TEXTURE_SIZE; y++) {
+                for (int x = 0; x < TEXTURE_SIZE; x++) {
+                    image.setColor(x, y, pixels[y * TEXTURE_SIZE + x]);
                 }
             }
             ghostTexture.upload();
         }
     }
 
+    /**
+     * Call on world disconnect to free native texture memory.
+     */
+    public static void cleanup() {
+        if (ghostTexture != null) {
+            ghostTexture.close();
+            ghostTexture = null;
+        }
+        pendingPixels = null;
+        lastUpdateX = -10000;
+        lastUpdateZ = -10000;
+    }
+
     private static void applyServerSeed(String ip) {
         String configSeeds = RustMC.CONFIG.getCustomGhostMapSeed();
         if (configSeeds == null || configSeeds.isEmpty()) return;
-        
-        RustMC.LOGGER.info("[Rust-MC] Ghost Map checking seed for server IP: '{}' against config: '{}'", ip, configSeeds);
-        
+
         for (String entry : configSeeds.split(",")) {
             if (tryApplySeedEntry(entry, ip)) {
                 break;
@@ -91,13 +143,12 @@ public class XaeroGhostMapCompat {
     private static boolean tryApplySeedEntry(String entry, String ip) {
         int splitObj = entry.lastIndexOf('=');
         if (splitObj == -1) splitObj = entry.lastIndexOf(':');
-        
+
         if (splitObj > 0 && splitObj < entry.length() - 1) {
             String serverPart = entry.substring(0, splitObj).trim();
             String seedPart = entry.substring(splitObj + 1).trim();
-            
+
             if (isIpMatch(ip, serverPart)) {
-                RustMC.LOGGER.info("[Rust-MC] Found custom Ghost Map seed match! Applying seed: {}", seedPart);
                 applySeedValue(seedPart);
                 return true;
             }
@@ -107,8 +158,8 @@ public class XaeroGhostMapCompat {
 
     private static boolean isIpMatch(String ip, String serverPart) {
         String trimmedIp = ip.trim();
-        return trimmedIp.equalsIgnoreCase(serverPart) 
-            || trimmedIp.contains(serverPart) 
+        return trimmedIp.equalsIgnoreCase(serverPart)
+            || trimmedIp.contains(serverPart)
             || serverPart.contains(trimmedIp);
     }
 

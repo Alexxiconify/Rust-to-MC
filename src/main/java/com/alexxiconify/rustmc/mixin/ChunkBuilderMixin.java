@@ -24,7 +24,7 @@ public class ChunkBuilderMixin {
         require = 0 // don't crash if Sodium replaces this
     )
     private int expandWorkers(int original) {
-        if (ModBridge.SODIUM) return original; // Sodium manages its own pool
+        if (ModBridge.SODIUM || !com.alexxiconify.rustmc.RustMC.CONFIG.isEnableChunkBuilderExpand()) return original;
         int cores = Runtime.getRuntime().availableProcessors();
         return Math.max(2, cores - 2);
     }

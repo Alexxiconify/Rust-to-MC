@@ -23,6 +23,11 @@ public class RustMC implements ModInitializer {
     public void onInitialize() {
         LOGGER.info("[Rust-MC] Initializing...");
         loadConfig();
+        ModBridge.initialize();
+
+        // Initialize ScalableLux compat if present
+        com.alexxiconify.rustmc.compat.ScalableLuxCompat.initialize();
+
         // Attempt to disable DH fade if enabled and DH is present
         if (CONFIG.isDisableDhFade()) {
             com.alexxiconify.rustmc.compat.DistantHorizonsCompat.disableFade();
@@ -42,6 +47,11 @@ public class RustMC implements ModInitializer {
                 NativeBridge.noiseReset(); // allow re-seed on new world
                 NativeBridge.noiseInit(world.getSeed());
                 LOGGER.debug("[Rust-MC] Seeded noise with world seed {}", world.getSeed());
+            });
+            // Cleanup resources on world unload
+            ServerWorldEvents.UNLOAD.register((server, world) -> {
+                NativeCache.clear();
+                com.alexxiconify.rustmc.compat.XaeroGhostMapCompat.cleanup();
             });
         } else {
             LOGGER.warn("[Rust-MC] Native library not available – running in vanilla-fallback mode.");

@@ -48,20 +48,32 @@ public class MathHelperMixin {
         return 1.0 / Math.sqrt(x);
     }
 
-    /** @author Alexxiconify @reason Scalar sqrt */
+    /** @author Alexxiconify @reason Inline sqrt — avoids JNI overhead for a single float */
     @Overwrite
     public static float sqrt(float f) {
-        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeInvSqrt()) {
-            return com.alexxiconify.rustmc.NativeBridge.invokeSqrt(f);
+        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeSqrt()) {
+            return (float) Math.sqrt(f);
         }
         return (float) Math.sqrt(f);
     }
 
-    /** @author Alexxiconify @reason Fast atan2 */
+    /** @author Alexxiconify @reason Fast atan2 — only crosses JNI when batch-worthwhile */
     @Overwrite
     public static double atan2(double y, double x) {
-        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeInvSqrt()) {
-            return com.alexxiconify.rustmc.NativeBridge.invokeAtan2(y, x);
+        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeAtan2()) {
+            // Inline fast polynomial atan2 approximation — faster than JNI roundtrip
+            double abs_y = Math.abs(y) + 1e-10;
+            double r;
+            double angle;
+            if (x >= 0) {
+                r = (x - abs_y) / (x + abs_y);
+                angle = 0.7853981633974483; // PI/4
+            } else {
+                r = (x + abs_y) / (abs_y - x);
+                angle = 2.356194490192345; // 3*PI/4
+            }
+            angle -= (0.1963 * r * r - 0.9817) * r;
+            return y < 0 ? -angle : angle;
         }
         return Math.atan2(y, x);
     }
@@ -76,29 +88,31 @@ public class MathHelperMixin {
         return (int) Math.floor(d);
     }
 
-    /** @author Alexxiconify @reason Native clamp */
+    /** @author Alexxiconify @reason Inline clamp — trivial op, no JNI */
     @Overwrite
     public static float clamp(float value, float min, float max) {
-        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeSqrt()) {
-            return com.alexxiconify.rustmc.NativeBridge.invokeClamp(value, min, max);
+        if (!ModBridge.isMathOwned()) {
+            return value < min ? min : (value > max ? max : value);
         }
         return Math.clamp(value, min, max);
     }
 
-    /** @author Alexxiconify @reason Native lerp */
+    /** @author Alexxiconify @reason Inline lerp — trivial op, no JNI */
     @Overwrite
     public static double lerp(double delta, double start, double end) {
-        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeSqrt()) {
-            return com.alexxiconify.rustmc.NativeBridge.invokeLerp(delta, start, end);
+        if (!ModBridge.isMathOwned()) {
+            return start + delta * (end - start);
         }
         return start + delta * (end - start);
     }
 
-    /** @author Alexxiconify @reason Native absMax */
+    /** @author Alexxiconify @reason Inline absMax — trivial op, no JNI */
     @Overwrite
     public static double absMax(double a, double b) {
-        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeSqrt()) {
-            return com.alexxiconify.rustmc.NativeBridge.invokeAbsMax(a, b);
+        if (!ModBridge.isMathOwned()) {
+            double aa = a < 0 ? -a : a;
+            double ab = b < 0 ? -b : b;
+            return aa > ab ? aa : ab;
         }
         return Math.max(Math.abs(a), Math.abs(b));
     }

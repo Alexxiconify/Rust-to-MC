@@ -18,6 +18,7 @@ public class ParticleManagerMixin {
             at = @At("HEAD"), cancellable = true)
     private void cullDistantParticles(ParticleEffect params, double x, double y, double z,
             double vx, double vy, double vz, CallbackInfoReturnable<Particle> cir) {
+        if (!com.alexxiconify.rustmc.RustMC.CONFIG.isEnableParticleCulling()) return;
         PlayerEntity player = MinecraftClient.getInstance().player;
         if (player == null) return;
         double cutoff = MinecraftClient.getInstance().options.getClampedViewDistance() * 8.0;

@@ -27,6 +27,19 @@ public class RustMCConfig {
     private GhostMapMode ghostMapMode    = GhostMapMode.DH_THEN_SEED;
     private String customGhostMapSeed    = "609567216262790763";
 
+    // Mod compat toggles (new — each can be disabled in ModMenu)
+    private boolean enableParticleCulling      = true;
+    private boolean enableChunkBuilderExpand   = true;
+    private boolean enableTickSyncCompat       = true;
+    private boolean enableBBECompat            = true;
+    private boolean enableEMFCompat            = true;
+    private boolean enableETFCompat            = true;
+    private boolean enableAppleSkinCompat      = true;
+    private boolean enableEntityCullingCompat  = true;
+    private boolean enableImmediatelyFastCompat = true;
+    private boolean enableClientRedstoneSkip   = true;
+    private boolean enableDebugHudGraph        = true;
+
     // Mod bridges
     private boolean bridgeSodium    = true;
     private boolean bridgeStarlight = true;
@@ -64,6 +77,17 @@ public class RustMCConfig {
         useFastLoadingScreen  = o.useFastLoadingScreen;
         useNativeCommands     = o.useNativeCommands;
         limitXaeroMinimap     = o.limitXaeroMinimap;
+        enableParticleCulling      = o.enableParticleCulling;
+        enableChunkBuilderExpand   = o.enableChunkBuilderExpand;
+        enableTickSyncCompat       = o.enableTickSyncCompat;
+        enableBBECompat            = o.enableBBECompat;
+        enableEMFCompat            = o.enableEMFCompat;
+        enableETFCompat            = o.enableETFCompat;
+        enableAppleSkinCompat      = o.enableAppleSkinCompat;
+        enableEntityCullingCompat  = o.enableEntityCullingCompat;
+        enableImmediatelyFastCompat = o.enableImmediatelyFastCompat;
+        enableClientRedstoneSkip   = o.enableClientRedstoneSkip;
+        enableDebugHudGraph        = o.enableDebugHudGraph;
         bridgeSodium          = o.bridgeSodium;
         bridgeStarlight       = o.bridgeStarlight;
         bridgeC2ME            = o.bridgeC2ME;
@@ -99,6 +123,18 @@ public class RustMCConfig {
     public boolean isUseFastLoadingScreen() { return useFastLoadingScreen; }
     public boolean isUseNativeCommands()    { return useNativeCommands; }
     public boolean isLimitXaeroMinimap()    { return limitXaeroMinimap; }
+    public boolean isGhostMapEnabled()      { return ghostMapMode != GhostMapMode.NONE; }
+    public boolean isEnableParticleCulling()      { return enableParticleCulling; }
+    public boolean isEnableChunkBuilderExpand()   { return enableChunkBuilderExpand; }
+    public boolean isEnableTickSyncCompat()       { return enableTickSyncCompat; }
+    public boolean isEnableBBECompat()            { return enableBBECompat; }
+    public boolean isEnableEMFCompat()            { return enableEMFCompat; }
+    public boolean isEnableETFCompat()            { return enableETFCompat; }
+    public boolean isEnableAppleSkinCompat()      { return enableAppleSkinCompat; }
+    public boolean isEnableEntityCullingCompat()  { return enableEntityCullingCompat; }
+    public boolean isEnableImmediatelyFastCompat() { return enableImmediatelyFastCompat; }
+    public boolean isEnableClientRedstoneSkip()   { return enableClientRedstoneSkip; }
+    public boolean isEnableDebugHudGraph()        { return enableDebugHudGraph; }
     public boolean isBridgeSodium()         { return bridgeSodium; }
     public boolean isBridgeStarlight()      { return bridgeStarlight; }
     public boolean isBridgeC2ME()           { return bridgeC2ME; }
@@ -133,6 +169,17 @@ public class RustMCConfig {
     public void setUseFastLoadingScreen(boolean v) { useFastLoadingScreen = v; }
     public void setUseNativeCommands(boolean v)    { useNativeCommands = v; }
     public void setLimitXaeroMinimap(boolean v)    { limitXaeroMinimap = v; }
+    public void setEnableParticleCulling(boolean v)      { enableParticleCulling = v; }
+    public void setEnableChunkBuilderExpand(boolean v)   { enableChunkBuilderExpand = v; }
+    public void setEnableTickSyncCompat(boolean v)       { enableTickSyncCompat = v; }
+    public void setEnableBBECompat(boolean v)            { enableBBECompat = v; }
+    public void setEnableEMFCompat(boolean v)            { enableEMFCompat = v; }
+    public void setEnableETFCompat(boolean v)            { enableETFCompat = v; }
+    public void setEnableAppleSkinCompat(boolean v)      { enableAppleSkinCompat = v; }
+    public void setEnableEntityCullingCompat(boolean v)  { enableEntityCullingCompat = v; }
+    public void setEnableImmediatelyFastCompat(boolean v) { enableImmediatelyFastCompat = v; }
+    public void setEnableClientRedstoneSkip(boolean v)   { enableClientRedstoneSkip = v; }
+    public void setEnableDebugHudGraph(boolean v)        { enableDebugHudGraph = v; }
     public void setBridgeSodium(boolean v)         { bridgeSodium = v; }
     public void setBridgeStarlight(boolean v)      { bridgeStarlight = v; }
     public void setBridgeC2ME(boolean v)           { bridgeC2ME = v; }

@@ -21,6 +21,11 @@ public class MixinManager implements IMixinConfigPlugin {
     private static final String NOISE_MIXIN  = PKG + "SimplexNoiseSamplerMixin";
     private static final String CMD_MIXIN    = PKG + "CommandManagerMixin";
     private static final String BLOCK_MIXIN  = PKG + "BlockStateMixin";
+    private static final String CHUNK_BUILDER_MIXIN = PKG + "ChunkBuilderMixin";
+    private static final String REDSTONE_MIXIN = PKG + "compat.ClientRedstoneSkipMixin";
+    private static final String TICK_SYNC_MIXIN = PKG + "compat.TickSyncCompatMixin";
+    private static final String BBE_MIXIN    = PKG + "compat.BBECompatMixin";
+    private static final String ENTITY_RENDER_MIXIN = PKG + "compat.EntityRenderCompatMixin";
 
     @Override
     public void onLoad(String mixinPackage) {
@@ -52,6 +57,22 @@ public class MixinManager implements IMixinConfigPlugin {
 
         if (BLOCK_MIXIN.equals(mixinClassName))
             return RustMC.CONFIG.isUseNativeCulling();
+
+        if (CHUNK_BUILDER_MIXIN.equals(mixinClassName))
+            return RustMC.CONFIG.isEnableChunkBuilderExpand() && !ModBridge.SODIUM;
+
+        if (REDSTONE_MIXIN.equals(mixinClassName))
+            return RustMC.CONFIG.isEnableClientRedstoneSkip();
+
+        if (TICK_SYNC_MIXIN.equals(mixinClassName))
+            return RustMC.CONFIG.isEnableTickSyncCompat();
+
+        if (BBE_MIXIN.equals(mixinClassName))
+            return RustMC.CONFIG.isEnableBBECompat();
+
+        if (ENTITY_RENDER_MIXIN.equals(mixinClassName))
+            return RustMC.CONFIG.isEnableEMFCompat() || RustMC.CONFIG.isEnableETFCompat()
+                    || RustMC.CONFIG.isEnableEntityCullingCompat();
 
         // Logging and commands: always apply unless specifically disabled
         // their bodies check NativeBridge.isReady() and config flags at runtime.

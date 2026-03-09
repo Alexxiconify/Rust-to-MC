@@ -11,6 +11,9 @@ run/
 .fabric/
 .loom-cache/
 future_patches/
+remappedSrc/
+*.access*widener
+
 # ─── Rust ────────────────────────────────────────────────────────────────────
 rust_mc_core/target/
 rust_mc_core/.rustc_info.json
@@ -18,17 +21,16 @@ rust_mc_core/CACHEDIR.TAG
 rust_mc_core/flycheck*/
 **/*.rs.bk
 **/*.pdb
+**/*.d
 
 # Compiled native outputs copied into resources (rebuilt each time)
 src/main/resources/rust_mc_core.dll
 src/main/resources/librust_mc_core.so
 src/main/resources/librust_mc_core.dylib
 
-# ─── IntelliJ IDEA ───────────────────────────────────────────────────────────
-# Files committed:  modules.xml, vcs.xml, inspectionProfiles/, .gitignore
-# Everything else is local / machine-specific (see .idea/.gitignore).
+# ─── IntelliJ IDEA (ignore entirely — nothing needs to be committed) ─────────
+.idea/
 *.iml
-.idea/.idea.*/.idea/
 
 # ─── VS Code ─────────────────────────────────────────────────────────────────
 .vscode/
@@ -48,17 +50,22 @@ src/main/resources/librust_mc_core.dylib
 .Spotlight-V100
 .Trashes
 ehthumbs.db
+ehthumbs_vista.db
 Thumbs.db
 desktop.ini
 $RECYCLE.BIN/
+*.lnk
 
 # ─── Logs & crash reports ─────────────────────────────────────────────────────
 *.log
 *.log.*
+*.log.gz
 logs/
 crash-reports/
 debug/
 replay_*/
+hs_err_pid*
+replay_pid*
 
 # ─── Temp / generated files ───────────────────────────────────────────────────
 PumpkinTemp/
@@ -74,11 +81,14 @@ libs/
 *.rej
 *.bak
 *.class
+*.pyc
+*.pyo
 
 # ─── Test & coverage output ───────────────────────────────────────────────────
 test-results/
 coverage/
 *.exec
+
 # ─── Archives ────────────────────────────────────────────────────────────────
 *.zip
 *.tar.gz
@@ -89,5 +99,11 @@ node_modules/
 npm-debug.log*
 yarn-error.log*
 
+# ─── Temp work dirs ──────────────────────────────────────────────────────────
 /temp_xaero/
 /temp_xaerolib/
+
+# ─── Misc IDE / Tool cache ──────────────────────────────────────────────────
+.cache/
+.local/
+*.hprof

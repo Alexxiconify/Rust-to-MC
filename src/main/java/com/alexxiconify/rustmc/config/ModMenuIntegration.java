@@ -31,6 +31,7 @@ public class ModMenuIntegration implements ModMenuApi {
                 .category(buildStatusCategory())
                 .category(buildMathCategory(cfg))
                 .category(buildFeaturesCategory(cfg))
+                .category(buildModCompatCategory(cfg))
                 .category(buildBridgesCategory(cfg))
                 .category(buildLoadingScreenCategory(cfg))
                 .category(buildElbCategory())
@@ -58,6 +59,14 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildDetectOption("Iris Detected",     () -> ModBridge.IRIS))
             .option(buildDetectOption("Lithium Detected",  () -> ModBridge.LITHIUM))
             .option(buildDetectOption("C2ME Detected",     () -> ModBridge.C2ME))
+            .option(buildDetectOption("BBE Detected",      () -> ModBridge.BETTERBLOCKENTITIES))
+            .option(buildDetectOption("EMF Detected",      () -> ModBridge.ENTITY_MODEL_FEATURES))
+            .option(buildDetectOption("ETF Detected",      () -> ModBridge.ENTITY_TEXTURE_FEATURES))
+            .option(buildDetectOption("EntityCulling Detected", () -> ModBridge.ENTITYCULLING))
+            .option(buildDetectOption("TickSync Detected", () -> ModBridge.TICK_SYNC))
+            .option(buildDetectOption("Oxidizium Detected", () -> ModBridge.OXIDIZIUM))
+            .option(buildDetectOption("ImmediatelyFast Detected", () -> ModBridge.IMMEDIATELYFAST))
+            .option(buildDetectOption("Distant Horizons Detected", () -> ModBridge.DISTANT_HORIZONS))
             .build();
     }
 
@@ -124,6 +133,38 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildBooleanOption("Limit Xaero Minimap",
                 "Limits Xaero's Minimap to ~30 FPS update rate to save CPU/GPU.",
                 cfg::isLimitXaeroMinimap, v -> cfg.setLimitXaeroMinimap(v != null && v)))
+            .build();
+    }
+
+    /** Mod compatibility feature toggles — each can be disabled individually. */
+    private ConfigCategory buildModCompatCategory(RustMCConfig cfg) {
+        return ConfigCategory.createBuilder()
+            .name(Text.literal("Mod Compatibility"))
+            .tooltip(Text.literal("Toggle individual optimization features and mod compatibility hooks."))
+            .option(buildBooleanOption("Particle Distance Culling",
+                "Skip rendering particles beyond view distance threshold.",
+                cfg::isEnableParticleCulling, v -> cfg.setEnableParticleCulling(v != null && v)))
+            .option(buildBooleanOption("Expand Chunk Builder Threads",
+                "Use more CPU cores for chunk building (yields to Sodium if present).",
+                cfg::isEnableChunkBuilderExpand, v -> cfg.setEnableChunkBuilderExpand(v != null && v)))
+            .option(buildBooleanOption("TickSync Compatibility",
+                "Tick-smoothing integration. Yields to TickSync mod when installed.",
+                cfg::isEnableTickSyncCompat, v -> cfg.setEnableTickSyncCompat(v != null && v)))
+            .option(buildBooleanOption("BBE Compatibility",
+                "Better Block Entities compat — distance-cull block entities when BBE is absent.",
+                cfg::isEnableBBECompat, v -> cfg.setEnableBBECompat(v != null && v)))
+            .option(buildBooleanOption("EMF/ETF Compatibility",
+                "Entity Model/Texture Features — reduce entity render distance when heavy models active.",
+                cfg::isEnableEMFCompat, v -> cfg.setEnableEMFCompat(v != null && v)))
+            .option(buildBooleanOption("EntityCulling Compatibility",
+                "Yields entity distance culling to EntityCulling mod when installed.",
+                cfg::isEnableEntityCullingCompat, v -> cfg.setEnableEntityCullingCompat(v != null && v)))
+            .option(buildBooleanOption("Client Redstone Skip",
+                "Skip client-side redstone neighbor updates (server handles logic).",
+                cfg::isEnableClientRedstoneSkip, v -> cfg.setEnableClientRedstoneSkip(v != null && v)))
+            .option(buildBooleanOption("F3 Frame Graph",
+                "Show a frame-time sparkline graph on the F3 debug overlay.",
+                cfg::isEnableDebugHudGraph, v -> cfg.setEnableDebugHudGraph(v != null && v)))
             .build();
     }
 

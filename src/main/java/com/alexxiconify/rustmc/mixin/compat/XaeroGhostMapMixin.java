@@ -2,11 +2,11 @@ package com.alexxiconify.rustmc.mixin.compat;
 
 import com.alexxiconify.rustmc.RustMC;
 import com.alexxiconify.rustmc.compat.XaeroGhostMapCompat;
-
 import com.alexxiconify.rustmc.config.RustMCConfig;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.render.RenderLayer;
 import net.minecraft.util.Identifier;
 
 import org.spongepowered.asm.mixin.Mixin;
@@ -15,16 +15,17 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * Injects the ghost map overlay into Xaero's Minimap rendering.
+ * Split from the world map mixin to avoid targeting two unrelated classes.
+ */
 @Pseudo
-@Mixin(targets = {
-    "xaero.common.minimap.MinimapInterface",
-    "xaero.map.gui.GuiMap"
-})
+@Mixin(targets = "xaero.common.minimap.MinimapInterface")
 public class XaeroGhostMapMixin {
 
     @SuppressWarnings("java:S107")
-    @Inject(method = "drawMinimap", at = @At("HEAD"), remap = false, require = 0)
-    private void drawGhostMapUnderlayMinimap(
+    @Inject(method = "drawMinimap", at = @At("TAIL"), remap = false, require = 0)
+    private void drawGhostMapOverlayMinimap(
             DrawContext context,
             MinecraftClient mc,
             int width,
@@ -34,46 +35,17 @@ public class XaeroGhostMapMixin {
             int scale,
             CallbackInfo ci
     ) {
-        drawGhostMapCommon(context, width, height);
-    }
-
-    @Inject(method = "render", at = @At("HEAD"), remap = false, require = 0)
-    private void drawGhostMapUnderlayWorldMap(
-            DrawContext context,
-            int mouseX,
-            int mouseY,
-            float delta,
-            CallbackInfo ci
-    ) {
-        // World Map usually fills screen, use screen bounds or map bound attributes
-        MinecraftClient mc = MinecraftClient.getInstance();
-        net.minecraft.client.gui.screen.Screen screen = mc.currentScreen;
-        if (screen != null) {
-            drawGhostMapCommon(context, screen.width, screen.height);
-        }
-    }
-
-    private void drawGhostMapCommon(DrawContext context, int width, int height) {
-
-        if (RustMC.CONFIG.getGhostMapMode() == RustMCConfig.GhostMapMode.NONE) {
-            return;
-        }
+        if (!RustMC.CONFIG.isGhostMapEnabled()) return;
 
         Identifier tex = XaeroGhostMapCompat.getGhostTexture();
-        if (tex == null) {
-            return;
-        }
+        if (tex == null) return;
 
-        // Temporary debug
-        RustMC.LOGGER.info("[Rust-MC] Xaero Map Draw Triggered!");
+        int mapSize = Math.min(scaledWidth, scaledHeight);
+        int mapX = scaledWidth - mapSize;
+        int mapY = 0;
 
-        // Draw context bounds on screen.
-        context.drawTexturedQuad(
-                tex,
-                0, 0,
-                0, 0,
-                width, height,
-                width, height
-        );
+        context.setShaderColor(1.0f, 1.0f, 1.0f, 0.45f);
+        context.drawTexture(RenderLayer::getGuiTextured, tex, mapX, mapY, 0, 0, mapSize, mapSize, mapSize, mapSize);
+        context.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
     }
 }
