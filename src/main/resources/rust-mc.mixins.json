@@ -22,6 +22,7 @@
     "screen.SplashOverlayMixin",
     "screen.LevelLoadingScreenMixin",
     "compat.XaeroMinimapLimiterMixin",
+    "compat.XaeroGhostMapMixin",
     "compat.MiniHUDLightUpdateMixin",
     "BoxMixin",
     "MinecraftClientMixin",

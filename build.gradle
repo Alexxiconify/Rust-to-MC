@@ -37,6 +37,11 @@ dependencies {
     // Config & UI
     modImplementation "dev.isxander:yet-another-config-lib:${project.yacl_version}"
     modImplementation "com.terraformersmc:modmenu:${project.modmenu_version}"
+
+    // Local Xaero Jars
+    modImplementation files("libs/xaerominimap-fabric-1.21.11-25.3.10.jar")
+    modImplementation files("libs/xaeroworldmap-fabric-1.21.11-1.40.11.jar")
+    modImplementation files("libs/XaeroPlus-2.30.9+fabric-1.21.11-WM1.40.11-MM25.3.10.jar")
 }
 
 processResources {

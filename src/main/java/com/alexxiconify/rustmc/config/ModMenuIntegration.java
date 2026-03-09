@@ -149,6 +149,18 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildBooleanOption("Disable DH Chunk Fade",
                 "Disables Distant Horizons LOD fade for a sharper look.",
                 cfg::isDisableDhFade, v -> cfg.setDisableDhFade(v != null && v)))
+            .option(Option.<RustMCConfig.GhostMapMode>createBuilder()
+                .name(Text.literal("Ghost Map Mode"))
+                .description(OptionDescription.of(Text.literal("Configure how the Ghost Map retrieves background generation logic.")))
+                .binding(RustMCConfig.GhostMapMode.DH_THEN_SEED, cfg::getGhostMapMode, cfg::setGhostMapMode)
+                .controller(opt -> dev.isxander.yacl3.api.controller.EnumControllerBuilder.create(opt).enumClass(RustMCConfig.GhostMapMode.class))
+                .build())
+            .option(Option.<String>createBuilder()
+                .name(Text.literal("Server Ghost Map Seeds"))
+                .description(OptionDescription.of(Text.literal("Set seeds per server. Format: serverIP:seed, serverIP2:seed2 E.g. my.server.com:609567216262790763")))
+                .binding("", cfg::getCustomGhostMapSeed, cfg::setCustomGhostMapSeed)
+                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
+                .build())
             .build();
     }
 

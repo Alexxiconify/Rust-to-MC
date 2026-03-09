@@ -19,7 +19,13 @@ public class RustMCConfig {
     private boolean useNativeCulling     = true;
     private boolean useFastLoadingScreen = true;
     private boolean useNativeCommands    = false;
+    public enum GhostMapMode {
+        NONE, DH_ONLY, SEED_ONLY, DH_THEN_SEED
+    }
+
     private boolean limitXaeroMinimap    = true;
+    private GhostMapMode ghostMapMode    = GhostMapMode.DH_THEN_SEED;
+    private String customGhostMapSeed    = "609567216262790763";
 
     // Mod bridges
     private boolean bridgeSodium    = true;
@@ -64,6 +70,8 @@ public class RustMCConfig {
         bridgeIris            = o.bridgeIris;
         bridgeLithium         = o.bridgeLithium;
         disableDhFade         = o.disableDhFade;
+        ghostMapMode          = o.ghostMapMode;
+        customGhostMapSeed    = o.customGhostMapSeed;
         loadingBarBgColor     = o.loadingBarBgColor;
         loadingBarLowColor    = o.loadingBarLowColor;
         loadingBarMidColor    = o.loadingBarMidColor;
@@ -97,6 +105,8 @@ public class RustMCConfig {
     public boolean isBridgeIris()           { return bridgeIris; }
     public boolean isBridgeLithium()        { return bridgeLithium; }
     public boolean isDisableDhFade()        { return disableDhFade; }
+    public GhostMapMode getGhostMapMode()   { return ghostMapMode; }
+    public String getCustomGhostMapSeed()    { return customGhostMapSeed; }
     public int getLoadingBarBgColor()       { return loadingBarBgColor; }
     public int getLoadingBarLowColor()      { return loadingBarLowColor; }
     public int getLoadingBarMidColor()      { return loadingBarMidColor; }
@@ -129,6 +139,8 @@ public class RustMCConfig {
     public void setBridgeIris(boolean v)           { bridgeIris = v; }
     public void setBridgeLithium(boolean v)        { bridgeLithium = v; }
     public void setDisableDhFade(boolean v)        { disableDhFade = v; }
+    public void setGhostMapMode(GhostMapMode v)    { ghostMapMode = v; }
+    public void setCustomGhostMapSeed(String v)    { customGhostMapSeed = v; }
     public void setLoadingBarBgColor(int v)        { loadingBarBgColor = v; }
     public void setLoadingBarLowColor(int v)       { loadingBarLowColor = v; }
     public void setLoadingBarMidColor(int v)       { loadingBarMidColor = v; }

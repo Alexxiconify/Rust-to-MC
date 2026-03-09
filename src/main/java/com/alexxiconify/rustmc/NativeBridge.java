@@ -55,9 +55,11 @@ public class NativeBridge {
     private static native double rustAtan2(double y, double x);
     private static native double rustNoise2d(double x, double y);
     private static native double rustNoise3d(double x, double y, double z);
+    private static native float rustGetGhostHeight(double x, double z);
     private static native long[] rustGetSystemMemory();
     private static native int rustPropagateLightBulk(int[] data, int count);
     private static native byte[] rustCompress(byte[] input);
+    private static native int[] rustGenerateGhostMap(double centerX, double centerZ, int size, double scale);
     private static native byte[] rustDecompress(byte[] input, int maxOutputSize);
     private static native int rustFindPath(int[] start, int[] end);
     private static native int rustExecuteCommand(byte[] cmd);
@@ -158,6 +160,12 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError e) { return 0.0; }
     }
 
+    public static float getGhostHeight(double x, double z) {
+        if (!libLoaded) return 64.0f;
+        try { return rustGetGhostHeight(x, z); }
+        catch (UnsatisfiedLinkError e) { return 64.0f; }
+    }
+
     public static void getSystemMemory(long[] out) {
         if (!libLoaded || out == null || out.length < 2) return;
         try {
@@ -179,6 +187,12 @@ public class NativeBridge {
         if (!libLoaded) return new byte[0];
         try { return rustCompress(input); }
         catch (UnsatisfiedLinkError e) { return new byte[0]; }
+    }
+
+    public static int[] generateGhostMap(double centerX, double centerZ, int size, double scale) {
+        if (!libLoaded) return new int[size * size];
+        try { return rustGenerateGhostMap(centerX, centerZ, size, scale); }
+        catch (UnsatisfiedLinkError e) { return new int[size * size]; }
     }
 
     public static byte[] invokeDecompress(byte[] input, int maxOutputSize) {
