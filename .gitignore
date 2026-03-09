@@ -64,6 +64,7 @@ replay_*/
 PumpkinTemp/
 KennyTVModTemp/
 lighty_src_repo/
+libs/
 *.tmp
 *.temp
 *.swp
