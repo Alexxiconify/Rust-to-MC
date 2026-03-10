@@ -36,6 +36,7 @@ public class MathHelperMixin {
     }
 
     /** @author Alexxiconify @reason Quake III fast inv-sqrt or vanilla fallback */
+    @Deprecated
     @Overwrite
     public static double fastInverseSqrt(double x) {
         if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeInvSqrt()) {

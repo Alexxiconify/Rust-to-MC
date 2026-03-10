@@ -40,6 +40,9 @@ public class RustMCConfig {
     private boolean enableClientRedstoneSkip   = true;
     private boolean enableDebugHudGraph        = true;
 
+    // DNS / Server List
+    private boolean enableDnsCache             = true;
+
     // Mod bridges
     private boolean bridgeSodium    = true;
     private boolean bridgeStarlight = true;
@@ -88,6 +91,7 @@ public class RustMCConfig {
         enableImmediatelyFastCompat = o.enableImmediatelyFastCompat;
         enableClientRedstoneSkip   = o.enableClientRedstoneSkip;
         enableDebugHudGraph        = o.enableDebugHudGraph;
+        enableDnsCache             = o.enableDnsCache;
         bridgeSodium          = o.bridgeSodium;
         bridgeStarlight       = o.bridgeStarlight;
         bridgeC2ME            = o.bridgeC2ME;
@@ -135,6 +139,7 @@ public class RustMCConfig {
     public boolean isEnableImmediatelyFastCompat() { return enableImmediatelyFastCompat; }
     public boolean isEnableClientRedstoneSkip()   { return enableClientRedstoneSkip; }
     public boolean isEnableDebugHudGraph()        { return enableDebugHudGraph; }
+    public boolean isEnableDnsCache()             { return enableDnsCache; }
     public boolean isBridgeSodium()         { return bridgeSodium; }
     public boolean isBridgeStarlight()      { return bridgeStarlight; }
     public boolean isBridgeC2ME()           { return bridgeC2ME; }
@@ -180,6 +185,7 @@ public class RustMCConfig {
     public void setEnableImmediatelyFastCompat(boolean v) { enableImmediatelyFastCompat = v; }
     public void setEnableClientRedstoneSkip(boolean v)   { enableClientRedstoneSkip = v; }
     public void setEnableDebugHudGraph(boolean v)        { enableDebugHudGraph = v; }
+    public void setEnableDnsCache(boolean v)             { enableDnsCache = v; }
     public void setBridgeSodium(boolean v)         { bridgeSodium = v; }
     public void setBridgeStarlight(boolean v)      { bridgeStarlight = v; }
     public void setBridgeC2ME(boolean v)           { bridgeC2ME = v; }

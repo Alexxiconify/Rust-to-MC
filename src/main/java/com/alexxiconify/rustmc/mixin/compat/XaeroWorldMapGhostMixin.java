@@ -17,6 +17,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * Injects the ghost map overlay into Xaero's World Map GUI rendering.
  * Separate from the minimap mixin since GuiMap is a different class hierarchy.
  * <p>
+ * GuiMap extends vanilla Screen, so the render method uses intermediary names in
+ * the Xaero jar. We target the intermediary descriptor directly with remap=false
+ * on the @Inject to avoid Loom trying to remap it again.
+ * <p>
  * Transparency is baked into the texture pixels by XaeroGhostMapCompat
  * (alpha channel in the ARGB data), so no RenderSystem blend calls are needed.
  */
@@ -24,7 +28,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(targets = "xaero.map.gui.GuiMap")
 public class XaeroWorldMapGhostMixin {
 
-    @Inject(method = "render", at = @At("TAIL"), remap = false, require = 0)
+    @Inject(
+        method = "method_25394(Lnet/minecraft/class_332;IIF)V",
+        at = @At("TAIL"),
+        remap = false,
+        require = 0
+    )
     private void drawGhostMapOverlayWorldMap(
             DrawContext context,
             int mouseX,

@@ -18,8 +18,8 @@ import java.util.Set;
 /**
  * Hooks into mob pathfinding to get a distance estimate from Rust A*.
  * When the mob is already at the target (distance 0), vanilla pathfinding is
- * cancelled with null (no path needed).  For all other distances the vanilla
- * A* runs normally; in a future update Rust will return a serialised Path.
+ * canceled with null (no path needed).  For all other distances the vanilla
+ * A* runs normally; in a future update Rust will return a serialized Path.
  */
 @Mixin(PathNodeNavigator.class)
 public class PathfindingMixin {

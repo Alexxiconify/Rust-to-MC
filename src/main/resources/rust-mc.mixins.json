@@ -23,6 +23,7 @@
     "screen.SplashOverlayMixin",
     "screen.LevelLoadingScreenMixin",
     "screen.WindowMixin",
+    "screen.MultiplayerScreenMixin",
     "compat.XaeroMinimapLimiterMixin",
     "compat.XaeroGhostMapMixin",
     "compat.XaeroWorldMapGhostMixin",
@@ -33,7 +34,11 @@
     "compat.EntityRenderCompatMixin",
     "BoxMixin",
     "MinecraftClientMixin",
-    "DebugHudMixin"
+    "DebugHudMixin",
+    "ServerPingerMixin",
+    "ServerAddressMixin",
+    "ResourceReloadMixin",
+    "SchemasMixin"
   ],
   "injectors": {
     "defaultRequire": 0

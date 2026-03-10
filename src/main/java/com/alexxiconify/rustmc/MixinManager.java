@@ -26,6 +26,9 @@ public class MixinManager implements IMixinConfigPlugin {
     private static final String TICK_SYNC_MIXIN = PKG + "compat.TickSyncCompatMixin";
     private static final String BBE_MIXIN    = PKG + "compat.BBECompatMixin";
     private static final String ENTITY_RENDER_MIXIN = PKG + "compat.EntityRenderCompatMixin";
+    private static final String SERVER_PINGER_MIXIN = PKG + "ServerPingerMixin";
+    private static final String SERVER_ADDRESS_MIXIN = PKG + "ServerAddressMixin";
+    private static final String MULTIPLAYER_SCREEN_MIXIN = PKG + "screen.MultiplayerScreenMixin";
 
     @Override
     public void onLoad(String mixinPackage) {
@@ -73,6 +76,12 @@ public class MixinManager implements IMixinConfigPlugin {
         if (ENTITY_RENDER_MIXIN.equals(mixinClassName))
             return RustMC.CONFIG.isEnableEMFCompat() || RustMC.CONFIG.isEnableETFCompat()
                     || RustMC.CONFIG.isEnableEntityCullingCompat();
+
+        // DNS cache mixins — respect the enableDnsCache config toggle
+        if (SERVER_PINGER_MIXIN.equals(mixinClassName)
+                || SERVER_ADDRESS_MIXIN.equals(mixinClassName)
+                || MULTIPLAYER_SCREEN_MIXIN.equals(mixinClassName))
+            return RustMC.CONFIG.isEnableDnsCache();
 
         // Logging and commands: always apply unless specifically disabled
         // their bodies check NativeBridge.isReady() and config flags at runtime.

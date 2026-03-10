@@ -5,12 +5,14 @@ import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
 import net.minecraft.world.chunk.light.LightingProvider;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Routes pending light tasks through Rust's parallel propagation thread pool when:
@@ -25,15 +27,20 @@ import java.util.concurrent.BlockingQueue;
 public class LightingMixin {
 
     // Queue of encoded (x, y, z, type) tuples for the Rust bulk propagation call.
-    private static final BlockingQueue<int[]> PENDING = new ArrayBlockingQueue<>(4096);
+    @Unique
+    private static final BlockingQueue<int[]> PENDING = new ArrayBlockingQueue<>( 4096);
+    @Unique
     private static volatile boolean rustLightThreadRunning = false;
 
+    @Unique
     private static final int MAX_BUFFER_SIZE = 32768; // Cap at 32K entries (128KB)
 
     // flatBuffer is only accessed from the single virtual thread — but use ThreadLocal
     // to make this explicit and avoid any future accidental cross-thread access.
-    private static final ThreadLocal<int[]> FLAT_BUFFER = ThreadLocal.withInitial(() -> new int[4096 * 4]);
+    @Unique
+    private static final ThreadLocal<int[]> FLAT_BUFFER = ThreadLocal.withInitial( () -> new int[4096 * 4]);
 
+    @Unique
     private static void flushToRust() {
         if (PENDING.isEmpty()) return;
         int[] flatBuffer = FLAT_BUFFER.get();
@@ -50,13 +57,16 @@ public class LightingMixin {
         }
     }
 
+    @Unique
     private static synchronized void ensureRustThread() {
         if (rustLightThreadRunning) return;
         rustLightThreadRunning = true;
         Thread.ofVirtual().name("rustmc-light-propagation").start(() -> {
-            while (true) {
+            while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    Thread.sleep(4); // ~250 Hz drain rate
+                    // Block on the queue with a timeout instead of Thread.sleep —
+                    // properly parks the thread without busy-waiting.
+                    PENDING.poll(4, TimeUnit.MILLISECONDS);
                     if (NativeBridge.isReady() && !ModBridge.isLightingOwned()
                             && RustMC.CONFIG.isUseNativeLighting()) {
                         flushToRust();

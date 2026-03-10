@@ -133,6 +133,11 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildBooleanOption("Limit Xaero Minimap",
                 "Limits Xaero's Minimap to ~30 FPS update rate to save CPU/GPU.",
                 cfg::isLimitXaeroMinimap, v -> cfg.setLimitXaeroMinimap(v != null && v)))
+            .option(buildBooleanOption("DNS Cache (Server Pings)",
+                "Caches DNS lookups for 5 minutes via Rust to speed up server list pings.\n" +
+                "Eliminates repeated DNS resolution when refreshing the multiplayer server list.\n" +
+                "Cached entries: " + NativeBridge.dnsCacheSize(),
+                cfg::isEnableDnsCache, v -> cfg.setEnableDnsCache(v != null && v)))
             .build();
     }
 

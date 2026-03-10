@@ -40,7 +40,20 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
         int cores   = Runtime.getRuntime().availableProcessors();
         int workers = Math.max(1, cores - 1);
         System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", String.valueOf(workers));
-        LOGGER.info("[Rust-MC] ForkJoin parallelism → {} (of {} cores)", workers, cores);
+
+        // Speed up class loading — use parallel class loading if available
+        System.setProperty("java.lang.ClassLoader.parallelLockMap", "true");
+
+        // Tune DNS cache TTL for Java's built-in resolver (seconds)
+        // Default is 30s for positive, 10s for negative — we extend positive to reduce lookups
+        java.security.Security.setProperty("networkaddress.cache.ttl", "300");
+        java.security.Security.setProperty("networkaddress.cache.negative.ttl", "10");
+
+        // Hint the JIT compiler to compile methods earlier for faster warmup
+        System.setProperty("sun.java2d.opengl", "false"); // Avoid Swing GL init overhead for ELB
+        System.setProperty("java.awt.headless", "false");  // Allow ELB Swing window
+
+        LOGGER.info("[Rust-MC] ForkJoin parallelism → {} (of {} cores), DNS cache TTL 300s", workers, cores);
     }
 
     // ─── Live Log4j Appender ────────────────────────────────────────────────
@@ -141,7 +154,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
         if (pct >= 95) return "Starting...";
         if (pct >= 80) return "Loading sounds & assets...";
         if (pct >= 60) return "Loading resource packs...";
-        if (pct >= 25) return "Applying mixins \u2014 " + modCount + " mods...";
+        if (pct >= 25) return "Applying mixins — " + modCount + " mods...";
         return "Bootstrapping JVM...";
     }
 

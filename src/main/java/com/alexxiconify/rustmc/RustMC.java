@@ -51,6 +51,9 @@ public class RustMC implements ModInitializer {
             // Cleanup resources on world unload
             ServerWorldEvents.UNLOAD.register((server, world) -> {
                 NativeCache.clear();
+                LOGGER.debug("[Rust-MC] Cache stats at unload: hits={}, misses={}, ratio={}%",
+                        NativeCache.getHits(), NativeCache.getMisses(),
+                        String.format("%.1f", NativeCache.getHitRatio() * 100));
                 com.alexxiconify.rustmc.compat.XaeroGhostMapCompat.cleanup();
             });
         } else {

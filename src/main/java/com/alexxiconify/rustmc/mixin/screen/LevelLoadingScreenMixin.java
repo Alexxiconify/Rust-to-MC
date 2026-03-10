@@ -1,6 +1,7 @@
 package com.alexxiconify.rustmc.mixin.screen;
 
 import com.alexxiconify.rustmc.RustMC;
+import com.alexxiconify.rustmc.util.RamBarRenderer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.world.LevelLoadingScreen;
@@ -22,25 +23,6 @@ public abstract class LevelLoadingScreenMixin {
         int w = context.getScaledWindowWidth();
         int h = context.getScaledWindowHeight();
 
-        long used = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-        long max  = Runtime.getRuntime().maxMemory();
-        float ratio = (float) used / max;
-
-        int barW = Math.min(400, w - 20);
-        int barH = 5;
-        int bx   = (w - barW) / 2;
-        int by   = h - 22;
-
-        context.fill(bx, by, bx + barW, by + barH, RustMC.CONFIG.getLoadingBarBgColor());
-        context.fill(bx, by, bx + (int)(barW * ratio), by + barH, ramColor(ratio));
-
-        String ramText = String.format("RAM %dMB / %dMB (%.0f%%)", used >> 20, max >> 20, ratio * 100f);
-        context.drawCenteredTextWithShadow(client.textRenderer, ramText, w / 2, by + barH + 2, RustMC.CONFIG.getLoadingBarTextColor());
-    }
-
-    private int ramColor(float r) {
-        if (r < 0.6f) return RustMC.CONFIG.getLoadingBarLowColor();
-        if (r < 0.8f) return RustMC.CONFIG.getLoadingBarMidColor();
-        return RustMC.CONFIG.getLoadingBarHighColor();
+        RamBarRenderer.drawRamBar(context, client.textRenderer, w, h, RustMC.CONFIG.getLoadingBarBgColor());
     }
 }

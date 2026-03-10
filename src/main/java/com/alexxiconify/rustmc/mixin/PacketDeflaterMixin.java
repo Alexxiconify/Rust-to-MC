@@ -26,7 +26,7 @@ public class PacketDeflaterMixin {
 
         int readable = in.readableBytes();
         if (readable < this.compressionThreshold) {
-            // Below threshold: write uncompressed with 0-length header (vanilla behaviour)
+            // Below threshold: write uncompressed with 0-length header (vanilla behavior)
             out.writeInt(0);
             out.writeBytes(in);
             ci.cancel();

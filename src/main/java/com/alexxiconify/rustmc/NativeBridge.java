@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class NativeBridge {
     private NativeBridge() {}
 
-    private static boolean libLoaded = false;
+    private static boolean libLoaded;
     private static final AtomicBoolean noiseSeeded = new AtomicBoolean(false);
 
     public static boolean isReady() { return libLoaded; }
@@ -78,6 +78,11 @@ public class NativeBridge {
     private static native float[] rustComputeAmbientOcclusionDirect(java.nio.ByteBuffer vertexData, int vertexCount);
     private static native void rustAddFrameTime(long nanos);
     private static native float[] rustGetFrameHistory();
+    // DNS cache
+    private static native String rustDnsResolve(String hostname);
+    private static native String[] rustDnsBatchResolve(String[] hostnames);
+    private static native void rustDnsCacheClear();
+    private static native int rustDnsCacheSize();
 
     // --- Wrapper Methods ---
 
@@ -143,9 +148,10 @@ public class NativeBridge {
     }
 
     public static double invokeAbsMax(double a, double b) {
-        if (!libLoaded) return Math.max(Math.abs(a), Math.abs(b));
+        double max = Math.max ( Math.abs ( a ) , Math.abs ( b ) );
+        if (!libLoaded) return max;
         try { return rustAbsMax(a, b); }
-        catch (UnsatisfiedLinkError e) { return Math.max(Math.abs(a), Math.abs(b)); }
+        catch (UnsatisfiedLinkError e) { return max; }
     }
 
     public static double noise2d(double x, double y) {
@@ -286,5 +292,43 @@ public class NativeBridge {
         } catch (UnsatisfiedLinkError e) {
             return new float[0];
         }
+    }
+
+    // ─── DNS Cache Methods ──────────────────────────────────────────────────
+
+    /**
+     * Resolves a hostname to an IP address using Rust's cached DNS resolver.
+     * Results are cached for 5 minutes to speed up repeated server list pings.
+     * @return resolved IP, or null if resolution fails or native is unavailable
+     */
+    public static String dnsResolve(String hostname) {
+        if (!libLoaded || hostname == null || hostname.isEmpty()) return null;
+        try { return rustDnsResolve(hostname); }
+        catch (UnsatisfiedLinkError e) { return null; }
+    }
+
+    /**
+     * Batch resolves multiple hostnames in parallel using Rust's rayon thread pool.
+     * Much faster than sequential Java InetAddress.getByName() for server lists.
+     * @return array of IPs (empty string for failed lookups), or empty array on error
+     */
+    public static String[] dnsBatchResolve(String[] hostnames) {
+        if (!libLoaded || hostnames == null || hostnames.length == 0) return new String[0];
+        try { return rustDnsBatchResolve(hostnames); }
+        catch (UnsatisfiedLinkError e) { return new String[0]; }
+    }
+
+    /** Clears the Rust DNS cache. */
+    public static void dnsCacheClear() {
+        if (!libLoaded) return;
+        try { rustDnsCacheClear(); }
+        catch (UnsatisfiedLinkError ignored) { /* optional */ }
+    }
+
+    /** Returns the number of cached DNS entries. */
+    public static int dnsCacheSize() {
+        if (!libLoaded) return 0;
+        try { return rustDnsCacheSize(); }
+        catch (UnsatisfiedLinkError e) { return 0; }
     }
 }
