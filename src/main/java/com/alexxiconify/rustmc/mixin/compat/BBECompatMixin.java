@@ -1,7 +1,5 @@
 package com.alexxiconify.rustmc.mixin.compat;
 
-import com.alexxiconify.rustmc.ModBridge;
-import com.alexxiconify.rustmc.RustMC;
 import net.minecraft.client.render.WorldRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -22,14 +20,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class BBECompatMixin {
 
     /**
-     * Hook into the world render method to set a flag that can be used by
-     * block entity rendering optimizations. When BBE is present, this is a no-op.
+     * Hook into the world render method. Currently a detection-only hook —
+     * future updates will set a RenderState flag to skip distant BEs.
      */
     @Inject(method = "render", at = @At("HEAD"), require = 0)
     private void onRenderHead(CallbackInfo ci) {
-        // When BBE is installed, it optimizes block entity rendering already.
-        // We just ensure we don't conflict. This hook serves as a detection point.
-        if (!RustMC.CONFIG.isEnableBBECompat() || ModBridge.BETTERBLOCKENTITIES) return;
-        // Future: could set a thread-local flag to skip distant BEs in the render loop
     }
 }

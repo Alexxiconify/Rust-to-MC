@@ -25,7 +25,7 @@ public class WindowMixin {
             // We must check capabilities exist before calling any GL function, otherwise
             // LWJGL dereferences a null function pointer causing a native SIGSEGV crash.
             GLCapabilities caps = GL.getCapabilities();
-            if (caps == null || caps.glClearColor == 0L) return;
+            if ( caps.glClearColor == 0L ) return;
 
             GL11.glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
             GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);

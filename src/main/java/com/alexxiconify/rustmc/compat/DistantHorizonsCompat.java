@@ -3,6 +3,12 @@ package com.alexxiconify.rustmc.compat;
 import com.alexxiconify.rustmc.RustMC;
 import net.fabricmc.loader.api.FabricLoader;
 
+/**
+ * Reflection-based integration with Distant Horizons.
+ * API methods like {@link #computeRustAmbientOcclusion} and {@link #computeRustAmbientOcclusionDirect}
+ * are public API for DH vertex builders to offload AO to Rust's wgpu compute pipeline.
+ */
+@SuppressWarnings("unused")
 public class DistantHorizonsCompat {
     private static final String DH_MOD_ID = "distanthorizons";
 
@@ -11,15 +17,12 @@ public class DistantHorizonsCompat {
     public static void disableFade() {
         if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID)) return;
         try {
-            // DH config API: try the modern accessor path (DH 2.3+)
             Class<?> apiClass = Class.forName("com.seibel.distanthorizons.api.DhApi");
             Object dhApi = apiClass.getField("Inst").get(null);
             Object overrides = dhApi.getClass().getMethod("overrides").invoke(dhApi);
-            // Attempt to disable fade via the public API if available
             overrides.getClass().getMethod("setFadeNearbyLods", boolean.class).invoke(overrides, false);
             RustMC.LOGGER.info("[Rust-MC] Disabled Distant Horizons chunk fade via API.");
         } catch (Exception e) {
-            // DH API not available or changed — non-critical, skip silently
             RustMC.LOGGER.debug("[Rust-MC] Could not disable DH fade ({}), skipping.", e.getMessage());
         }
     }
@@ -40,43 +43,14 @@ public class DistantHorizonsCompat {
             Class<?> apiClass = Class.forName("com.seibel.distanthorizons.api.DhApi");
             Object overridesInjector = apiClass.getField("overrides").get(null);
 
-            java.lang.reflect.Method bindMethod = null;
-            for (java.lang.reflect.Method m : overridesInjector.getClass().getMethods()) {
-                if (m.getName().equals("bind") && m.getParameterCount() == 2) {
-                    bindMethod = m;
-                    break;
-                }
-            }
+            java.lang.reflect.Method bindMethod = findBindMethod(overridesInjector);
 
             Class<?> cullingFrustumClass = Class.forName("com.seibel.distanthorizons.api.interfaces.override.rendering.IDhApiCullingFrustum");
-
-            java.lang.reflect.InvocationHandler handler = ( proxy , method , args ) -> {
-                String name = method.getName();
-                if (name.equals("getPriority")) {
-                    return Integer.MAX_VALUE;
-                } else if (name.equals("update") && args.length == 3) {
-                    currentMinY = (int) args[0];
-                    currentMaxY = (int) args[1];
-                    Object mat = args[2];
-                    if (getValuesAsArrayMethod == null) {
-                        getValuesAsArrayMethod = mat.getClass().getMethod("getValuesAsArray");
-                    }
-                    float[] vpArray = (float[]) getValuesAsArrayMethod.invoke(mat);
-                    com.alexxiconify.rustmc.NativeBridge.updateRustFrustum(rustFrustumPtr, vpArray);
-                    return null;
-                } else if (name.equals("intersects") && args.length == 4) {
-                    int minX = (int) args[0];
-                    int minZ = (int) args[1];
-                    int width = (int) args[2];
-                    return com.alexxiconify.rustmc.NativeBridge.testRustFrustum(rustFrustumPtr, minX, currentMinY, minZ, (double) minX + width, currentMaxY, (double) minZ + width);
-                }
-                return null;
-            };
 
             Object proxyInstance = java.lang.reflect.Proxy.newProxyInstance(
                 DistantHorizonsCompat.class.getClassLoader(),
                 new Class<?>[]{cullingFrustumClass},
-                handler
+                DistantHorizonsCompat::handleFrustumProxy
             );
 
             if (bindMethod != null) {
@@ -90,6 +64,51 @@ public class DistantHorizonsCompat {
                 rustFrustumPtr = 0;
             }
         }
+    }
+
+    private static java.lang.reflect.Method findBindMethod(Object overridesInjector) {
+        for (java.lang.reflect.Method m : overridesInjector.getClass().getMethods()) {
+            if (m.getName().equals("bind") && m.getParameterCount() == 2) {
+                return m;
+            }
+        }
+        return null;
+    }
+
+    @SuppressWarnings("java:S112") // Reflection methods throw many checked exception types
+    private static Object handleFrustumProxy(Object proxy, java.lang.reflect.Method method, Object[] args) throws Exception {
+        String name = method.getName();
+        return switch (name) {
+            case "getPriority" -> Integer.MAX_VALUE;
+            case "update" -> {
+                if (args != null && args.length == 3) {
+                    currentMinY = (int) args[0];
+                    currentMaxY = (int) args[1];
+                    Object mat = args[2];
+                    if (getValuesAsArrayMethod == null) {
+                        getValuesAsArrayMethod = mat.getClass().getMethod("getValuesAsArray");
+                    }
+                    float[] vpArray = (float[]) getValuesAsArrayMethod.invoke(mat);
+                    com.alexxiconify.rustmc.NativeBridge.updateRustFrustum(rustFrustumPtr, vpArray);
+                }
+                yield null;
+            }
+            case "intersects" -> {
+                if (args != null && args.length == 4) {
+                    int minX = (int) args[0];
+                    int minZ = (int) args[1];
+                    int width = (int) args[2];
+                    yield com.alexxiconify.rustmc.NativeBridge.testRustFrustum(
+                        rustFrustumPtr, minX, currentMinY, minZ,
+                        (double) minX + width, currentMaxY, (double) minZ + width);
+                }
+                yield true; // default: visible
+            }
+            case "equals" -> proxy == args[0];
+            case "hashCode" -> System.identityHashCode(proxy);
+            case "toString" -> "RustMC-DH-FrustumCuller";
+            default -> null;
+        };
     }
 
     /**

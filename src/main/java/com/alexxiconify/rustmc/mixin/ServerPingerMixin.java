@@ -12,28 +12,26 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Optimizes server list ping times by pre-resolving DNS via the Rust cached resolver.
- * When the server pinger starts connecting, we pre-warm the system DNS cache by
- * resolving the hostname through Rust (which caches results for 5 minutes).
- * This eliminates repeated DNS lookups when the server list refreshes.
+ * Each server gets its own virtual thread for maximum parallelism — all DNS lookups
+ * happen concurrently instead of sequentially.
  */
 @Mixin(MultiplayerServerListPinger.class)
 public class ServerPingerMixin {
 
     @Inject(method = "add", at = @At("HEAD"), require = 0)
     private void prewarmDns( ServerInfo entry , Runnable saver , Runnable pingCallback , NetworkingBackend backend , CallbackInfo ci ) {
-        if (!NativeBridge.isReady() || entry == null || entry.address == null) return;
+        if (!NativeBridge.isReady() || !RustMC.CONFIG.isEnableDnsCache()) return;
+        if (entry == null || entry.address == null || entry.address.isEmpty()) return;
 
-        String address = entry.address;
+        String address = entry.address.trim();
         // Strip port if present for DNS resolution
         String hostname = address.contains(":") ? address.substring(0, address.lastIndexOf(':')) : address;
+        if (hostname.isEmpty() || Character.isDigit(hostname.charAt(0))) return;
 
-        // Fire-and-forget DNS pre-warm on a virtual thread
-        Thread.ofVirtual().name("rustmc-dns-prewarm").start(() -> {
+        // Fire-and-forget DNS pre-warm on a virtual thread — each server resolves in parallel
+        Thread.ofVirtual().name("rustmc-dns-" + hostname).start(() -> {
             try {
-                String ip = NativeBridge.dnsResolve(hostname);
-                if (ip != null) {
-                    RustMC.LOGGER.debug("[Rust-MC] DNS pre-warmed {} → {}", hostname, ip);
-                }
+                NativeBridge.dnsResolve(hostname);
             } catch (Exception ignored) {
                 // DNS prewarm is best-effort
             }

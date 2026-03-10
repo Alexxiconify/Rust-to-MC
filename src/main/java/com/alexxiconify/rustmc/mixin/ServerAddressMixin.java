@@ -16,6 +16,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(ServerAddress.class)
 public class ServerAddressMixin {
 
+    private ServerAddressMixin() {}
+
     /**
      * Before Minecraft resolves a ServerAddress, try to use our cached DNS.
      * This hooks the static parse method which is called for every server connection.

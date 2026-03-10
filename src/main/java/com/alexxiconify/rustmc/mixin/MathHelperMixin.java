@@ -4,13 +4,14 @@ import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.RustMC;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
+import org.spongepowered.asm.mixin.Unique;
 
 import net.minecraft.util.math.MathHelper;
 
 @Mixin(MathHelper.class)
 public class MathHelperMixin {
 
-    // 65536-entry LUT covers full circle
+    @Unique
     private static final float[] SINE_TABLE = new float[65536];
     static {
         for (int i = 0; i < 65536; ++i)
@@ -35,8 +36,13 @@ public class MathHelperMixin {
         return (float) Math.cos(value);
     }
 
-    /** @author Alexxiconify @reason Quake III fast inv-sqrt or vanilla fallback */
-    @Deprecated
+    /**
+     * @author Alexxiconify
+     * @reason Quake III fast inv-sqrt or vanilla fallback.
+     *         MC deprecated this, but it still exists in 1.21.11.
+     * @deprecated Vanilla deprecated since 1.21; kept for backward compat.
+     */
+    @Deprecated(since = "1.21" )
     @Overwrite
     public static double fastInverseSqrt(double x) {
         if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeInvSqrt()) {
@@ -52,31 +58,33 @@ public class MathHelperMixin {
     /** @author Alexxiconify @reason Native sqrt via Rust JNI when enabled */
     @Overwrite
     public static float sqrt(float f) {
-        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeSqrt()) {
+        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeSqrt())
             return com.alexxiconify.rustmc.NativeBridge.invokeSqrt(f);
-        }
         return (float) Math.sqrt(f);
     }
 
-    /** @author Alexxiconify @reason Fast atan2 — only crosses JNI when batch-worthwhile */
+    /** @author Alexxiconify @reason Fast atan2 polynomial approximation */
     @Overwrite
     public static double atan2(double y, double x) {
-        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeAtan2()) {
-            // Inline fast polynomial atan2 approximation — faster than JNI roundtrip
-            double abs_y = Math.abs(y) + 1e-10;
-            double r;
-            double angle;
-            if (x >= 0) {
-                r = (x - abs_y) / (x + abs_y);
-                angle = 0.7853981633974483; // PI/4
-            } else {
-                r = (x + abs_y) / (abs_y - x);
-                angle = 2.356194490192345; // 3*PI/4
-            }
-            angle -= (0.1963 * r * r - 0.9817) * r;
-            return y < 0 ? -angle : angle;
-        }
+        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeAtan2())
+            return fastAtan2(y, x);
         return Math.atan2(y, x);
+    }
+
+    @Unique
+    private static double fastAtan2(double y, double x) {
+        double absY = Math.abs(y) + 1e-10;
+        double r;
+        double angle;
+        if (x >= 0) {
+            r = (x - absY) / (x + absY);
+            angle = 0.7853981633974483; // PI/4
+        } else {
+            r = (x + absY) / (absY - x);
+            angle = 2.356194490192345; // 3*PI/4
+        }
+        angle -= (0.1963 * r * r - 0.9817) * r;
+        return y < 0 ? -angle : angle;
     }
 
     /** @author Alexxiconify @reason Bitwise floor */
@@ -89,32 +97,23 @@ public class MathHelperMixin {
         return (int) Math.floor(d);
     }
 
-    /** @author Alexxiconify @reason Inline clamp — trivial op, no JNI */
+    /** @author Alexxiconify @reason Delegate to Math.clamp for all paths */
     @Overwrite
     public static float clamp(float value, float min, float max) {
-        if (!ModBridge.isMathOwned()) {
-            return value < min ? min : (value > max ? max : value);
-        }
         return Math.clamp(value, min, max);
     }
 
-    /** @author Alexxiconify @reason FMA lerp for better precision when enabled */
+    /** @author Alexxiconify @reason FMA lerp for better precision */
     @Overwrite
     public static double lerp(double delta, double start, double end) {
-        if (!ModBridge.isMathOwned()) {
+        if (!ModBridge.isMathOwned())
             return Math.fma(delta, end - start, start);
-        }
         return start + delta * (end - start);
     }
 
-    /** @author Alexxiconify @reason Inline absMax — trivial op, no JNI */
+    /** @author Alexxiconify @reason Inline absMax */
     @Overwrite
     public static double absMax(double a, double b) {
-        if (!ModBridge.isMathOwned()) {
-            double aa = a < 0 ? -a : a;
-            double ab = b < 0 ? -b : b;
-            return aa > ab ? aa : ab;
-        }
         return Math.max(Math.abs(a), Math.abs(b));
     }
 }

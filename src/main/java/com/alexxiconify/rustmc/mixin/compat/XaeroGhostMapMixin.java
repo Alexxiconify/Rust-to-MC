@@ -2,7 +2,6 @@ package com.alexxiconify.rustmc.mixin.compat;
 
 import com.alexxiconify.rustmc.RustMC;
 import com.alexxiconify.rustmc.compat.XaeroGhostMapCompat;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.util.Identifier;
@@ -15,11 +14,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Injects the ghost map overlay into Xaero's Minimap rendering.
- * Split from the world map mixin to avoid targeting two unrelated classes.
- * <p>
- * Transparency is baked into the texture pixels by XaeroGhostMapCompat
- * (alpha channel in the ARGB data), so no RenderSystem blend calls are needed.
+ * Tiles the ghost texture across the minimap viewport to fill all grid cells,
+ * matching Xaero's own tiling behavior.
  */
+@SuppressWarnings("all") // @Pseudo target — Xaero classes unavailable at compile time
 @Pseudo
 @Mixin(targets = "xaero.common.minimap.MinimapInterface")
 public class XaeroGhostMapMixin {
@@ -28,7 +26,7 @@ public class XaeroGhostMapMixin {
     @Inject(method = "drawMinimap", at = @At("TAIL"), remap = false, require = 0)
     private void drawGhostMapOverlayMinimap(
             DrawContext context,
-            MinecraftClient mc,
+            net.minecraft.client.MinecraftClient mc,
             int width,
             int height,
             int scaledWidth,
@@ -36,7 +34,7 @@ public class XaeroGhostMapMixin {
             int scale,
             CallbackInfo ci
     ) {
-        if (!RustMC.CONFIG.isGhostMapEnabled()) return;
+        if ( RustMC.CONFIG.isGhostMapEnabled ( ) ) return;
 
         Identifier tex = XaeroGhostMapCompat.getGhostTexture();
         if (tex == null) return;
@@ -44,8 +42,16 @@ public class XaeroGhostMapMixin {
         int mapSize = Math.min(scaledWidth, scaledHeight);
         int mapX = scaledWidth - mapSize;
         int mapY = 0;
+        int texSz = 128; // ghost texture is 128×128
 
-        // Alpha is baked into the texture pixels — no blend state needed
-        context.drawTexture(RenderPipelines.GUI_TEXTURED, tex, mapX, mapY, 0.0f, 0.0f, mapSize, mapSize, mapSize, mapSize);
+        // Tile the ghost texture across the minimap viewport to fill all grid cells
+        for (int ty = mapY; ty < mapY + mapSize; ty += texSz) {
+            for (int tx = mapX; tx < mapX + mapSize; tx += texSz) {
+                int drawW = Math.min(texSz, mapX + mapSize - tx);
+                int drawH = Math.min(texSz, mapY + mapSize - ty);
+                context.drawTexture(RenderPipelines.GUI_TEXTURED, tex,
+                        tx, ty, 0.0f, 0.0f, drawW, drawH, texSz, texSz);
+            }
+        }
     }
 }

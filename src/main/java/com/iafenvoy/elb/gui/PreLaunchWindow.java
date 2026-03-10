@@ -33,7 +33,8 @@ public class PreLaunchWindow extends JFrame {
     private static final Color RAM_GREEN      = new Color(80, 165, 65);
     private static final Color RAM_YELLOW     = new Color(200, 175, 40);
     private static final Color RAM_RED        = new Color(210, 55, 55);
-    private static final int WIN_W = 480, WIN_H = 230;
+    private static final int WIN_W = 480;
+    private static final int WIN_H = 230;
     private static final int BAR_H = 14, BAR_ARC = BAR_H;
     private static final int MARGIN = 24;
     private BufferedImage logoImage;
@@ -45,6 +46,7 @@ public class PreLaunchWindow extends JFrame {
         setSize(WIN_W, WIN_H);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+        setAlwaysOnTop(true);
         setBackground(BG_DARK);
         loadLogo(config);
         setContentPane(new SplashPanel());
@@ -64,6 +66,10 @@ public class PreLaunchWindow extends JFrame {
                 if (java.nio.file.Files.exists(p)) { logoImage = ImageIO.read(p.toFile()); return; }
             } catch (Exception ignored) { }
         }
+        // Try namespaced path first to avoid loading another mod's icon.png
+        try (InputStream is = PreLaunchWindow.class.getResourceAsStream("/assets/rust-mc/icon.png")) {
+            if (is != null) { logoImage = ImageIO.read(is); return; }
+        } catch (Exception ignored) { }
         try (InputStream is = PreLaunchWindow.class.getResourceAsStream("/icon.png")) {
             if (is != null) logoImage = ImageIO.read(is);
         } catch (Exception ignored) { }
@@ -77,7 +83,8 @@ public class PreLaunchWindow extends JFrame {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB);
             g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-            int w = getWidth(), h = getHeight();
+            int w = getWidth();
+            int h = getHeight();
             g.setColor(BG_PANEL);
             g.fill(new RoundRectangle2D.Float(2, 2, w - 4, h - 4, 18, 18));
             g.setColor(BG_BORDER);
@@ -155,10 +162,10 @@ public class PreLaunchWindow extends JFrame {
         }
     }
     private static String stageIcon(int progress) {
-        if (progress >= 95) return "\u2728";
+        if (progress >= 95) return "✨";
         if (progress >= 80) return "\uD83D\uDD0A";
         if (progress >= 60) return "\uD83D\uDCE6";
-        if (progress >= 25) return "\u2699\uFE0F";
+        if (progress >= 25) return "⚙\uFE0F";
         return "\uD83D\uDE80";
     }
     private static String getModVersion() {

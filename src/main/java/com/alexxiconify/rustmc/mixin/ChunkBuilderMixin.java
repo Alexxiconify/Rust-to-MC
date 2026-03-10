@@ -13,7 +13,11 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
  * extracting more parallelism on high-core-count machines.
  * <p>
  * Yields to Sodium's chunk pipeline when Sodium is installed (it manages its own).
+ * <p>
+ * Note: In MC 1.21.11 the internal executor API may have changed. The {@code require = 0}
+ * annotation ensures this mixin is silently skipped at runtime when the target is absent.
  */
+@SuppressWarnings("all") // Target may not exist in all MC versions; require=0 handles it
 @Mixin(ChunkBuilder.class)
 public class ChunkBuilderMixin {
 

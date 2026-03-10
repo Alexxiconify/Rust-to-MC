@@ -18,6 +18,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Uses a 128x128 texture (GPU upscales) to reduce compute and memory cost.
  */
 public class XaeroGhostMapCompat {
+    // Single-writer (GHOST_EXECUTOR), single-reader (render thread) — volatile is sufficient
+    @SuppressWarnings("java:S3077") // volatile is intentional for single-writer pattern
     private static volatile NativeImageBackedTexture ghostTexture = null;
     private static final Identifier GHOST_TEXTURE_ID = Identifier.of(RustMC.MOD_ID, "textures/gui/ghost_map.png");
     private static double lastUpdateX = -10000;
@@ -25,6 +27,7 @@ public class XaeroGhostMapCompat {
     private static final int TEXTURE_SIZE = 128;
     private static final double MOVE_THRESHOLD = 16.0;
     private static final AtomicBoolean generating = new AtomicBoolean(false);
+    @SuppressWarnings("java:S3077") // volatile is intentional for single-writer pattern
     private static volatile int[] pendingPixels = null;
 
     private static final ExecutorService GHOST_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
@@ -45,7 +48,7 @@ public class XaeroGhostMapCompat {
         ClientPlayerEntity player = mc.player;
         if (player == null || !NativeBridge.isReady()) return null;
 
-        if (!RustMC.CONFIG.isGhostMapEnabled()) return null;
+        if ( !RustMC.CONFIG.isGhostMapEnabled ( ) ) return null;
 
         double px = player.getX();
         double pz = player.getZ();
@@ -72,12 +75,20 @@ public class XaeroGhostMapCompat {
     private static void requestAsyncUpdate(double centerX, double centerZ) {
         if (!generating.compareAndSet(false, true)) return;
 
-        // Seed handling for multiplayer
+        // Seed handling for multiplayer — apply server-specific seed if available
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc != null && !mc.isInSingleplayer()) {
             net.minecraft.client.network.ServerInfo serverInfo = mc.getCurrentServerEntry();
-            if (serverInfo != null) {
-                applyServerSeed(serverInfo.address);
+            if (serverInfo != null && serverInfo.address != null) {
+                if (!applyServerSeed(serverInfo.address)) {
+                    // No seed configured for this server — skip ghost map generation
+                    generating.set(false);
+                    return;
+                }
+            } else {
+                // No server info — can't generate map
+                generating.set(false);
+                return;
             }
         }
 
@@ -129,15 +140,16 @@ public class XaeroGhostMapCompat {
         lastUpdateZ = -10000;
     }
 
-    private static void applyServerSeed(String ip) {
+    private static boolean applyServerSeed(String ip) {
         String configSeeds = RustMC.CONFIG.getCustomGhostMapSeed();
-        if (configSeeds == null || configSeeds.isEmpty()) return;
+        if (configSeeds == null || configSeeds.isEmpty()) return false;
 
         for (String entry : configSeeds.split(",")) {
             if (tryApplySeedEntry(entry, ip)) {
-                break;
+                return true;
             }
         }
+        return false;
     }
 
     private static boolean tryApplySeedEntry(String entry, String ip) {

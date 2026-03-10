@@ -7,7 +7,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * NativeBridge handles all communication between Java and the Rust native core via JNI.
+ * <p>
+ * Many wrapper methods appear "unused" in static analysis because they form the public API
+ * surface for other mods (ImmediatelyFast, Distant Horizons, etc.) and our own mixins.
+ * The Rust-side JNI functions are always kept in sync with these wrappers.
  */
+@SuppressWarnings({"unused", "java:S1135"})
 public class NativeBridge {
     private NativeBridge() {}
 
@@ -207,10 +212,18 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError e) { return new byte[0]; }
     }
 
+    // Reusable arrays for pathfinding — avoids per-call allocation.
+    // Safe because pathfinding is only called from the server tick thread.
+    private static final int[] PATH_START = new int[3];
+    private static final int[] PATH_END = new int[3];
+
     public static int findPathRaw(int sx, int sy, int sz, int ex, int ey, int ez) {
         if (!libLoaded) return -1;
-        try { return rustFindPath(new int[]{sx, sy, sz}, new int[]{ex, ey, ez}); }
-        catch (UnsatisfiedLinkError e) { return -1; }
+        try {
+            PATH_START[0] = sx; PATH_START[1] = sy; PATH_START[2] = sz;
+            PATH_END[0] = ex; PATH_END[1] = ey; PATH_END[2] = ez;
+            return rustFindPath(PATH_START, PATH_END);
+        } catch (UnsatisfiedLinkError e) { return -1; }
     }
 
     public static int executeCommand(byte[] cmd) {

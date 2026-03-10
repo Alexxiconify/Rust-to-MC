@@ -9,7 +9,11 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * NativeCache provides bounded LRU storage for frequently accessed data.
  * Evicts oldest entries when capacity is exceeded to prevent unbounded RAM growth.
  * Tracks hit/miss statistics for performance monitoring.
+ * <p>
+ * Methods like {@code store}, {@code has}, {@code get} form the public API surface
+ * used by mod compat hooks and future extensions.
  */
+@SuppressWarnings("unused")
 public class NativeCache {
     private NativeCache() {}
 
@@ -17,12 +21,10 @@ public class NativeCache {
     private static final ReentrantReadWriteLock LOCK = new ReentrantReadWriteLock();
     private static final AtomicLong HITS = new AtomicLong(0);
     private static final AtomicLong MISSES = new AtomicLong(0);
-
-    @SuppressWarnings("serial")
     private static final LinkedHashMap<String, byte[]> CACHE = new LinkedHashMap<>(128, 0.75f, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<String, byte[]> eldest) {
-            return size() > MAX_ENTRIES;
+            return super.size() > MAX_ENTRIES;
         }
     };
 

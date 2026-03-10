@@ -3,6 +3,7 @@ package com.alexxiconify.rustmc.config;
 import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
+import com.alexxiconify.rustmc.util.BlameLog;
 import com.terraformersmc.modmenu.api.ConfigScreenFactory;
 import com.terraformersmc.modmenu.api.ModMenuApi;
 import dev.isxander.yacl3.api.ConfigCategory;
@@ -36,6 +37,7 @@ public class ModMenuIntegration implements ModMenuApi {
                 .category(buildLoadingScreenCategory(cfg))
                 .category(buildElbCategory())
                 .category(buildDevCategory(cfg))
+                .category(buildBlameCategory())
                 .save(RustMC::saveConfig)
                 .build()
                 .generateScreen(parent);
@@ -96,8 +98,6 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildBooleanOption("Fast Inv-Sqrt",
                 "Replaces MathHelper.fastInvSqrt() with Quake III algorithm.",
                 cfg::isUseNativeInvSqrt, v -> cfg.setUseNativeInvSqrt(v != null && v)))
-            .option(buildBooleanOption("Native Tan",
-                "Replaces MathHelper.tan().", cfg::isUseNativeTan, v -> cfg.setUseNativeTan(v != null && v)))
             .option(buildBooleanOption("Native Atan2",
                 "Replaces MathHelper.atan2().", cfg::isUseNativeAtan2, v -> cfg.setUseNativeAtan2(v != null && v)))
             .option(buildBooleanOption("Native Floor",
@@ -159,8 +159,21 @@ public class ModMenuIntegration implements ModMenuApi {
                 "Better Block Entities compat — distance-cull block entities when BBE is absent.",
                 cfg::isEnableBBECompat, v -> cfg.setEnableBBECompat(v != null && v)))
             .option(buildBooleanOption("EMF/ETF Compatibility",
-                "Entity Model/Texture Features — reduce entity render distance when heavy models active.",
+                "Entity Model/Texture Features — tighten particle distance culling when heavy models active.\n" +
+                "EMF: custom entity models. ETF: random/biome entity textures.",
                 cfg::isEnableEMFCompat, v -> cfg.setEnableEMFCompat(v != null && v)))
+            .option(buildBooleanOption("ETF Texture Compatibility",
+                "Entity Texture Features — enable tighter culling for biome/random entity textures.",
+                cfg::isEnableETFCompat, v -> cfg.setEnableETFCompat(v != null && v)))
+            .option(buildBooleanOption("ImmediatelyFast Compatibility",
+                                       """
+                                         Works in concert with ImmediatelyFast's batched rendering.
+                                         When enabled, we use a more generous particle cutoff since IF makes draws cheaper,
+                                         and skip our own batching hints to let IF drive the draw pipeline.""" ,
+                cfg::isEnableImmediatelyFastCompat, v -> cfg.setEnableImmediatelyFastCompat(v != null && v)))
+            .option(buildBooleanOption("AppleSkin Compatibility",
+                "AppleSkin HUD overlay compat — ensures our overlays don't conflict with AppleSkin's saturation display.",
+                cfg::isEnableAppleSkinCompat, v -> cfg.setEnableAppleSkinCompat(v != null && v)))
             .option(buildBooleanOption("EntityCulling Compatibility",
                 "Yields entity distance culling to EntityCulling mod when installed.",
                 cfg::isEnableEntityCullingCompat, v -> cfg.setEnableEntityCullingCompat(v != null && v)))
@@ -315,5 +328,79 @@ public class ModMenuIntegration implements ModMenuApi {
 
     private static java.awt.Color parseSwingColor(String val, java.awt.Color fallback) {
         try { return new java.awt.Color(Integer.parseInt(val)); } catch (Exception e) { return fallback; }
+    }
+
+    // ── Blame Chart ─────────────────────────────────────────────────────────
+
+    private ConfigCategory buildBlameCategory() {
+        var builder = ConfigCategory.createBuilder()
+            .name(Text.literal("Blame Chart"))
+            .tooltip(Text.literal("Loading phase timings from launcher start to game-ready."));
+
+        java.util.List<BlameLog.Entry> entries = BlameLog.getEntries();
+        long total = BlameLog.totalMs();
+
+        if (entries.isEmpty()) {
+            builder.option(Option.<Boolean>createBuilder()
+                .name(Text.literal("No data yet"))
+                .description(OptionDescription.of(Text.literal(
+                    "Blame data is recorded during startup.\n" +
+                    "Close this screen and re-open after the game finishes loading.")))
+                .binding(false, () -> false, v -> {})
+                .controller(opt -> BooleanControllerBuilder.create(opt)
+                    .formatValue(v -> Text.literal("§7—")))
+                .build());
+        } else {
+            // Total summary
+            builder.option(Option.<Boolean>createBuilder()
+                .name(Text.literal("Total Load Time"))
+                .description(OptionDescription.of(Text.literal(
+                    "Total time from JVM start to game-ready: " + total + "ms (" +
+                    String.format("%.1f", total / 1000.0) + "s)")))
+                .binding(true, () -> true, v -> {})
+                .controller(opt -> BooleanControllerBuilder.create(opt)
+                    .formatValue(v -> Text.literal("§e" + String.format("%.1fs", total / 1000.0))))
+                .build());
+
+            // Individual phases as bar chart entries
+            for (BlameLog.Entry entry : entries) {
+                long dur = entry.durationMs();
+                float pct = total > 0 ? (float) dur / total * 100f : 0;
+                String bar = buildAsciiBar(pct);
+                String color = blameColor(dur);
+                String assessment = blameAssessment(dur);
+
+                builder.option(Option.<Boolean>createBuilder()
+                    .name(Text.literal(entry.phase()))
+                    .description(OptionDescription.of(Text.literal(
+                        "Duration: " + dur + "ms (" + String.format("%.1f%%", pct) + " of total)\n\n" +
+                        bar + "\n\n" + assessment)))
+                    .binding(true, () -> true, v -> {})
+                    .controller(opt -> BooleanControllerBuilder.create(opt)
+                        .formatValue(v -> Text.literal(color + dur + "ms")))
+                    .build());
+            }
+        }
+
+        return builder.build();
+    }
+
+    /** Builds an ASCII bar like [████████░░░░] for the given percentage. */
+    private static String buildAsciiBar(float pct) {
+        int filled = Math.clamp(Math.round(pct / 100f * 20), 0, 20);
+        return "[" + "█".repeat(filled) + "░".repeat(20 - filled) + "] " +
+               String.format("%.1f%%", pct);
+    }
+
+    private static String blameColor(long durationMs) {
+        if (durationMs > 5000) return "§c";
+        if (durationMs > 2000) return "§e";
+        return "§a";
+    }
+
+    private static String blameAssessment(long durationMs) {
+        if (durationMs > 5000) return "⚠ This phase is slow and may be a bottleneck.";
+        if (durationMs > 2000) return "This phase took moderate time.";
+        return "This phase loaded quickly.";
     }
 }

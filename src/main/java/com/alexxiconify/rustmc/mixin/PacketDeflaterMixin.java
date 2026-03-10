@@ -1,7 +1,6 @@
 package com.alexxiconify.rustmc.mixin;
 
 import net.minecraft.network.handler.PacketDeflater;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -13,14 +12,16 @@ import com.alexxiconify.rustmc.RustMC;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-import java.util.zip.Deflater;
 
 @Mixin(PacketDeflater.class)
 public class PacketDeflaterMixin {
-    @Shadow @Final private Deflater deflater;
     @Shadow private int compressionThreshold;
 
-    @Inject(method = "encode", at = @At("HEAD"), cancellable = true)
+    @Inject(
+        method = "encode(Lio/netty/channel/ChannelHandlerContext;Lio/netty/buffer/ByteBuf;Lio/netty/buffer/ByteBuf;)V",
+        at = @At("HEAD"),
+        cancellable = true
+    )
     private void onEncode(ChannelHandlerContext ctx, ByteBuf in, ByteBuf out, CallbackInfo ci) {
         if (!NativeBridge.isReady() || !RustMC.CONFIG.isUseNativeCompression()) return;
 

@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.alexxiconify.rustmc.config.RustMCConfig;
+import com.alexxiconify.rustmc.util.BlameLog;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
@@ -44,17 +45,23 @@ public class RustMC implements ModInitializer {
             LOGGER.info("[Rust-MC] Native optimizations ACTIVE.");
             // Seed noise on every world load so it matches the world seed
             ServerWorldEvents.LOAD.register((server, world) -> {
+                BlameLog.begin("World Load (" + world.getRegistryKey().getValue() + ")");
                 NativeBridge.noiseReset(); // allow re-seed on new world
                 NativeBridge.noiseInit(world.getSeed());
                 LOGGER.debug("[Rust-MC] Seeded noise with world seed {}", world.getSeed());
+                BlameLog.end();
             });
             // Cleanup resources on world unload
             ServerWorldEvents.UNLOAD.register((server, world) -> {
+                BlameLog.begin("World Unload Cleanup");
                 NativeCache.clear();
+                NativeBridge.dnsCacheClear(); // Free stale DNS entries to reduce memory
                 LOGGER.debug("[Rust-MC] Cache stats at unload: hits={}, misses={}, ratio={}%",
                         NativeCache.getHits(), NativeCache.getMisses(),
                         String.format("%.1f", NativeCache.getHitRatio() * 100));
                 com.alexxiconify.rustmc.compat.XaeroGhostMapCompat.cleanup();
+                BlameLog.end();
+                LOGGER.info("[Rust-MC] {}", BlameLog.summary());
             });
         } else {
             LOGGER.warn("[Rust-MC] Native library not available – running in vanilla-fallback mode.");

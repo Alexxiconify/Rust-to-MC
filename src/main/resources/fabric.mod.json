@@ -12,7 +12,7 @@
     "sources": "https://github.com/Alexxiconify/Rust-to-MC"
   },
   "license": "MIT",
-  "icon": "icon.png",
+  "icon": "assets/rust-mc/icon.png",
   "environment": "*",
   "entrypoints": {
     "preLaunch": [
@@ -20,6 +20,9 @@
     ],
     "main": [
       "com.alexxiconify.rustmc.RustMC"
+    ],
+    "client": [
+      "com.alexxiconify.rustmc.RustMCClient"
     ],
     "modmenu": [
       "com.alexxiconify.rustmc.config.ModMenuIntegration"

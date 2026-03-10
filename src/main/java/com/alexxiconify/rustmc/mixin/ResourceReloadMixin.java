@@ -3,6 +3,7 @@ package com.alexxiconify.rustmc.mixin;
 import com.alexxiconify.rustmc.RustMC;
 import net.minecraft.resource.ReloadableResourceManagerImpl;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 
@@ -14,10 +15,22 @@ import java.util.concurrent.ForkJoinPool;
  * with a higher-parallelism ForkJoinPool. Vanilla uses a small thread pool which
  * under-utilizes modern multicore CPUs during resource pack loading.
  * <p>
- * This can reduce initial load time by 1-3 seconds on 8+ core machines.
+ * The pool is cached as a static singleton to prevent thread leaks from repeated reloads.
  */
 @Mixin(ReloadableResourceManagerImpl.class)
 public class ResourceReloadMixin {
+
+    @Unique
+    private static ForkJoinPool cachedPool = null;
+
+    @Unique
+    private static synchronized ForkJoinPool getOrCreatePool(int workers) {
+        if (cachedPool == null) {
+            RustMC.LOGGER.debug("[Rust-MC] Creating resource reload pool with {} threads", workers);
+            cachedPool = new ForkJoinPool(workers);
+        }
+        return cachedPool;
+    }
 
     @ModifyArg(
         method = "reload",
@@ -27,10 +40,9 @@ public class ResourceReloadMixin {
     )
     private Executor boostPrepareExecutor(Executor original) {
         int cores = Runtime.getRuntime().availableProcessors();
-        if (cores <= 4) return original; // Don't boost on low-core machines
+        if (cores <= 4) return original;
 
         int workers = Math.max(4, cores - 2);
-        RustMC.LOGGER.debug("[Rust-MC] Boosting resource reload prepare executor to {} threads", workers);
-        return new ForkJoinPool(workers);
+        return getOrCreatePool(workers);
     }
 }

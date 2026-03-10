@@ -1,12 +1,17 @@
 package com.alexxiconify.rustmc.config;
 
+/**
+ * Configuration POJO for Rust-MC. All fields are serialized/deserialized by Gson,
+ * and getters/setters are referenced by ModMenu (YACL) via method references.
+ * Static analysis may report some as "unused" but they are all part of the config surface.
+ */
+@SuppressWarnings("unused")
 public class RustMCConfig {
     // Math optimizations
     private boolean useNativeSine     = true;
     private boolean useNativeCos      = true;
     private boolean useNativeSqrt     = true;
     private boolean useNativeInvSqrt  = true;
-    private boolean useNativeTan      = true;
     private boolean useNativeAtan2    = true;
     private boolean useNativeFloor    = true;
     private boolean useNativeNoise    = true;
@@ -17,7 +22,7 @@ public class RustMCConfig {
     private boolean useNativeCompression = true;
     private boolean useNativePathfinding = true;
     private boolean useNativeCulling     = true;
-    private boolean useFastLoadingScreen = true;
+    private boolean useFastLoadingScreen = false;
     private boolean useNativeCommands    = false;
     public enum GhostMapMode {
         NONE, DH_ONLY, SEED_ONLY, DH_THEN_SEED
@@ -38,7 +43,8 @@ public class RustMCConfig {
     private boolean enableEntityCullingCompat  = true;
     private boolean enableImmediatelyFastCompat = true;
     private boolean enableClientRedstoneSkip   = true;
-    private boolean enableDebugHudGraph        = true;
+    private boolean enableDebugHudGraph        = false;
+    private boolean enablePieChart             = false;
 
     // DNS / Server List
     private boolean enableDnsCache             = true;
@@ -68,7 +74,6 @@ public class RustMCConfig {
         useNativeCos          = o.useNativeCos;
         useNativeSqrt         = o.useNativeSqrt;
         useNativeInvSqrt      = o.useNativeInvSqrt;
-        useNativeTan          = o.useNativeTan;
         useNativeAtan2        = o.useNativeAtan2;
         useNativeFloor        = o.useNativeFloor;
         useNativeNoise        = o.useNativeNoise;
@@ -91,6 +96,7 @@ public class RustMCConfig {
         enableImmediatelyFastCompat = o.enableImmediatelyFastCompat;
         enableClientRedstoneSkip   = o.enableClientRedstoneSkip;
         enableDebugHudGraph        = o.enableDebugHudGraph;
+        enablePieChart             = o.enablePieChart;
         enableDnsCache             = o.enableDnsCache;
         bridgeSodium          = o.bridgeSodium;
         bridgeStarlight       = o.bridgeStarlight;
@@ -115,7 +121,6 @@ public class RustMCConfig {
     public boolean isUseNativeCos()         { return useNativeCos; }
     public boolean isUseNativeSqrt()        { return useNativeSqrt; }
     public boolean isUseNativeInvSqrt()     { return useNativeInvSqrt; }
-    public boolean isUseNativeTan()         { return useNativeTan; }
     public boolean isUseNativeAtan2()       { return useNativeAtan2; }
     public boolean isUseNativeFloor()       { return useNativeFloor; }
     public boolean isUseNativeNoise()       { return useNativeNoise; }
@@ -127,7 +132,7 @@ public class RustMCConfig {
     public boolean isUseFastLoadingScreen() { return useFastLoadingScreen; }
     public boolean isUseNativeCommands()    { return useNativeCommands; }
     public boolean isLimitXaeroMinimap()    { return limitXaeroMinimap; }
-    public boolean isGhostMapEnabled()      { return ghostMapMode != GhostMapMode.NONE; }
+    public boolean isGhostMapEnabled()      { return ghostMapMode == GhostMapMode.NONE; }
     public boolean isEnableParticleCulling()      { return enableParticleCulling; }
     public boolean isEnableChunkBuilderExpand()   { return enableChunkBuilderExpand; }
     public boolean isEnableTickSyncCompat()       { return enableTickSyncCompat; }
@@ -139,6 +144,7 @@ public class RustMCConfig {
     public boolean isEnableImmediatelyFastCompat() { return enableImmediatelyFastCompat; }
     public boolean isEnableClientRedstoneSkip()   { return enableClientRedstoneSkip; }
     public boolean isEnableDebugHudGraph()        { return enableDebugHudGraph; }
+    public boolean isEnablePieChart()             { return enablePieChart; }
     public boolean isEnableDnsCache()             { return enableDnsCache; }
     public boolean isBridgeSodium()         { return bridgeSodium; }
     public boolean isBridgeStarlight()      { return bridgeStarlight; }
@@ -162,11 +168,9 @@ public class RustMCConfig {
     public void setUseNativeCos(boolean v)         { useNativeCos = v; }
     public void setUseNativeSqrt(boolean v)        { useNativeSqrt = v; }
     public void setUseNativeInvSqrt(boolean v)     { useNativeInvSqrt = v; }
-    public void setUseNativeTan(boolean v)         { useNativeTan = v; }
     public void setUseNativeAtan2(boolean v)       { useNativeAtan2 = v; }
     public void setUseNativeFloor(boolean v)       { useNativeFloor = v; }
     public void setUseNativeNoise(boolean v)       { useNativeNoise = v; }
-    public void setUseNativeF3(boolean v)          { useNativeF3 = v; }
     public void setUseNativeLighting(boolean v)    { useNativeLighting = v; }
     public void setUseNativeCompression(boolean v) { useNativeCompression = v; }
     public void setUseNativePathfinding(boolean v) { useNativePathfinding = v; }
@@ -185,6 +189,7 @@ public class RustMCConfig {
     public void setEnableImmediatelyFastCompat(boolean v) { enableImmediatelyFastCompat = v; }
     public void setEnableClientRedstoneSkip(boolean v)   { enableClientRedstoneSkip = v; }
     public void setEnableDebugHudGraph(boolean v)        { enableDebugHudGraph = v; }
+    public void setEnablePieChart(boolean v)             { enablePieChart = v; }
     public void setEnableDnsCache(boolean v)             { enableDnsCache = v; }
     public void setBridgeSodium(boolean v)         { bridgeSodium = v; }
     public void setBridgeStarlight(boolean v)      { bridgeStarlight = v; }
