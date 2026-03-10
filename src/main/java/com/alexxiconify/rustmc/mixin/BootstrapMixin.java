@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Pre-warms Bootstrap.initialize() on a virtual thread so the 4-5 s
  * Datafixer registry build overlaps with mixin loading rather than
  * blocking the main thread at game start.
- *
+ * <p>
  * Bootstrap.initialize() is idempotent (guards with a static boolean),
  * so if our virtual thread finishes first the main-thread call is instant.
  */

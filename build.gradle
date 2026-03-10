@@ -28,7 +28,7 @@ dependencies {
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-    
+
     // Core dependencies from Oxidizium
     include implementation("org.joml:joml:1.10.8")
     include implementation("com.moulberry:mixinconstraints:1.1.0")
@@ -90,10 +90,10 @@ tasks.register('moveRustBinaries') {
     doLast {
         def buildDir = file('rust_mc_core/target/release')
         def resourceDir = file('src/main/resources')
-        
+
         def libName = System.mapLibraryName("rust_mc_core")
-        def libFile = new File(buildDir, libName)
-        
+        def libFile = file("${buildDir}/${libName}")
+
         if (libFile.exists()) {
             copy {
                 from libFile

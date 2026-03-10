@@ -22,7 +22,6 @@ public class ModBridge {
     public static final boolean AUTHME    = isMod("authme");
     public static final boolean DISTANT_HORIZONS = isMod("distanthorizons");
     public static final boolean FREECAM   = isMod("freecam");
-    public static final boolean MORECULLING_MOD = isMod("moreculling");
 
     // Client & Utility Mods Requested for Compatibility
     public static final boolean ACCURATEBLOCKPLACEMENT = isMod("accurateblockplacement");
@@ -63,7 +62,6 @@ public class ModBridge {
     public static final boolean DEBUGIFY = isMod("debugify");
     public static final boolean DETAILABRECONST = isMod("detailabreconst");
     public static final boolean DHMI = isMod("dhmi");
-    public static final boolean DISTANTHORIZONS = isMod("distanthorizons");
     public static final boolean DURABILITYTOOLTIP = isMod("durabilitytooltip");
     public static final boolean DURABILITYVIEWER = isMod("durabilityviewer");
     public static final boolean DYNAMIC_FPS = isMod("dynamic_fps");
@@ -127,7 +125,6 @@ public class ModBridge {
     public static final boolean PRESENCEFOOTSTEPS = isMod("presencefootsteps");
     public static final boolean PUZZLESLIB = isMod("puzzleslib");
     public static final boolean QUICK_PACK = isMod("quick-pack");
-    public static final boolean REESES_SODIUM_OPTIONS = isMod("reeses-sodium-options");
     public static final boolean RESOURCIFY = isMod("resourcify");
     public static final boolean RIDINGMOUSEFIX = isMod("ridingmousefix");
     public static final boolean RRLS = isMod("rrls");
@@ -178,7 +175,7 @@ public class ModBridge {
 
     // Checks executed during startup
     public static void initialize() {
-        RustMC.LOGGER.info("[Rust-MC] Mod ecosystem detected: Starlight={}, Ferrite={}, Sodium={}, Lithium={}, MoreCulling={}, ScalableLux={}, Oxidizium={}", 
+        RustMC.LOGGER.info("[Rust-MC] Mod ecosystem detected: Starlight={}, Ferrite={}, Sodium={}, Lithium={}, MoreCulling={}, ScalableLux={}, Oxidizium={}",
             STARLIGHT, FERRITECORE, SODIUM, LITHIUM, MORECULLING, SCALABLELUX, OXIDIZIUM);
     }
 
@@ -227,7 +224,7 @@ public class ModBridge {
      * Sodium replaces the frustum, MoreCulling hooks it. (We now override DH).
      */
     public static boolean isFrustumOwned() {
-        return SODIUM || MORECULLING_MOD;
+        return SODIUM || MORECULLING;
     }
 
     /** Returns true if interaction/raycasting logic is potentially handled by other mods. */

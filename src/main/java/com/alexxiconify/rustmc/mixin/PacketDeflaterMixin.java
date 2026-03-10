@@ -34,13 +34,16 @@ public class PacketDeflaterMixin {
         }
 
         byte[] inputBytes = new byte[readable];
-        in.getBytes(in.readerIndex(), inputBytes);
+        in.readBytes(inputBytes);
 
         byte[] compressed = NativeBridge.invokeCompress(inputBytes);
         if (compressed != null && compressed.length > 0) {
             out.writeInt(readable); // uncompressed size header
             out.writeBytes(compressed);
             ci.cancel();
+        } else {
+            // Rust compression failed — reset reader index so vanilla can handle it
+            in.readerIndex(in.readerIndex() - readable);
         }
     }
 }

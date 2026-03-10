@@ -14,11 +14,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * Draws a compact frame-time sparkline graph in the F3 overlay when enabled.
  * The frame history is maintained in the Rust native core as a ring buffer
  * (240 samples). Each bar represents one frame's ms time.
+ * <p>
+ * Uses require=0 to gracefully skip if DebugHud.render changes signature
+ * across MC versions (the method was refactored in 1.21.11).
  */
+@SuppressWarnings ( "ALL" )
 @Mixin(DebugHud.class)
 public class DebugHudMixin {
 
-    @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;)V", at = @At("TAIL"))
+    @Inject(method = "render", at = @At("TAIL"), require = 0)
     private void onRenderTail(DrawContext context, CallbackInfo ci) {
         if (!RustMC.CONFIG.isEnableDebugHudGraph() || !RustMC.CONFIG.isUseNativeF3() || ModBridge.isHudOwned()) return;
         if (!NativeBridge.isReady()) return;

@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * On the client, redstone wire visual updates are purely cosmetic and the server
  * handles actual signal propagation. We can skip heavy neighbor-update cascades
  * on the client side when the visual power level hasn't actually changed.
- *
+ * <p>
  * This maintains vanilla parity because the server still handles all actual
  * redstone logic — we only skip redundant client-side re-calculations.
  */
@@ -29,9 +29,8 @@ public class ClientRedstoneSkipMixin {
         if (!RustMC.CONFIG.isEnableClientRedstoneSkip()) return;
 
         // Only skip on client side — server must always process redstone
-        if (world.isClient) {
+        if (world.isClient()) {
             ci.cancel();
         }
     }
 }
-

@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
  * Vanilla default is typically max(1, cpus/2 - 1).
  * We target max(2, cpus - 2) to keep 2 cores free for the main/render threads,
  * extracting more parallelism on high-core-count machines.
- *
+ * <p>
  * Yields to Sodium's chunk pipeline when Sodium is installed (it manages its own).
  */
 @Mixin(ChunkBuilder.class)

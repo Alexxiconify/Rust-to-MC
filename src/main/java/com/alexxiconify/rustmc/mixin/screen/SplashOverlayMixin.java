@@ -20,7 +20,7 @@ public abstract class SplashOverlayMixin {
     // Not cancellable — we let vanilla's logo/progress bar still render on top.
     @Inject(at = @At("HEAD"), method = "render")
     public void renderHead(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (RustMC.CONFIG == null || !RustMC.CONFIG.isUseFastLoadingScreen()) return;
+        if ( !RustMC.CONFIG.isUseFastLoadingScreen() ) return;
         int w = context.getScaledWindowWidth();
         int h = context.getScaledWindowHeight();
         // Fill full screen with dark color first — vanilla then draws its logo on top
@@ -29,7 +29,7 @@ public abstract class SplashOverlayMixin {
 
     @Inject(at = @At("TAIL"), method = "render")
     public void renderTail(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (RustMC.CONFIG == null || !RustMC.CONFIG.isUseFastLoadingScreen()) return;
+        if ( !RustMC.CONFIG.isUseFastLoadingScreen() ) return;
         if (this.client.textRenderer == null) return;
 
         int w = context.getScaledWindowWidth();
@@ -60,8 +60,7 @@ public abstract class SplashOverlayMixin {
     }
 
     private int ramColor(float r) {
-        if (RustMC.CONFIG == null) return 0xFF00AA00;
-        if (r < 0.6f) return RustMC.CONFIG.getLoadingBarLowColor();
+     if (r < 0.6f) return RustMC.CONFIG.getLoadingBarLowColor();
         if (r < 0.8f) return RustMC.CONFIG.getLoadingBarMidColor();
         return RustMC.CONFIG.getLoadingBarHighColor();
     }

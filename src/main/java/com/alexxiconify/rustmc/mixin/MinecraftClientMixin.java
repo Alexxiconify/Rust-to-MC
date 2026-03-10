@@ -16,6 +16,8 @@ public class MinecraftClientMixin {
         long now = System.nanoTime();
         long delta = now - lastFrameTime;
         lastFrameTime = now;
-        NativeBridge.invokeAddFrameTime(delta);
+        if (delta > 0) {
+            NativeBridge.invokeAddFrameTime(delta);
+        }
     }
 }

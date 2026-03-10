@@ -48,11 +48,11 @@ public class MathHelperMixin {
         return 1.0 / Math.sqrt(x);
     }
 
-    /** @author Alexxiconify @reason Inline sqrt — avoids JNI overhead for a single float */
+    /** @author Alexxiconify @reason Native sqrt via Rust JNI when enabled */
     @Overwrite
     public static float sqrt(float f) {
         if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeSqrt()) {
-            return (float) Math.sqrt(f);
+            return com.alexxiconify.rustmc.NativeBridge.invokeSqrt(f);
         }
         return (float) Math.sqrt(f);
     }
@@ -97,11 +97,11 @@ public class MathHelperMixin {
         return Math.clamp(value, min, max);
     }
 
-    /** @author Alexxiconify @reason Inline lerp — trivial op, no JNI */
+    /** @author Alexxiconify @reason FMA lerp for better precision when enabled */
     @Overwrite
     public static double lerp(double delta, double start, double end) {
         if (!ModBridge.isMathOwned()) {
-            return start + delta * (end - start);
+            return Math.fma(delta, end - start, start);
         }
         return start + delta * (end - start);
     }

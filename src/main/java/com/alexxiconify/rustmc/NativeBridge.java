@@ -29,7 +29,7 @@ public class NativeBridge {
                     Path tmpLib = Files.createTempFile("rust_mc_" + System.currentTimeMillis() + "_", "_" + libName);
                     Files.copy(is, tmpLib, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                     System.load(tmpLib.toString());
-                    
+
                     Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                         try { Files.deleteIfExists(tmpLib); } catch (Exception ignored) {
                             // Best effort cleanup during shutdown
@@ -85,7 +85,7 @@ public class NativeBridge {
         if (!libLoaded) return;
         if (!noiseSeeded.compareAndSet(false, true)) return;
         try {
-            rustNoiseInit((int) (mcSeed & 0xFFFFFFFFL));
+            rustNoiseInit((int) mcSeed);
         } catch (UnsatisfiedLinkError e) {
             RustMC.LOGGER.warn("[Rust-MC] rustNoiseInit not linked: {}", e.getMessage());
         }

@@ -50,10 +50,11 @@ public class XaeroGhostMapCompat {
         double px = player.getX();
         double pz = player.getZ();
 
-        // Upload pending pixels from background thread if available
-        if (pendingPixels != null) {
-            uploadPixels(pendingPixels);
+        // Upload pending pixels from background thread if available (atomic local capture)
+        int[] pixels = pendingPixels;
+        if (pixels != null) {
             pendingPixels = null;
+            uploadPixels(pixels);
         }
 
         // Trigger async regen if player moved far enough
@@ -83,13 +84,12 @@ public class XaeroGhostMapCompat {
         GHOST_EXECUTOR.submit(() -> {
             try {
                 int[] pixels = NativeBridge.generateGhostMap(centerX, centerZ, TEXTURE_SIZE, 1.0);
-                // Convert ARGB -> ABGR for NativeImage
                 for (int i = 0; i < pixels.length; i++) {
                     int p = pixels[i];
-                    int a = (p >> 24) & 0xFF;
                     int r = (p >> 16) & 0xFF;
                     int g = (p >> 8) & 0xFF;
                     int b = p & 0xFF;
+                    int a = 0x73; // ~45% of 0xFF
                     pixels[i] = (a << 24) | (b << 16) | (g << 8) | r;
                 }
                 pendingPixels = pixels;

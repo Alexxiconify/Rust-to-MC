@@ -2,10 +2,9 @@ package com.alexxiconify.rustmc.mixin.compat;
 
 import com.alexxiconify.rustmc.RustMC;
 import com.alexxiconify.rustmc.compat.XaeroGhostMapCompat;
-
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.util.Identifier;
 
 import org.spongepowered.asm.mixin.Mixin;
@@ -17,6 +16,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Injects the ghost map overlay into Xaero's World Map GUI rendering.
  * Separate from the minimap mixin since GuiMap is a different class hierarchy.
+ * <p>
+ * Transparency is baked into the texture pixels by XaeroGhostMapCompat
+ * (alpha channel in the ARGB data), so no RenderSystem blend calls are needed.
  */
 @Pseudo
 @Mixin(targets = "xaero.map.gui.GuiMap")
@@ -47,9 +49,7 @@ public class XaeroWorldMapGhostMixin {
         int mapX = (screenW - mapSize) / 2;
         int mapY = (screenH - mapSize) / 2;
 
-        context.setShaderColor(1.0f, 1.0f, 1.0f, 0.35f);
-        context.drawTexture(RenderLayer::getGuiTextured, tex, mapX, mapY, 0, 0, mapSize, mapSize, mapSize, mapSize);
-        context.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+        // Alpha is baked into the texture pixels — no blend state needed
+        context.drawTexture(RenderPipelines.GUI_TEXTURED, tex, mapX, mapY, 0.0f, 0.0f, mapSize, mapSize, mapSize, mapSize);
     }
 }
-

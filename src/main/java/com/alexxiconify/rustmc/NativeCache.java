@@ -36,11 +36,12 @@ public class NativeCache {
     }
 
     public static byte[] get(String key) {
-        LOCK.readLock().lock();
+        // Must use writeLock because accessOrder=true mutates the linked list on get()
+        LOCK.writeLock().lock();
         try {
             return CACHE.get(key);
         } finally {
-            LOCK.readLock().unlock();
+            LOCK.writeLock().unlock();
         }
     }
 

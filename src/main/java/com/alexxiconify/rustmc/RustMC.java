@@ -78,7 +78,10 @@ public class RustMC implements ModInitializer {
                 CONFIG.copyFrom(loaded);
             }
         } catch (IOException e) {
-            LOGGER.error("[Rust-MC] Failed to load config", e);
+            LOGGER.error("[Rust-MC] Failed to read config file", e);
+        } catch (Exception e) {
+            LOGGER.error("[Rust-MC] Failed to parse config (malformed JSON?), resetting to defaults", e);
+            saveConfig();
         }
     }
 

@@ -12,7 +12,7 @@
     "sources": "https://github.com/Alexxiconify/Rust-to-MC"
   },
   "license": "MIT",
-  "icon": "assets/rust-mc/icon.png",
+  "icon": "icon.png",
   "environment": "*",
   "entrypoints": {
     "preLaunch": [

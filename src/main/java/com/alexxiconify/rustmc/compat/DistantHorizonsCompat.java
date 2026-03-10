@@ -39,7 +39,7 @@ public class DistantHorizonsCompat {
 
             Class<?> apiClass = Class.forName("com.seibel.distanthorizons.api.DhApi");
             Object overridesInjector = apiClass.getField("overrides").get(null);
-            
+
             java.lang.reflect.Method bindMethod = null;
             for (java.lang.reflect.Method m : overridesInjector.getClass().getMethods()) {
                 if (m.getName().equals("bind") && m.getParameterCount() == 2) {
@@ -49,31 +49,28 @@ public class DistantHorizonsCompat {
             }
 
             Class<?> cullingFrustumClass = Class.forName("com.seibel.distanthorizons.api.interfaces.override.rendering.IDhApiCullingFrustum");
-            
-            java.lang.reflect.InvocationHandler handler = new java.lang.reflect.InvocationHandler() {
-                @Override
-                public Object invoke(Object proxy, java.lang.reflect.Method method, Object[] args) throws Throwable {
-                    String name = method.getName();
-                    if (name.equals("getPriority")) {
-                        return Integer.MAX_VALUE;
-                    } else if (name.equals("update") && args.length == 3) {
-                        currentMinY = (int) args[0];
-                        currentMaxY = (int) args[1];
-                        Object mat = args[2];
-                        if (getValuesAsArrayMethod == null) {
-                            getValuesAsArrayMethod = mat.getClass().getMethod("getValuesAsArray");
-                        }
-                        float[] vpArray = (float[]) getValuesAsArrayMethod.invoke(mat);
-                        com.alexxiconify.rustmc.NativeBridge.updateRustFrustum(rustFrustumPtr, vpArray);
-                        return null;
-                    } else if (name.equals("intersects") && args.length == 4) {
-                        int minX = (int) args[0];
-                        int minZ = (int) args[1];
-                        int width = (int) args[2];
-                        return com.alexxiconify.rustmc.NativeBridge.testRustFrustum(rustFrustumPtr, minX, currentMinY, minZ, (double) minX + width, currentMaxY, (double) minZ + width);
+
+            java.lang.reflect.InvocationHandler handler = ( proxy , method , args ) -> {
+                String name = method.getName();
+                if (name.equals("getPriority")) {
+                    return Integer.MAX_VALUE;
+                } else if (name.equals("update") && args.length == 3) {
+                    currentMinY = (int) args[0];
+                    currentMaxY = (int) args[1];
+                    Object mat = args[2];
+                    if (getValuesAsArrayMethod == null) {
+                        getValuesAsArrayMethod = mat.getClass().getMethod("getValuesAsArray");
                     }
+                    float[] vpArray = (float[]) getValuesAsArrayMethod.invoke(mat);
+                    com.alexxiconify.rustmc.NativeBridge.updateRustFrustum(rustFrustumPtr, vpArray);
                     return null;
+                } else if (name.equals("intersects") && args.length == 4) {
+                    int minX = (int) args[0];
+                    int minZ = (int) args[1];
+                    int width = (int) args[2];
+                    return com.alexxiconify.rustmc.NativeBridge.testRustFrustum(rustFrustumPtr, minX, currentMinY, minZ, (double) minX + width, currentMaxY, (double) minZ + width);
                 }
+                return null;
             };
 
             Object proxyInstance = java.lang.reflect.Proxy.newProxyInstance(
@@ -84,8 +81,10 @@ public class DistantHorizonsCompat {
 
             if (bindMethod != null) {
                 bindMethod.invoke(overridesInjector, cullingFrustumClass, proxyInstance);
+                RustMC.LOGGER.info("[Rust-MC] Registered Rust frustum culler with Distant Horizons.");
             }
         } catch (Exception e) {
+            RustMC.LOGGER.debug("[Rust-MC] Could not register DH frustum culler ({}), skipping.", e.getMessage());
             if (rustFrustumPtr != 0) {
                 com.alexxiconify.rustmc.NativeBridge.destroyRustFrustum(rustFrustumPtr);
                 rustFrustumPtr = 0;
@@ -94,7 +93,7 @@ public class DistantHorizonsCompat {
     }
 
     /**
-     * Public API hook for DH vertex builders or shaders to offload Ambient Occlusion 
+     * Public API hook for DH vertex builders or shaders to offload Ambient Occlusion
      * calculations to the Rust wgpu Compute Shader pipeline.
      * Expects vertices formatted as contiguous floats: [posX, posY, posZ, pad, normX, normY, normZ, pad].
      */
@@ -104,7 +103,7 @@ public class DistantHorizonsCompat {
         }
         int vertexCount = vertexData.length / 8; // 8 floats per vertex struct in WGSL
         if (vertexCount == 0) return new float[0];
-        
+
         return com.alexxiconify.rustmc.NativeBridge.invokeComputeAmbientOcclusion(vertexData, vertexCount);
     }
 
@@ -113,7 +112,7 @@ public class DistantHorizonsCompat {
             return new float[0];
         }
         if (vertexCount == 0) return new float[0];
-        
+
         return com.alexxiconify.rustmc.NativeBridge.invokeComputeAmbientOcclusionDirect(vertexData, vertexCount);
     }
 }

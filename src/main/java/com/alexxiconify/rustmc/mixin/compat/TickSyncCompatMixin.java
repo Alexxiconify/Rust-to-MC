@@ -3,7 +3,6 @@ package com.alexxiconify.rustmc.mixin.compat;
 import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.RustMC;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.RenderTickCounter;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -14,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * When TickSync is present, we yield tick scheduling to it.
  * When it's absent and our compat is enabled, we apply a lightweight
  * tick-smoothing adjustment to reduce stutter from uneven tick intervals.
- *
+ * <p>
  * This mixin hooks the client tick method to monitor tick interval regularity
  * and optionally smooth the render interpolation to reduce visual jitter.
  */
@@ -50,4 +49,3 @@ public class TickSyncCompatMixin {
         return smoothTickDelta;
     }
 }
-
