@@ -25,5 +25,6 @@ public class BBECompatMixin {
      */
     @Inject(method = "render", at = @At("HEAD"), require = 0)
     private void onRenderHead(CallbackInfo ci) {
+        // No-op: detection hook for future block entity distance culling when BBE is absent
     }
 }

@@ -24,7 +24,7 @@ public class MixinManager implements IMixinConfigPlugin {
        Map.entry ( PKG + "CommandManagerMixin" , ( ) -> true ) ,
 
        // Subsystem ownership guards
-       Map.entry ( PKG + "LightingMixin" , ( ) -> !ModBridge.isLightingOwned ( ) ) , Map.entry ( PKG + "MathHelperMixin" , ( ) -> !ModBridge.isMathOwned ( ) ) , Map.entry ( PKG + "SimplexNoiseSamplerMixin" , ( ) -> !ModBridge.isMathOwned ( ) ) , Map.entry ( PKG + "PathfindingMixin" , ( ) -> !ModBridge.isPathfindingOwned ( ) ) , Map.entry ( PKG + "PacketDeflaterMixin" , ( ) -> !ModBridge.isNetworkingOwned ( ) ) , Map.entry ( PKG + "DecoderHandlerMixin" , ( ) -> !ModBridge.isNetworkingOwned ( ) ) ,
+       Map.entry ( PKG + "LightingMixin" , ( ) -> !ModBridge.isLightingOwned ( ) ) , Map.entry ( PKG + "MathHelperMixin" , ( ) -> ModBridge.isMathOwned ( ) ) , Map.entry ( PKG + "SimplexNoiseSamplerMixin" , ( ) -> ModBridge.isMathOwned ( ) ) , Map.entry ( PKG + "PathfindingMixin" , ( ) -> !ModBridge.isPathfindingOwned ( ) ) , Map.entry ( PKG + "PacketDeflaterMixin" , ( ) -> ModBridge.isNetworkingOwned ( ) ) , Map.entry ( PKG + "DecoderHandlerMixin" , ( ) -> ModBridge.isNetworkingOwned ( ) ) ,
 
        // Config-gated
        Map.entry ( PKG + "BlockStateMixin" , RustMC.CONFIG :: isUseNativeCulling ) , Map.entry ( PKG + "ChunkBuilderMixin" , ( ) -> RustMC.CONFIG.isEnableChunkBuilderExpand ( ) && !ModBridge.SODIUM ) , Map.entry ( PKG + "compat.ClientRedstoneSkipMixin" , RustMC.CONFIG :: isEnableClientRedstoneSkip ) , Map.entry ( PKG + "compat.TickSyncCompatMixin" , RustMC.CONFIG :: isEnableTickSyncCompat ) , Map.entry ( PKG + "compat.BBECompatMixin" , RustMC.CONFIG :: isEnableBBECompat ) , Map.entry (

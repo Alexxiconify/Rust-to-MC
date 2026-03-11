@@ -23,7 +23,7 @@ public class MathHelperMixin {
     /** @author Alexxiconify @reason LUT sin or vanilla fallback */
     @Overwrite
     public static float sin(double value) {
-        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeSine())
+        if ( ModBridge.isMathOwned ( ) && RustMC.CONFIG.isUseNativeSine())
             return SINE_TABLE[(int)(value * 10430.378) & 65535];
         return (float) Math.sin(value);
     }
@@ -31,7 +31,7 @@ public class MathHelperMixin {
     /** @author Alexxiconify @reason LUT cos or vanilla fallback */
     @Overwrite
     public static float cos(double value) {
-        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeCos())
+        if ( ModBridge.isMathOwned ( ) && RustMC.CONFIG.isUseNativeCos())
             return SINE_TABLE[(int)(value * 10430.378 + 16384.0) & 65535];
         return (float) Math.cos(value);
     }
@@ -45,7 +45,7 @@ public class MathHelperMixin {
     @Deprecated(since = "1.21" )
     @Overwrite
     public static double fastInverseSqrt(double x) {
-        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeInvSqrt()) {
+        if ( ModBridge.isMathOwned ( ) && RustMC.CONFIG.isUseNativeInvSqrt()) {
             double half = 0.5 * x;
             long bits = Double.doubleToLongBits(x);
             bits = 0x5FE6EB50C7B537A9L - (bits >> 1);
@@ -58,7 +58,7 @@ public class MathHelperMixin {
     /** @author Alexxiconify @reason Native sqrt via Rust JNI when enabled */
     @Overwrite
     public static float sqrt(float f) {
-        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeSqrt())
+        if ( ModBridge.isMathOwned ( ) && RustMC.CONFIG.isUseNativeSqrt())
             return com.alexxiconify.rustmc.NativeBridge.invokeSqrt(f);
         return (float) Math.sqrt(f);
     }
@@ -66,7 +66,7 @@ public class MathHelperMixin {
     /** @author Alexxiconify @reason Fast atan2 polynomial approximation */
     @Overwrite
     public static double atan2(double y, double x) {
-        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeAtan2())
+        if ( ModBridge.isMathOwned ( ) && RustMC.CONFIG.isUseNativeAtan2())
             return fastAtan2(y, x);
         return Math.atan2(y, x);
     }
@@ -90,7 +90,7 @@ public class MathHelperMixin {
     /** @author Alexxiconify @reason Bitwise floor */
     @Overwrite
     public static int floor(double d) {
-        if (!ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeFloor()) {
+        if ( ModBridge.isMathOwned ( ) && RustMC.CONFIG.isUseNativeFloor()) {
             int i = (int) d;
             return d < i ? i - 1 : i;
         }
@@ -106,7 +106,7 @@ public class MathHelperMixin {
     /** @author Alexxiconify @reason FMA lerp for better precision */
     @Overwrite
     public static double lerp(double delta, double start, double end) {
-        if (!ModBridge.isMathOwned())
+        if ( ModBridge.isMathOwned ( ) )
             return Math.fma(delta, end - start, start);
         return start + delta * (end - start);
     }

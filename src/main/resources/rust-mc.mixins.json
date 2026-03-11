@@ -15,15 +15,24 @@
     "PathfindingMixin",
     "DecoderHandlerMixin",
     "BlockStateMixin",
+    "CrashReportSectionMixin",
+    "SchemasMixin"
+  ],
+  "client": [
+    "FrustumMixin",
     "ParticleManagerMixin",
     "ChunkBuilderMixin",
-    "minihud.RenderUtilsMixin",
-    "FrustumMixin",
-    "CrashReportSectionMixin",
+    "BoxMixin",
+    "MinecraftClientMixin",
+    "DebugHudMixin",
+    "ResourceReloadMixin",
+    "ServerPingerMixin",
+    "ServerAddressMixin",
     "screen.SplashOverlayMixin",
     "screen.LevelLoadingScreenMixin",
     "screen.WindowMixin",
     "screen.MultiplayerScreenMixin",
+    "minihud.RenderUtilsMixin",
     "compat.XaeroMinimapLimiterMixin",
     "compat.XaeroGhostMapMixin",
     "compat.XaeroWorldMapGhostMixin",
@@ -31,14 +40,7 @@
     "compat.ClientRedstoneSkipMixin",
     "compat.TickSyncCompatMixin",
     "compat.BBECompatMixin",
-    "compat.EntityRenderCompatMixin",
-    "BoxMixin",
-    "MinecraftClientMixin",
-    "DebugHudMixin",
-    "ServerPingerMixin",
-    "ServerAddressMixin",
-    "ResourceReloadMixin",
-    "SchemasMixin"
+    "compat.EntityRenderCompatMixin"
   ],
   "injectors": {
     "defaultRequire": 0

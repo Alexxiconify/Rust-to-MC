@@ -1,5 +1,6 @@
 package com.alexxiconify.rustmc.util;
 
+import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.RustMC;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -8,6 +9,9 @@ import net.minecraft.client.gui.DrawContext;
  * Shared rendering utilities for the loading screen RAM overlay.
  * Eliminates duplicate ramColor / bar-drawing code across SplashOverlayMixin
  * and LevelLoadingScreenMixin.
+ * <p>
+ * When AppleSkin is installed, the bar is offset upward to avoid overlapping
+ * its saturation/exhaustion HUD overlay near the hotbar.
  */
 public final class RamBarRenderer {
     private RamBarRenderer() {}
@@ -37,7 +41,9 @@ public final class RamBarRenderer {
         int barW = Math.min(400, screenW - 20);
         int barH = 5;
         int bx   = (screenW - barW) / 2;
-        int by   = screenH - 22;
+        // When AppleSkin is installed and compat is enabled, offset up to avoid its HUD overlay
+        int yOffset = (ModBridge.APPLESKIN && RustMC.CONFIG.isEnableAppleSkinCompat()) ? 14 : 0;
+        int by   = screenH - 22 - yOffset;
 
         context.fill(bx, by, bx + barW, by + barH, bgColor);
         context.fill(bx, by, bx + (int)(barW * ratio), by + barH, ramColor(ratio));

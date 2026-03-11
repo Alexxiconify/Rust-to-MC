@@ -14,10 +14,11 @@ import java.util.concurrent.TimeUnit;
  * Custom-painted: rounded gradient bars, anti-aliased text, mod icon,
  * elapsed timer, and periodic memory updates without busy-waiting.
  */
+@SuppressWarnings({"java:S107", "java:S1948"}) // Swing paintComponent params, serializable fields
 public class PreLaunchWindow extends JFrame {
     private static PreLaunchWindow instance;
     private boolean disposed = false;
-    private ScheduledExecutorService updater;
+    private final transient ScheduledExecutorService updater;
     private volatile int modProgress = 0;
     private volatile String statusMessage = "";
     private final long startTimeMs;
@@ -35,9 +36,11 @@ public class PreLaunchWindow extends JFrame {
     private static final Color RAM_RED        = new Color(210, 55, 55);
     private static final int WIN_W = 480;
     private static final int WIN_H = 230;
-    private static final int BAR_H = 14, BAR_ARC = BAR_H;
+    private static final int BAR_H = 14;
+    private static final int BAR_ARC = BAR_H;
     private static final int MARGIN = 24;
-    private BufferedImage logoImage;
+    private static final String FONT_FAMILY = "Segoe UI";
+    private transient BufferedImage logoImage;
     public PreLaunchWindow() {
         ElbConfig config = ElbConfig.getInstance();
         startTimeMs = System.currentTimeMillis();
@@ -64,15 +67,15 @@ public class PreLaunchWindow extends JFrame {
             try {
                 java.nio.file.Path p = java.nio.file.Paths.get(config.getLogoPath());
                 if (java.nio.file.Files.exists(p)) { logoImage = ImageIO.read(p.toFile()); return; }
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) { /* Custom logo path failed — try defaults */ }
         }
         // Try namespaced path first to avoid loading another mod's icon.png
         try (InputStream is = PreLaunchWindow.class.getResourceAsStream("/assets/rust-mc/icon.png")) {
             if (is != null) { logoImage = ImageIO.read(is); return; }
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { /* Namespaced icon not found — try root */ }
         try (InputStream is = PreLaunchWindow.class.getResourceAsStream("/icon.png")) {
             if (is != null) logoImage = ImageIO.read(is);
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) { /* No icon available — will render without logo */ }
     }
     private class SplashPanel extends JPanel {
         SplashPanel() { setOpaque(true); setBackground(BG_DARK); }
@@ -86,10 +89,10 @@ public class PreLaunchWindow extends JFrame {
             int w = getWidth();
             int h = getHeight();
             g.setColor(BG_PANEL);
-            g.fill(new RoundRectangle2D.Float(2, 2, w - 4, h - 4, 18, 18));
+            g.fill(new RoundRectangle2D.Float(2, 2, (float) w - 4, (float) h - 4, 18, 18));
             g.setColor(BG_BORDER);
             g.setStroke(new BasicStroke(1.2f));
-            g.draw(new RoundRectangle2D.Float(2, 2, w - 4, h - 4, 18, 18));
+            g.draw(new RoundRectangle2D.Float(2, 2, (float) w - 4, (float) h - 4, 18, 18));
             int y = MARGIN;
             int logoSz = 38;
             int titleX = MARGIN;
@@ -97,23 +100,24 @@ public class PreLaunchWindow extends JFrame {
                 g.drawImage(logoImage, MARGIN, y - 2, logoSz, logoSz, null);
                 titleX = MARGIN + logoSz + 12;
             }
-            g.setFont(new Font("Segoe UI", Font.BOLD, 17));
+            g.setFont(new Font(FONT_FAMILY, Font.BOLD, 17));
             g.setColor(TEXT_PRIMARY);
             g.drawString("Rust to MC", titleX, y + 14);
-            g.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+            g.setFont(new Font(FONT_FAMILY, Font.PLAIN, 11));
             g.setColor(TEXT_DIM);
             g.drawString(getModVersion(), titleX, y + 30);
             long elapsed = System.currentTimeMillis() - startTimeMs;
             String timeStr = String.format("%.1fs", elapsed / 1000.0);
-            g.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            g.setFont(new Font(FONT_FAMILY, Font.PLAIN, 12));
             g.setColor(TEXT_DIM);
             int tw = g.getFontMetrics().stringWidth(timeStr);
             g.drawString(timeStr, w - MARGIN - tw, y + 14);
             y += logoSz + 18;
-            int barX = MARGIN, barW = w - MARGIN * 2;
+            int barX = MARGIN;
+            int barW = w - MARGIN * 2;
             drawBarLabel(g, "Loading", modProgress + "%", barX, barW, y);
             y += 15;
-            drawGradientBar(g, barX, y, barW, BAR_H, modProgress / 100.0f, PROGRESS_LO, PROGRESS_HI);
+            drawGradientBar( g, barX, y, barW, modProgress / 100.0f, PROGRESS_LO, PROGRESS_HI);
             y += BAR_H + 14;
             long used = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
             long max  = Runtime.getRuntime().maxMemory();
@@ -124,40 +128,40 @@ public class PreLaunchWindow extends JFrame {
             Color rHi = ramR < 0.55f ? RAM_YELLOW : RAM_RED;
             drawBarLabel(g, "Memory", ramPct, barX, barW, y);
             y += 15;
-            drawGradientBar(g, barX, y, barW, BAR_H, ramR, rLo, rHi);
-            g.setFont(new Font("Segoe UI", Font.PLAIN, 9));
+            drawGradientBar( g, barX, y, barW, ramR, rLo, rHi);
+            g.setFont(new Font(FONT_FAMILY, Font.PLAIN, 9));
             g.setColor(new Color(255, 255, 255, 170));
             int mw = g.getFontMetrics().stringWidth(ramMB);
             g.drawString(ramMB, barX + (barW - mw) / 2, y + BAR_H - 3);
             y += BAR_H + 16;
-            g.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            g.setFont(new Font(FONT_FAMILY, Font.PLAIN, 12));
             g.setColor(TEXT_ACCENT);
             String msg = (statusMessage != null && !statusMessage.isEmpty()) ? statusMessage : "Initializing...";
             g.drawString(stageIcon(modProgress) + "  " + msg, barX, y);
         }
     }
     private static void drawBarLabel(Graphics2D g, String left, String right, int x, int barW, int y) {
-        g.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        g.setFont(new Font(FONT_FAMILY, Font.BOLD, 11));
         g.setColor(TEXT_DIM);
         g.drawString(left, x, y);
         g.setColor(TEXT_PRIMARY);
         int rw = g.getFontMetrics().stringWidth(right);
         g.drawString(right, x + barW - rw, y);
     }
-    private static void drawGradientBar(Graphics2D g, int x, int y, int w, int h,
-                                         float ratio, Color lo, Color hi) {
-        ratio = Math.max(0f, Math.min(1f, ratio));
+    private static void drawGradientBar(Graphics2D g, int x, int y, int w,
+                                        float ratio, Color lo, Color hi) {
+        ratio = Math.clamp(ratio, 0f, 1f);
         int fillW = Math.max(0, (int)(w * ratio));
         g.setColor(BAR_TRACK);
-        g.fill(new RoundRectangle2D.Float(x, y, w, h, BAR_ARC, BAR_ARC));
+        g.fill(new RoundRectangle2D.Float(x, y, w, BAR_H, BAR_ARC, BAR_ARC));
         if (fillW > 2) {
             Shape oldClip = g.getClip();
-            g.setClip(new RoundRectangle2D.Float(x, y, fillW, h, BAR_ARC, BAR_ARC));
-            g.setPaint(new GradientPaint(x, y, lo, x + w, y, hi));
-            g.fill(new RoundRectangle2D.Float(x, y, w, h, BAR_ARC, BAR_ARC));
+            g.setClip(new RoundRectangle2D.Float(x, y, fillW, BAR_H, BAR_ARC, BAR_ARC));
+            g.setPaint(new GradientPaint(x, y, lo, (float) x + w, y, hi));
+            g.fill(new RoundRectangle2D.Float(x, y, w, BAR_H, BAR_ARC, BAR_ARC));
             g.setPaint(null);
             g.setColor(new Color(255, 255, 255, 28));
-            g.fillRect(x, y + 1, fillW, h / 2 - 1);
+            g.fillRect(x, y + 1, fillW, BAR_H / 2 - 1);
             g.setClip(oldClip);
         }
     }
@@ -165,7 +169,7 @@ public class PreLaunchWindow extends JFrame {
         if (progress >= 95) return "✨";
         if (progress >= 80) return "\uD83D\uDD0A";
         if (progress >= 60) return "\uD83D\uDCE6";
-        if (progress >= 25) return "⚙\uFE0F";
+        if (progress >= 25) return "⚙️";
         return "\uD83D\uDE80";
     }
     private static String getModVersion() {
@@ -194,7 +198,7 @@ public class PreLaunchWindow extends JFrame {
     public static void updateProgress(int progress, String message) {
         PreLaunchWindow win = instance;
         if (win == null) return;
-        win.modProgress = Math.max(0, Math.min(100, progress));
+        win.modProgress = Math.clamp(progress, 0, 100);
         if (message != null) win.statusMessage = message;
     }
 }

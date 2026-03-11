@@ -69,6 +69,7 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildDetectOption("Oxidizium Detected", () -> ModBridge.OXIDIZIUM))
             .option(buildDetectOption("ImmediatelyFast Detected", () -> ModBridge.IMMEDIATELYFAST))
             .option(buildDetectOption("Distant Horizons Detected", () -> ModBridge.DISTANT_HORIZONS))
+            .option(buildDetectOption("AppleSkin Detected",       () -> ModBridge.APPLESKIN))
             .build();
     }
 
