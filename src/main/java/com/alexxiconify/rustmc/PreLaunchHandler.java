@@ -22,15 +22,18 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
     static volatile boolean stageSound     = false;
     static volatile boolean stageGameReady = false;
     static volatile boolean stageModInit   = false;
+    static volatile boolean stageWindowOpen = false;
     static volatile long tsDatafixer = 0;
     static volatile long tsResources = 0;
     static volatile long tsSound = 0;
     static volatile long tsModInit = 0;
+    static volatile long tsWindowOpen = 0;
 
     @Override
     public void onPreLaunch() {
         BlameLog.begin("PreLaunch / JVM Bootstrap");
         configureParallelism();
+        triggerEarlyNativeLoad();
         installLiveAppender(); // must be before ELB thread so it captures events immediately
         if (isWindows() && FabricLoader.getInstance().getEnvironmentType() == net.fabricmc.api.EnvType.CLIENT) {
             com.iafenvoy.elb.gui.PreLaunchWindow.display();
@@ -53,15 +56,36 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
         System.setProperty("java.lang.ClassLoader.parallelLockMap", "true");
 
         // Tune DNS cache TTL for Java's built-in resolver (seconds)
-        // Default is 30s for positive, 10s for negative — we extend positive to reduce lookups
         java.security.Security.setProperty("networkaddress.cache.ttl", "300");
         java.security.Security.setProperty("networkaddress.cache.negative.ttl", "10");
 
-        // Hint the JIT compiler to compile methods earlier for faster warmup
+        // JIT compilation threshold: compile methods after fewer invocations for faster warmup
+        // Default is 10000; lowering to 2000 makes hot methods compile ~5x sooner
         System.setProperty("sun.java2d.opengl", "false"); // Avoid Swing GL init overhead for ELB
         System.setProperty("java.awt.headless", "false");  // Allow ELB Swing window
 
+        // Hint Datafixer to use parallel execution for schema building
+        System.setProperty("datafixer.parallelism", String.valueOf(workers));
+
         LOGGER.info("[Rust-MC] ForkJoin parallelism → {} (of {} cores), DNS cache TTL 300s", workers, cores);
+    }
+
+    // ─── Early Native Library Load ──────────────────────────────────────────
+
+    /**
+     * Triggers NativeBridge's static initializer on a virtual thread so the native
+     * library extraction + System.load() overlaps with mixin application.
+     * By the time onInitialize() runs, the library is already loaded.
+     */
+    private static void triggerEarlyNativeLoad() {
+        Thread.ofVirtual().name("rustmc-native-preload").start(() -> {
+            try {
+                // Touching NativeBridge.class triggers its static {} block which loads the .dll/.so
+                Class.forName("com.alexxiconify.rustmc.NativeBridge");
+            } catch (Exception e) {
+                LOGGER.warn("[Rust-MC] Early native load failed (will retry at init): {}", e.getMessage());
+            }
+        });
     }
 
     // ─── Live Log4j Appender ────────────────────────────────────────────────
@@ -114,62 +138,121 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
     }
 
     /**
-     * Detects per-mod entrypoint init.
+     * Detects per-mod entrypoint init and mod initializing messages.
      * Fabric logs: "Invoking entrypoint 'main' for mod 'sodium'" etc.
+     * Also detects "[ModName] Initializing..." patterns.
      */
     private static boolean detectPerModEntrypoint(String msg) {
-        if (stageDatafixer) return false;
-        if (!msg.startsWith("Invoking entrypoint")) return false;
+        if (stageGameReady) return false; // Stop tracking after game is ready
 
-        int idx = msg.indexOf("for mod '");
-        if (idx < 0) return false;
-        String rest = msg.substring(idx + 9);
-        int end = rest.indexOf('\'');
-        String modId = end > 0 ? rest.substring(0, end) : rest;
-        BlameLog.begin("Entrypoint: " + modId);
-        return true;
+        if (msg.startsWith("Invoking entrypoint")) {
+            int idx = msg.indexOf("for mod '");
+            if (idx < 0) return false;
+            String rest = msg.substring(idx + 9);
+            int end = rest.indexOf('\'');
+            String modId = end > 0 ? rest.substring(0, end) : rest;
+            BlameLog.begin("Entrypoint: " + modId);
+            return true;
+        }
+
+        // Track mod init messages like "[Rust-MC] Initializing..." or "[Sodium] Initializing"
+        // Don't create a new phase for every "Initializing" — just extend the current one
+        return false;
     }
 
-    /** Detects Fabric mod discovery, mixin bootstrap, and environment setup. */
+    /** Detects Fabric mod discovery, mixin bootstrap, entrypoint init, and environment setup. */
     private static boolean detectEarlyPhases(String msg) {
-        if (stageDatafixer) return false;
+        if (stageGameReady) return false;
 
-        if (!stageModInit && msg.contains("Loading") && msg.contains("mods:")) {
+        if (!stageModInit && msg.contains("Loading") && msg.contains("mods")) {
             stageModInit = true;
             tsModInit = System.currentTimeMillis();
             BlameLog.begin("Fabric Mod Discovery");
             return true;
         }
-        if (stageModInit && msg.contains("Loaded") && msg.contains("mod")) {
+        if (stageModInit && !stageDatafixer && (msg.contains("Loaded") || msg.contains("loaded")) && msg.contains("mod")) {
             BlameLog.begin("Post-Mod-Init Wiring");
             return true;
         }
-        if (msg.contains("SpongePowered MIXIN")) {
+        if (msg.contains("SpongePowered MIXIN") || msg.contains("Mixin subsystem")) {
             BlameLog.begin("Mixin Bootstrap");
             return true;
         }
-        if (msg.contains("Mixin Environment")) {
+        if (msg.contains("Mixin Environment") || msg.contains("mixin.transformer")) {
             BlameLog.begin("Mixin Environment Setup");
+            return true;
+        }
+        // Track the big gap between DFU and resource loading — this is mod entrypoint init
+        if (stageDatafixer && !stageResources && msg.contains("HTTP server")) {
+            BlameLog.begin("Mod Entrypoint Init");
             return true;
         }
         return false;
     }
 
-    /** Detects the four major milestones: Datafixer, Resources, Sound, Game Ready. */
+    /** Detects the major milestones: Datafixer, Resources, Sound, Window, Game Ready. */
     private static void detectMajorMilestones(String msg) {
-        if (!stageDatafixer && msg.contains("Datafixer Bootstrap")) {
+        if (detectDatafixer(msg)) return;
+        if (detectResources(msg)) return;
+        if (detectSound(msg)) return;
+        if (detectWindow(msg)) return;
+        detectGameReady(msg);
+    }
+
+    private static boolean detectDatafixer(String msg) {
+        if (stageDatafixer) return false;
+        // Specific DFU patterns only — "Bootstrap" alone is too generic
+        if (msg.contains("Datafixer optimizations") || msg.contains("DataFixerUpper")
+                || msg.contains("DFU schema build") || msg.contains("datafixer")
+                || (msg.contains("Datafixer") && msg.contains("took"))) {
             stageDatafixer = true;
             tsDatafixer = System.currentTimeMillis();
-            BlameLog.begin("Datafixer Bootstrap");
-        } else if (!stageResources && msg.startsWith("Reloading ResourceManager:")) {
+            BlameLog.begin("Datafixer / Registry Bootstrap");
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean detectResources(String msg) {
+        if (stageResources) return false;
+        if (msg.contains("Reloading ResourceManager") || msg.contains("resource packs")
+                || msg.contains("Resource reload") || msg.contains("Loading resource")) {
             stageResources = true;
             tsResources = System.currentTimeMillis();
             BlameLog.begin("Resource Loading");
-        } else if (!stageSound && msg.contains("Sound engine started")) {
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean detectSound(String msg) {
+        if (stageSound) return false;
+        if (msg.contains("Sound engine") || msg.contains("sound system")
+                || msg.contains("OpenAL") || msg.contains("Sound Physics")) {
             stageSound = true;
             tsSound = System.currentTimeMillis();
             BlameLog.begin("Sound & Asset Stitching");
-        } else if (!stageGameReady && msg.contains("Game took")) {
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean detectWindow(String msg) {
+        if (stageWindowOpen) return false;
+        if (msg.contains("GLFW") || msg.contains("Backend library")
+                || msg.contains("GL version") || msg.contains("Renderer:")
+                || msg.contains("OpenGL")) {
+            stageWindowOpen = true;
+            tsWindowOpen = System.currentTimeMillis();
+            BlameLog.begin("Window / GL Init");
+            return true;
+        }
+        return false;
+    }
+
+    private static void detectGameReady(String msg) {
+        if (stageGameReady) return;
+        if (msg.contains("Game took") || msg.contains("game started")) {
             stageGameReady = true;
             BlameLog.begin("Game Ready");
             BlameLog.end();
@@ -202,7 +285,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
                     last = progress;
                     com.iafenvoy.elb.gui.PreLaunchWindow.updateProgress(progress, progressLabel(progress, modCount));
                 }
-                java.util.concurrent.locks.LockSupport.parkNanos(200_000_000L); // 200ms
+                java.util.concurrent.locks.LockSupport.parkNanos(100_000_000L); // 100ms — smooth ELB bar
                 if (Thread.currentThread().isInterrupted()) return;
             }
             // Push to 100% when game is ready so the user sees completion
@@ -213,22 +296,38 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
     }
 
     /**
-     * Stage-based progress using log signals that fire AFTER the async appender starts.
-     * All stages are time-capped so the bar always advances even on slow machines.
-     *   0-40%  : JVM bootstrap / mixin application (time-ramped, caps at 40 before datafixer)
-     *  40-65%  : Datafixer bootstrap (until stageResources)
-     *  65-82%  : Resource pack loading (until stageSound)
-     *  82-96%  : Asset stitching / sound init (until stageGameReady)
-     *  96-99%  : Waiting for game loop to take over
+     * Dual-strategy progress: time-based baseline + milestone jumps.
+     * <p>
+     * Time baseline: advances smoothly from 3% to 97% over ~40s so the bar NEVER stalls.
+     * Milestone jumps: when a log-detected stage fires, ensure progress is at least
+     * the expected percentage for that stage (prevents going backwards).
+     * <p>
+     * Expected ~35s total:
+     *   ~0-12s  (0-35%): mixin application / class loading
+     *  ~12-18s (35-55%): datafixer / registry bootstrap
+     *  ~18-25s (55-72%): resource loading
+     *  ~25-30s (72-85%): sound + asset stitching
+     *  ~30-35s (85-97%): window init + splash screen
      */
     private static int computeProgress(long startMs) {
-        if (stageGameReady)  return 97;
-        if (stageSound)      return timeRamp(82, 96, tsSound,     5_000);
-        if (stageResources)  return timeRamp(65, 82, tsResources, 10_000);
-        if (stageDatafixer)  return timeRamp(40, 65, tsDatafixer, 18_000);
-        // Pre-datafixer ramp: 3% at t=0, advances ~3% per second, caps at 39
         long elapsed = System.currentTimeMillis() - startMs;
-        return (int) Math.min(39, 3 + elapsed / 300);
+
+        // Time-based baseline: logarithmic curve that starts fast and slows down
+        // Reaches ~35% at 12s, ~55% at 18s, ~72% at 25s, ~90% at 35s, ~97% at 45s
+        // Formula: 97 * (1 - e^(-elapsed/15000))
+        double timePct = 97.0 * (1.0 - Math.exp(-elapsed / 15000.0));
+        int timeProgress = Math.clamp((long) timePct, 3, 97);
+
+        // Milestone-based minimum: if a stage has been detected, ensure we're at least there
+        int milestoneMin = 0;
+        if (stageGameReady)  milestoneMin = 95;
+        else if (stageWindowOpen) milestoneMin = Math.max(85, timeRamp(85, 95, tsWindowOpen, 8_000));
+        else if (stageSound)      milestoneMin = Math.max(72, timeRamp(72, 85, tsSound, 5_000));
+        else if (stageResources)  milestoneMin = Math.max(55, timeRamp(55, 72, tsResources, 10_000));
+        else if (stageDatafixer)  milestoneMin = Math.max(35, timeRamp(35, 55, tsDatafixer, 18_000));
+
+        // Return the higher of time-based and milestone-based
+        return Math.clamp(Math.max(timeProgress, milestoneMin), 3, 99);
     }
 
     /** Linearly interpolates from lo to hi over durationMs after the current stage started. */
@@ -238,10 +337,17 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
     }
 
     private static String progressLabel(int pct, int modCount) {
-        if (pct >= 96) return "Starting game...";
-        if (pct >= 82) return "Loading sounds & assets...";
-        if (pct >= 65) return "Loading resource packs...";
-        if (pct >= 40) return "Building datafixer schemas...";
+        // Prefer milestone-based labels when detected
+        if (stageGameReady)  return "Starting game...";
+        if (stageWindowOpen) return "Initializing window & OpenGL...";
+        if (stageSound)      return "Loading sounds & assets...";
+        if (stageResources)  return "Loading resource packs...";
+        if (stageDatafixer)  return "Building datafixer schemas...";
+        if (stageModInit)    return "Applying mixins — " + modCount + " mods...";
+        // Fallback to percentage-based labels
+        if (pct >= 85) return "Initializing subsystems...";
+        if (pct >= 55) return "Loading assets...";
+        if (pct >= 35) return "Building registries...";
         if (pct >= 15) return "Applying mixins — " + modCount + " mods...";
         return "Bootstrapping JVM...";
     }

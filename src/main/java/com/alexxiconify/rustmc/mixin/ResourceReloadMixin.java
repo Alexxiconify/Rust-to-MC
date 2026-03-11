@@ -15,21 +15,27 @@ import java.util.concurrent.ForkJoinPool;
  * with a higher-parallelism ForkJoinPool. Vanilla uses a small thread pool which
  * under-utilizes modern multicore CPUs during resource pack loading.
  * <p>
- * The pool is cached as a static singleton to prevent thread leaks from repeated reloads.
+ * The pool is eagerly created as a static singleton to avoid creation latency at
+ * first reload. Uses asyncMode=true (FIFO) for better throughput on I/O-heavy tasks.
  */
 @Mixin(ReloadableResourceManagerImpl.class)
 public class ResourceReloadMixin {
 
     @Unique
-    private static ForkJoinPool cachedPool = null;
+    private static final ForkJoinPool RELOAD_POOL;
 
-    @Unique
-    private static synchronized ForkJoinPool getOrCreatePool(int workers) {
-        if (cachedPool == null) {
-            RustMC.LOGGER.debug("[Rust-MC] Creating resource reload pool with {} threads", workers);
-            cachedPool = new ForkJoinPool(workers);
-        }
-        return cachedPool;
+    static {
+        int cores = Runtime.getRuntime().availableProcessors();
+        // Use all cores minus 1 (leave one for the main/render thread)
+        // Minimum 4 threads to handle parallel resource loading effectively
+        int workers = Math.max(4, cores - 1);
+        RustMC.LOGGER.debug("[Rust-MC] Creating resource reload pool with {} threads (async mode)", workers);
+        RELOAD_POOL = new ForkJoinPool(
+            workers,
+            ForkJoinPool.defaultForkJoinWorkerThreadFactory,
+            null,
+            true // asyncMode=true: FIFO scheduling, better for I/O-bound tasks
+        );
     }
 
     @ModifyArg(
@@ -39,10 +45,6 @@ public class ResourceReloadMixin {
         require = 0
     )
     private Executor boostPrepareExecutor(Executor original) {
-        int cores = Runtime.getRuntime().availableProcessors();
-        if (cores <= 4) return original;
-
-        int workers = Math.max(4, cores - 2);
-        return getOrCreatePool(workers);
+        return RELOAD_POOL;
     }
 }

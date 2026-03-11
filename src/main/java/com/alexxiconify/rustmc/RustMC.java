@@ -23,42 +23,53 @@ public class RustMC implements ModInitializer {
     @Override
     public void onInitialize() {
         LOGGER.info("[Rust-MC] Initializing...");
-        loadConfig();
+        loadConfig(); // Safe to re-call: config was preloaded during DFU, this just ensures it's done
         ModBridge.initialize();
 
         // Flush per-group mixin application timings into the blame chart
         MixinManager.flushBlameTimings();
 
-        // Initialize ScalableLux compat if present
-        com.alexxiconify.rustmc.compat.ScalableLuxCompat.initialize();
+        // Run independent compat initializations in parallel on virtual threads
+        // These have no ordering dependencies on each other
+        var scalableLuxFuture = java.util.concurrent.CompletableFuture.runAsync(
+            com.alexxiconify.rustmc.compat.ScalableLuxCompat::initialize,
+            r -> Thread.ofVirtual().name("rustmc-compat-slx").start(r));
 
-        // Attempt to disable DH fade if enabled and DH is present
-        if (CONFIG.isDisableDhFade()) {
-            com.alexxiconify.rustmc.compat.DistantHorizonsCompat.disableFade();
-        }
-
-        if (CONFIG.isUseNativeCulling()) {
-            com.alexxiconify.rustmc.compat.DistantHorizonsCompat.registerFrustumCuller();
-        }
+        var dhFuture = java.util.concurrent.CompletableFuture.runAsync(() -> {
+            if (CONFIG.isDisableDhFade()) {
+                com.alexxiconify.rustmc.compat.DistantHorizonsCompat.disableFade();
+            }
+            if (CONFIG.isUseNativeCulling()) {
+                com.alexxiconify.rustmc.compat.DistantHorizonsCompat.registerFrustumCuller();
+            }
+            com.alexxiconify.rustmc.compat.DistantHorizonsCompat.optimizeLodThreading();
+        }, r -> Thread.ofVirtual().name("rustmc-compat-dh").start(r));
 
         // Reflect real native status into config so ModMenu Status screen is accurate
         CONFIG.setNativeReady(NativeBridge.isReady());
 
+        // Wait for compat init to finish before registering world events
+        java.util.concurrent.CompletableFuture.allOf(scalableLuxFuture, dhFuture).join();
+
         if (NativeBridge.isReady()) {
             LOGGER.info("[Rust-MC] Native optimizations ACTIVE.");
+            // Load persisted DNS cache from disk for instant server list lookups
+            NativeBridge.dnsCacheLoad();
             // Seed noise on every world load so it matches the world seed
             ServerWorldEvents.LOAD.register((server, world) -> {
                 BlameLog.begin("World Load (" + world.getRegistryKey().getValue() + ")");
                 NativeBridge.noiseReset(); // allow re-seed on new world
                 NativeBridge.noiseInit(world.getSeed());
                 LOGGER.debug("[Rust-MC] Seeded noise with world seed {}", world.getSeed());
+                // Pre-warm DH's LOD cache on a background thread to reduce initial pop-in
+                com.alexxiconify.rustmc.compat.DistantHorizonsCompat.prefetchLodData();
                 BlameLog.end();
             });
             // Cleanup resources on world unload
             ServerWorldEvents.UNLOAD.register((server, world) -> {
                 BlameLog.begin("World Unload Cleanup");
                 NativeCache.clear();
-                NativeBridge.dnsCacheClear(); // Free stale DNS entries to reduce memory
+                NativeBridge.dnsCacheSave(); // Persist DNS IPs to disk
                 LOGGER.debug("[Rust-MC] Cache stats at unload: hits={}, misses={}, ratio={}%",
                         NativeCache.getHits(), NativeCache.getMisses(),
                         String.format("%.1f", NativeCache.getHitRatio() * 100));
@@ -66,11 +77,15 @@ public class RustMC implements ModInitializer {
                 BlameLog.end();
                 LOGGER.info("[Rust-MC] {}", BlameLog.summary());
             });
+
+            // Save DNS cache on game exit
+            Runtime.getRuntime().addShutdownHook(new Thread( NativeBridge :: dnsCacheSave , "rustmc-dns-save"));
         } else {
             LOGGER.warn("[Rust-MC] Native library not available – running in vanilla-fallback mode.");
         }
 
         // Close Early Loading Bar if it's still open
+        // Note: blame log finalization happens in detectGameReady() when "Game took" log fires
         if (FabricLoader.getInstance().getEnvironmentType() == net.fabricmc.api.EnvType.CLIENT) {
             net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STARTED.register(client ->
                 com.iafenvoy.elb.gui.PreLaunchWindow.remove());
@@ -79,10 +94,14 @@ public class RustMC implements ModInitializer {
         LOGGER.info("[Rust-MC] Ready.");
     }
 
+    private static volatile boolean configLoaded = false;
+
     @SuppressWarnings("null")
-    public static void loadConfig() {
+    public static synchronized void loadConfig() {
+        if (configLoaded) return; // Already loaded by preload thread
         if (!Files.exists(CONFIG_PATH)) {
             saveConfig();
+            configLoaded = true;
             return;
         }
         try {
@@ -91,8 +110,6 @@ public class RustMC implements ModInitializer {
             if (loaded != null) {
                 CONFIG.copyFrom(loaded);
             }
-            // Re-save immediately so any new fields are written and stale keys are stripped.
-            // This also normalises the JSON formatting for existing users upgrading.
             saveConfig();
             LOGGER.debug("[Rust-MC] Config loaded & normalised from {}", CONFIG_PATH);
         } catch (IOException e) {
@@ -101,6 +118,7 @@ public class RustMC implements ModInitializer {
             LOGGER.error("[Rust-MC] Failed to parse config (malformed JSON?), resetting to defaults", e);
             saveConfig();
         }
+        configLoaded = true;
     }
 
     public static void saveConfig() {

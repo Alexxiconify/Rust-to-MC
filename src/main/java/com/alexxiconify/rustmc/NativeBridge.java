@@ -88,6 +88,8 @@ public class NativeBridge {
     private static native String[] rustDnsBatchResolve(String[] hostnames);
     private static native void rustDnsCacheClear();
     private static native int rustDnsCacheSize();
+    private static native String rustDnsCacheExport();
+    private static native void rustDnsCacheImport(String json);
 
     // --- Wrapper Methods ---
 
@@ -331,7 +333,7 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError e) { return new String[0]; }
     }
 
-    /** Clears the Rust DNS cache. */
+    /** Clears the Rust DNS cache (memory + disk). */
     public static void dnsCacheClear() {
         if (!libLoaded) return;
         try { rustDnsCacheClear(); }
@@ -343,5 +345,46 @@ public class NativeBridge {
         if (!libLoaded) return 0;
         try { return rustDnsCacheSize(); }
         catch (UnsatisfiedLinkError e) { return 0; }
+    }
+
+    // ─── DNS Disk Persistence ────────────────────────────────────────────────
+
+    private static final java.nio.file.Path DNS_CACHE_PATH =
+        net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("rust-mc-dns-cache.json");
+
+    /**
+     * Saves resolved hostname→IP pairs to disk so subsequent launches
+     * can skip DNS lookups entirely. Called on world unload and game exit.
+     */
+    public static void dnsCacheSave() {
+        if (!libLoaded) return;
+        try {
+            String json = rustDnsCacheExport();
+            if (json != null && !json.equals("{}")) {
+                java.nio.file.Files.writeString(DNS_CACHE_PATH, json);
+                RustMC.LOGGER.debug("[Rust-MC] DNS cache saved: {} entries", dnsCacheSize());
+            }
+        } catch (Exception e) {
+            RustMC.LOGGER.debug("[Rust-MC] Failed to save DNS cache: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Loads persisted hostname→IP pairs from disk into Rust's cache.
+     * Called early at startup so the first server list open is instant.
+     */
+    public static void dnsCacheLoad() {
+        if (!libLoaded) return;
+        try {
+            if (java.nio.file.Files.exists(DNS_CACHE_PATH)) {
+                String json = java.nio.file.Files.readString(DNS_CACHE_PATH);
+                if (!json.isBlank()) {
+                    rustDnsCacheImport(json);
+                    RustMC.LOGGER.info("[Rust-MC] DNS cache loaded from disk ({} entries)", dnsCacheSize());
+                }
+            }
+        } catch (Exception e) {
+            RustMC.LOGGER.debug("[Rust-MC] Failed to load DNS cache: {}", e.getMessage());
+        }
     }
 }

@@ -330,13 +330,17 @@ public class ModMenuIntegration implements ModMenuApi {
 
     // ── Blame Chart ─────────────────────────────────────────────────────────
 
+    private static final String PCT_FORMAT = "%.1f%%";
+
+    @SuppressWarnings("java:S3776")
     private ConfigCategory buildBlameCategory() {
         var builder = ConfigCategory.createBuilder()
             .name(Text.literal("Blame Chart"))
             .tooltip(Text.literal("Loading phase timings from launcher start to game-ready."));
 
-        java.util.List<BlameLog.Entry> entries = BlameLog.getEntries();
-        long total = BlameLog.totalMs();
+        java.util.List<BlameLog.Entry> entries = BlameLog.getEntriesWithGaps();
+        long tracked = BlameLog.trackedMs();
+        long wallClock = BlameLog.wallClockMs();
 
         if (entries.isEmpty()) {
             builder.option(Option.<Boolean>createBuilder()
@@ -349,82 +353,118 @@ public class ModMenuIntegration implements ModMenuApi {
                     .formatValue(v -> Text.literal("§7—")))
                 .build());
         } else {
-            // Total summary
-            builder.option(Option.<Boolean>createBuilder()
-                .name(Text.literal("Total Load Time"))
-                .description(OptionDescription.of(Text.literal(
-                    "Total time from JVM start to game-ready: " + total + "ms (" +
-                    String.format("%.1f", total / 1000.0) + "s)")))
-                .binding(true, () -> true, v -> {})
-                .controller(opt -> BooleanControllerBuilder.create(opt)
-                    .formatValue(v -> Text.literal("§e" + String.format("%.1fs", total / 1000.0))))
-                .build());
-
-            // Individual phases as bar chart entries
-            for (BlameLog.Entry entry : entries) {
-                long dur = entry.durationMs();
-                float pct = total > 0 ? (float) dur / total * 100f : 0;
-                String bar = buildAsciiBar(pct);
-                String color = blameColor(dur);
-                String assessment = blameAssessment(dur);
-
-                builder.option(Option.<Boolean>createBuilder()
-                    .name(Text.literal(entry.phase()))
-                    .description(OptionDescription.of(Text.literal(
-                        "Duration: " + dur + "ms (" + String.format("%.1f%%", pct) + " of total)\n\n" +
-                        bar + "\n\n" + assessment)))
-                    .binding(true, () -> true, v -> {})
-                    .controller(opt -> BooleanControllerBuilder.create(opt)
-                        .formatValue(v -> Text.literal(color + dur + "ms")))
-                    .build());
-            }
-
-            // ── Per-group mixin application breakdown ──
-            java.util.Map<String, Long> mixinTimings = com.alexxiconify.rustmc.MixinManager.getGroupTimings();
-            if (!mixinTimings.isEmpty()) {
-                long mixinTotalNs = mixinTimings.values().stream().mapToLong(Long::longValue).sum();
-                long mixinTotalMs = mixinTotalNs / 1_000_000;
-
-                builder.option(Option.<Boolean>createBuilder()
-                    .name(Text.literal("── Mixin Breakdown ──"))
-                    .description(OptionDescription.of(Text.literal(
-                        "Per-group mixin application time (" + mixinTotalMs + "ms total).\n" +
-                        "Shows how long each category of mixins took to apply during class loading.")))
-                    .binding(true, () -> true, v -> {})
-                    .controller(opt -> BooleanControllerBuilder.create(opt)
-                        .formatValue(v -> Text.literal("§d" + mixinTotalMs + "ms")))
-                    .build());
-
-                // Sort by time descending
-                java.util.List<java.util.Map.Entry<String, Long>> sorted = new java.util.ArrayList<>(mixinTimings.entrySet());
-                sorted.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
-
-                for (java.util.Map.Entry<String, Long> mEntry : sorted) {
-                    long ms = mEntry.getValue() / 1_000_000;
-                    float mPct = mixinTotalMs > 0 ? (float) ms / mixinTotalMs * 100f : 0;
-                    String mBar = buildAsciiBar(mPct);
-                    String mColor = ms > 100 ? "§c" : ms > 30 ? "§e" : "§a";
-
-                    builder.option(Option.<Boolean>createBuilder()
-                        .name(Text.literal("  " + mEntry.getKey()))
-                        .description(OptionDescription.of(Text.literal(
-                            "Mixin application time: " + ms + "ms (" + String.format("%.1f%%", mPct) + " of mixin total)\n\n" + mBar)))
-                        .binding(true, () -> true, v -> {})
-                        .controller(opt -> BooleanControllerBuilder.create(opt)
-                            .formatValue(v -> Text.literal(mColor + ms + "ms")))
-                        .build());
-                }
-            }
+            addTotalSummary(builder, tracked, wallClock);
+            addPhaseEntries(builder, entries, wallClock);
+            addMixinBreakdown(builder);
         }
 
         return builder.build();
+    }
+
+    private static void addTotalSummary(ConfigCategory.Builder builder, long tracked, long wallClock) {
+        long untracked = wallClock - tracked;
+
+        builder.option(Option.<Boolean>createBuilder()
+            .name(Text.literal("Wall Clock (JVM → Game Ready)"))
+            .description(OptionDescription.of(Text.literal(
+                "Total wall-clock time from JVM start to game ready: " +
+                wallClock + "ms (" + String.format("%.1f", wallClock / 1000.0) + "s)\n\n" +
+                "Tracked phases: " + tracked + "ms\n" +
+                (untracked > 500 ? "Untracked gaps (JVM overhead, GC, etc.): " + untracked + "ms" : "Minimal untracked time."))))
+            .binding(true, () -> true, v -> {})
+            .controller(opt -> BooleanControllerBuilder.create(opt)
+                .formatValue(v -> Text.literal("§e" + String.format("%.1fs", wallClock / 1000.0))))
+            .build());
+
+        if (untracked > 500) {
+            builder.option(Option.<Boolean>createBuilder()
+                .name(Text.literal("  ⚠ Untracked Time"))
+                .description(OptionDescription.of(Text.literal(
+                    "Time not attributed to any tracked phase: " + untracked + "ms\n\n" +
+                    "This includes JVM class verification, GC pauses, driver init,\n" +
+                    "GLFW/GL context creation, and white-screen time before rendering starts.")))
+                .binding(true, () -> true, v -> {})
+                .controller(opt -> BooleanControllerBuilder.create(opt)
+                    .formatValue(v -> Text.literal("§c" + untracked + "ms")))
+                .build());
+        }
+    }
+
+    private static void addPhaseEntries(ConfigCategory.Builder builder, java.util.List<BlameLog.Entry> entries, long wallClock) {
+        for (BlameLog.Entry entry : entries) {
+            long dur = entry.durationMs();
+            float pct = wallClock > 0 ? (float) dur / wallClock * 100f : 0;
+            String bar = buildAsciiBar(pct);
+            boolean isGap = entry.phase().startsWith("⚠");
+            String color = isGap ? "§c" : blameColor(dur);
+            String assessment = isGap
+                ? """
+                  This time is NOT attributed to any tracked phase.
+                  Causes: JVM class verification, GC pauses, driver init,
+                  GLFW/GL context setup, or phases we don't detect yet."""
+                : blameAssessment(dur);
+
+            builder.option(Option.<Boolean>createBuilder()
+                .name(Text.literal(entry.phase()))
+                .description(OptionDescription.of(Text.literal(
+                    "Duration: " + dur + "ms (" + String.format(PCT_FORMAT, pct) + " of wall clock)\n\n" +
+                    bar + "\n\n" + assessment)))
+                .binding(true, () -> true, v -> {})
+                .controller(opt -> BooleanControllerBuilder.create(opt)
+                    .formatValue(v -> Text.literal(color + dur + "ms")))
+                .build());
+        }
+    }
+
+    private static void addMixinBreakdown(ConfigCategory.Builder builder) {
+        java.util.Map<String, Long> mixinTimings = com.alexxiconify.rustmc.MixinManager.getGroupTimings();
+        if (mixinTimings.isEmpty()) return;
+
+        long mixinTotalNs = mixinTimings.values().stream().mapToLong(Long::longValue).sum();
+        long mixinTotalMs = mixinTotalNs / 1_000_000;
+
+        builder.option(Option.<Boolean>createBuilder()
+            .name(Text.literal("── Mixin Breakdown ──"))
+            .description(OptionDescription.of(Text.literal(
+                "Per-group mixin application time (" + mixinTotalMs + "ms total).\n" +
+                "Shows how long each category of mixins took to apply during class loading.")))
+            .binding(true, () -> true, v -> {})
+            .controller(opt -> BooleanControllerBuilder.create(opt)
+                .formatValue(v -> Text.literal("§d" + mixinTotalMs + "ms")))
+            .build());
+
+        java.util.List<java.util.Map.Entry<String, Long>> sorted = new java.util.ArrayList<>(mixinTimings.entrySet());
+        sorted.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+
+        for (java.util.Map.Entry<String, Long> mEntry : sorted) {
+            long ms = mEntry.getValue() / 1_000_000;
+            float mPct = mixinTotalMs > 0 ? (float) ms / mixinTotalMs * 100f : 0;
+            String mBar = buildAsciiBar(mPct);
+            String mColor = mixinBlameColor(ms);
+
+            builder.option(Option.<Boolean>createBuilder()
+                .name(Text.literal("  " + mEntry.getKey()))
+                .description(OptionDescription.of(Text.literal(
+                    "Mixin application time: " + ms + "ms (" + String.format(PCT_FORMAT, mPct) + " of mixin total)\n\n" + mBar)))
+                .binding(true, () -> true, v -> {})
+                .controller(opt -> BooleanControllerBuilder.create(opt)
+                    .formatValue(v -> Text.literal(mColor + ms + "ms")))
+                .build());
+        }
+    }
+
+    /** Color code for mixin timing entries. */
+    private static String mixinBlameColor(long ms) {
+        if (ms > 100) return "§c";
+        if (ms > 30) return "§e";
+        return "§a";
     }
 
     /** Builds an ASCII bar like [████████░░░░] for the given percentage. */
     private static String buildAsciiBar(float pct) {
         int filled = Math.clamp(Math.round(pct / 100f * 20), 0, 20);
         return "[" + "█".repeat(filled) + "░".repeat(20 - filled) + "] " +
-               String.format("%.1f%%", pct);
+               String.format(PCT_FORMAT, pct);
     }
 
     private static String blameColor(long durationMs) {

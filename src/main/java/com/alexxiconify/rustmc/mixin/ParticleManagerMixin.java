@@ -14,8 +14,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /**
  * Distance-culls particles before they are created to reduce GPU and CPU overhead.
  * Uses a tighter cutoff when heavy entity mods (EMF/ETF) are active to free up
- * rendering headroom. When ImmediatelyFast is batching draws, we use a slightly
- * more generous cutoff since IF makes each particle cheaper.
+ * rendering headroom. When ImmediatelyFast is batching draws, we use a more
+ * generous cutoff since IF makes each particle draw cheaper.
  */
 @Mixin(ParticleManager.class)
 public class ParticleManagerMixin {
@@ -31,28 +31,26 @@ public class ParticleManagerMixin {
 
         double baseDistance = MinecraftClient.getInstance().options.getClampedViewDistance() * 8.0;
 
-        // Adaptive culling based on render budget + mod state
-        double cutoff = getCutoff ( baseDistance );
+        // Adaptive culling based on render budget + mod state + IF multiplier
+        double cutoff;
+        if (RenderState.renderBudgetTight) {
+            cutoff = baseDistance * 0.4; // FPS < 60: aggressive recovery
+        } else if (RenderState.heavyEntityModsActive) {
+            cutoff = baseDistance * 0.6; // 40% tighter when EMF/ETF are heavy
+        } else {
+            cutoff = baseDistance;
+        }
+
+        // Apply IF multiplier: IF makes draws cheaper via batching, so extend cutoff
+        cutoff *= com.alexxiconify.rustmc.compat.ImmediatelyFastCompat.getCullingDistanceMultiplier();
+
+        // Extra headroom when FPS is healthy
+        if (RenderState.renderBudgetRelaxed) {
+            cutoff *= 1.15;
+        }
 
         if (player.squaredDistanceTo(x, y, z) > cutoff * cutoff) {
             cir.setReturnValue(null);
         }
-    }
-
-    private static double getCutoff ( double baseDistance ) {
-        double cutoff;
-        if (RenderState.renderBudgetTight) {
-            // FPS < 60: aggressive particle cutoff to recover framerate
-            cutoff = baseDistance * 0.4;
-        } else if (RenderState.heavyEntityModsActive) {
-            cutoff = baseDistance * 0.6; // 40% tighter when EMF/ETF are heavy
-        } else if (RenderState.immediatelyFastActive && RenderState.renderBudgetRelaxed) {
-            cutoff = baseDistance * 1.4; // 40% more generous with IF + high FPS
-        } else if (RenderState.immediatelyFastActive) {
-            cutoff = baseDistance * 1.2; // 20% more generous with IF batching
-        } else {
-            cutoff = baseDistance;
-        }
-        return cutoff;
     }
 }

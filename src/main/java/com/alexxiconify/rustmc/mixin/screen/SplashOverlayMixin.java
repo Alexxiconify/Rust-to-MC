@@ -32,7 +32,9 @@ public abstract class SplashOverlayMixin {
 
     @Unique
     private static void initStartTime() {
-        if (splashStartMs == 0) splashStartMs = System.currentTimeMillis();
+        if (splashStartMs == 0) {
+            splashStartMs = System.currentTimeMillis();
+        }
     }
 
     @Inject(at = @At("HEAD"), method = "render")

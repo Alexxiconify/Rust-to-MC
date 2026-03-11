@@ -26,6 +26,10 @@ public final class BlameLog {
     private static final long JVM_START_MS = System.currentTimeMillis(); // captured at class-load time
     private static volatile long currentPhaseStart = 0;
     private static volatile String currentPhase = null;
+    /** Frozen when the final phase ends — prevents idle time from inflating startup totals. */
+    private static volatile long gameReadyMs = 0;
+
+    private static final String BLAME_LINE_FORMAT = "  %-35s %6dms%n";
 
     // ── Recording API ──────────────────────────────────────────────────────
 
@@ -37,9 +41,12 @@ public final class BlameLog {
         currentPhaseStart = now;
     }
 
-    /** Explicitly end the current phase. */
+    /** Explicitly end the current phase and freeze the wall clock. */
     public static void end() {
-        endCurrent(System.currentTimeMillis());
+        long now = System.currentTimeMillis();
+        endCurrent(now);
+        // Freeze — subsequent wallClockMs() calls return this instead of "now"
+        gameReadyMs = now;
     }
 
 
@@ -60,11 +67,46 @@ public final class BlameLog {
         return List.copyOf(entries);
     }
 
-    /** Total time from JVM start to the last recorded entry. */
-    public static long totalMs() {
+    /** Sum of all tracked phase durations. */
+    public static long trackedMs() {
+        long sum = 0;
+        for (Entry e : getEntries()) sum += e.durationMs();
+        return sum;
+    }
+
+    /**
+     * Wall clock time from JVM start to game ready.
+     * Returns frozen timestamp if game is ready, otherwise returns live time.
+     * This prevents idle time at the title screen from inflating startup totals.
+     */
+    public static long wallClockMs() {
+        long end = gameReadyMs > 0 ? gameReadyMs : System.currentTimeMillis();
+        return end - JVM_START_MS;
+    }
+
+
+    /**
+     * Returns entries with gap entries inserted for any untracked time between phases.
+     * Useful for the blame chart to show WHERE time is being lost.
+     */
+    public static List<Entry> getEntriesWithGaps() {
         List<Entry> snap = getEntries();
-        if (snap.isEmpty()) return 0;
-        return snap.getLast().endMs() - JVM_START_MS;
+        if (snap.isEmpty()) return snap;
+
+        List<Entry> result = new ArrayList<>();
+        long prevEnd = JVM_START_MS;
+
+        for (Entry e : snap) {
+            long gap = e.startMs() - prevEnd;
+            if (gap > 200) { // Only show gaps > 200ms
+                result.add(new Entry("⚠ Untracked Gap", prevEnd, e.startMs()));
+            }
+            result.add(e);
+            prevEnd = e.endMs();
+        }
+
+
+        return result;
     }
 
 
@@ -72,10 +114,18 @@ public final class BlameLog {
     public static String summary() {
         StringBuilder sb = new StringBuilder();
         sb.append("=== Rust-MC Blame Log ===%n".formatted());
+        long tracked = 0;
         for (Entry e : getEntries()) {
-            sb.append("  %-35s %6dms%n".formatted(e.phase(), e.durationMs()));
+            sb.append(BLAME_LINE_FORMAT.formatted(e.phase(), e.durationMs()));
+            tracked += e.durationMs();
         }
-        sb.append("  %-35s %6dms%n".formatted("TOTAL (JVM start -> ready)", totalMs()));
+        long wall = wallClockMs();
+        long untracked = wall - tracked;
+        sb.append(BLAME_LINE_FORMAT.formatted("TRACKED TOTAL", tracked));
+        if (untracked > 500) {
+            sb.append(BLAME_LINE_FORMAT.formatted("UNTRACKED (gaps)", untracked));
+        }
+        sb.append(BLAME_LINE_FORMAT.formatted("WALL CLOCK (JVM → game ready)", wall));
         return sb.toString();
     }
 }

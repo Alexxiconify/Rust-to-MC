@@ -26,6 +26,7 @@ public class MixinManager implements IMixinConfigPlugin {
     private static final Map<String, String> MIXIN_GROUP_PREFIXES = buildGroupPrefixes();
 
     private static Map<String, String> buildGroupPrefixes() {
+        String dnsGroup = "DNS/Server List";
         Map<String, String> m = new LinkedHashMap<>();
         m.put("compat.Xaero", "Xaero Minimap/WorldMap");
         m.put("compat.BBE", "Better Block Entities");
@@ -48,9 +49,9 @@ public class MixinManager implements IMixinConfigPlugin {
         m.put("Resource", "Resource Reload");
         m.put("Bootstrap", "Bootstrap/DFU");
         m.put("Schemas", "Bootstrap/DFU");
-        m.put("ServerPinger", "DNS/Server List");
-        m.put("ServerAddress", "DNS/Server List");
-        m.put("Multiplayer", "DNS/Server List");
+        m.put("ServerPinger", dnsGroup);
+        m.put("ServerAddress", dnsGroup);
+        m.put("Multiplayer", dnsGroup);
         m.put("DebugHud", "Debug HUD Overlays");
         m.put("MinecraftClient", "Frame Timing");
         m.put("RenderBudget", "Render Budget");
@@ -61,11 +62,11 @@ public class MixinManager implements IMixinConfigPlugin {
         MIXIN_CONDITIONS = Map.ofEntries(
             Map.entry(PKG + "CommandManagerMixin", () -> true),
             Map.entry(PKG + "LightingMixin", () -> !ModBridge.isLightingOwned()),
-            Map.entry(PKG + "MathHelperMixin", () -> ModBridge.isMathOwned()),
-            Map.entry(PKG + "SimplexNoiseSamplerMixin", () -> ModBridge.isMathOwned()),
+            Map.entry(PKG + "MathHelperMixin", ModBridge::isMathOwned),
+            Map.entry(PKG + "SimplexNoiseSamplerMixin", ModBridge::isMathOwned),
             Map.entry(PKG + "PathfindingMixin", () -> !ModBridge.isPathfindingOwned()),
-            Map.entry(PKG + "PacketDeflaterMixin", () -> ModBridge.isNetworkingOwned()),
-            Map.entry(PKG + "DecoderHandlerMixin", () -> ModBridge.isNetworkingOwned()),
+            Map.entry(PKG + "PacketDeflaterMixin", ModBridge::isNetworkingOwned),
+            Map.entry(PKG + "DecoderHandlerMixin", ModBridge::isNetworkingOwned),
             Map.entry(PKG + "BlockStateMixin", RustMC.CONFIG::isUseNativeCulling),
             Map.entry(PKG + "ChunkBuilderMixin", () -> RustMC.CONFIG.isEnableChunkBuilderExpand() && !ModBridge.SODIUM),
             Map.entry(PKG + "compat.ClientRedstoneSkipMixin", RustMC.CONFIG::isEnableClientRedstoneSkip),
