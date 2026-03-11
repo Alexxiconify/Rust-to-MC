@@ -26,6 +26,9 @@ public class RustMC implements ModInitializer {
         loadConfig();
         ModBridge.initialize();
 
+        // Flush per-group mixin application timings into the blame chart
+        MixinManager.flushBlameTimings();
+
         // Initialize ScalableLux compat if present
         com.alexxiconify.rustmc.compat.ScalableLuxCompat.initialize();
 
@@ -83,10 +86,15 @@ public class RustMC implements ModInitializer {
             return;
         }
         try {
-            RustMCConfig loaded = GSON.fromJson(Files.readString(CONFIG_PATH), RustMCConfig.class);
+            String rawJson = Files.readString(CONFIG_PATH);
+            RustMCConfig loaded = GSON.fromJson(rawJson, RustMCConfig.class);
             if (loaded != null) {
                 CONFIG.copyFrom(loaded);
             }
+            // Re-save immediately so any new fields are written and stale keys are stripped.
+            // This also normalises the JSON formatting for existing users upgrading.
+            saveConfig();
+            LOGGER.debug("[Rust-MC] Config loaded & normalised from {}", CONFIG_PATH);
         } catch (IOException e) {
             LOGGER.error("[Rust-MC] Failed to read config file", e);
         } catch (Exception e) {

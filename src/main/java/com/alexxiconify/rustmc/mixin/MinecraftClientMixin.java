@@ -1,7 +1,6 @@
 package com.alexxiconify.rustmc.mixin;
 
 import com.alexxiconify.rustmc.NativeBridge;
-import com.alexxiconify.rustmc.RustMC;
 import net.minecraft.client.MinecraftClient;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -18,9 +17,13 @@ public class MinecraftClientMixin {
         long now = System.nanoTime();
         long delta = now - lastFrameTime;
         lastFrameTime = now;
-        // Only record frame times when overlays are active — avoids JNI overhead every frame
-        if (delta > 0 && (RustMC.CONFIG.isEnableDebugHudGraph() || RustMC.CONFIG.isEnablePieChart())) {
-            NativeBridge.invokeAddFrameTime(delta);
+        // Always record frame times when native is ready and in-world.
+        // Ring buffer append is ~5ns native — cheaper than branch miss from config checks.
+        if (delta > 0 && NativeBridge.isReady()) {
+            MinecraftClient mc = (MinecraftClient) (Object) this;
+            if (mc.world != null) {
+                NativeBridge.invokeAddFrameTime(delta);
+            }
         }
     }
 }

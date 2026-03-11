@@ -98,9 +98,12 @@ public class DistantHorizonsCompat {
                     int minX = (int) args[0];
                     int minZ = (int) args[1];
                     int width = (int) args[2];
+                    // Add 10% padding to prevent aggressive LOD clipping at screen edges
+                    double pad = width * 0.1;
                     yield com.alexxiconify.rustmc.NativeBridge.testRustFrustum(
-                        rustFrustumPtr, minX, currentMinY, minZ,
-                        (double) minX + width, currentMaxY, (double) minZ + width);
+                        rustFrustumPtr,
+                        minX - pad, currentMinY, minZ - pad,
+                        (double) minX + width + pad, currentMaxY, (double) minZ + width + pad);
                 }
                 yield true; // default: visible
             }

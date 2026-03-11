@@ -29,4 +29,18 @@ public final class RenderState {
      */
     @SuppressWarnings("java:S3077")
     public static volatile boolean immediatelyFastActive = false;
+
+    /**
+     * When true, FPS is below 60 — tighten all culling distances aggressively.
+     * Set by RenderBudgetMixin at 4 Hz.
+     */
+    @SuppressWarnings("java:S3077")
+    public static volatile boolean renderBudgetTight = false;
+
+    /**
+     * When true, FPS is above 90 — relax culling for better visual quality.
+     * Set by RenderBudgetMixin at 4 Hz.
+     */
+    @SuppressWarnings("java:S3077")
+    public static volatile boolean renderBudgetRelaxed = false;
 }

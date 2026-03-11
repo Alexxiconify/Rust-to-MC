@@ -181,9 +181,6 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildBooleanOption("Client Redstone Skip",
                 "Skip client-side redstone neighbor updates (server handles logic).",
                 cfg::isEnableClientRedstoneSkip, v -> cfg.setEnableClientRedstoneSkip(v != null && v)))
-            .option(buildBooleanOption("F3 Frame Graph",
-                "Show a frame-time sparkline graph on the F3 debug overlay.",
-                cfg::isEnableDebugHudGraph, v -> cfg.setEnableDebugHudGraph(v != null && v)))
             .build();
     }
 
@@ -211,13 +208,13 @@ public class ModMenuIntegration implements ModMenuApi {
                 cfg::isDisableDhFade, v -> cfg.setDisableDhFade(v != null && v)))
             .option(Option.<RustMCConfig.GhostMapMode>createBuilder()
                 .name(Text.literal("Ghost Map Mode"))
-                .description(OptionDescription.of(Text.literal("Configure how the Ghost Map retrieves background generation logic.")))
-                .binding(RustMCConfig.GhostMapMode.DH_THEN_SEED, cfg::getGhostMapMode, cfg::setGhostMapMode)
+                .description(OptionDescription.of(Text.literal("Configure ghost map generation. SEED_ONLY uses noise from a world seed. NONE disables it.")))
+                .binding(RustMCConfig.GhostMapMode.SEED_ONLY, cfg::getGhostMapMode, cfg::setGhostMapMode)
                 .controller(opt -> dev.isxander.yacl3.api.controller.EnumControllerBuilder.create(opt).enumClass(RustMCConfig.GhostMapMode.class))
                 .build())
             .option(Option.<String>createBuilder()
                 .name(Text.literal("Server Ghost Map Seeds"))
-                .description(OptionDescription.of(Text.literal("Set seeds per server. Format: serverIP:seed, serverIP2:seed2 E.g. my.server.com:609567216262790763")))
+                .description(OptionDescription.of(Text.literal("Set seeds per server. Format: server=seed, server2=seed2\nE.g. my.server.com=609567216262790763\nSingleplayer worlds use the world seed automatically.")))
                 .binding("", cfg::getCustomGhostMapSeed, cfg::setCustomGhostMapSeed)
                 .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
                 .build())
@@ -380,6 +377,43 @@ public class ModMenuIntegration implements ModMenuApi {
                     .controller(opt -> BooleanControllerBuilder.create(opt)
                         .formatValue(v -> Text.literal(color + dur + "ms")))
                     .build());
+            }
+
+            // ── Per-group mixin application breakdown ──
+            java.util.Map<String, Long> mixinTimings = com.alexxiconify.rustmc.MixinManager.getGroupTimings();
+            if (!mixinTimings.isEmpty()) {
+                long mixinTotalNs = mixinTimings.values().stream().mapToLong(Long::longValue).sum();
+                long mixinTotalMs = mixinTotalNs / 1_000_000;
+
+                builder.option(Option.<Boolean>createBuilder()
+                    .name(Text.literal("── Mixin Breakdown ──"))
+                    .description(OptionDescription.of(Text.literal(
+                        "Per-group mixin application time (" + mixinTotalMs + "ms total).\n" +
+                        "Shows how long each category of mixins took to apply during class loading.")))
+                    .binding(true, () -> true, v -> {})
+                    .controller(opt -> BooleanControllerBuilder.create(opt)
+                        .formatValue(v -> Text.literal("§d" + mixinTotalMs + "ms")))
+                    .build());
+
+                // Sort by time descending
+                java.util.List<java.util.Map.Entry<String, Long>> sorted = new java.util.ArrayList<>(mixinTimings.entrySet());
+                sorted.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+
+                for (java.util.Map.Entry<String, Long> mEntry : sorted) {
+                    long ms = mEntry.getValue() / 1_000_000;
+                    float mPct = mixinTotalMs > 0 ? (float) ms / mixinTotalMs * 100f : 0;
+                    String mBar = buildAsciiBar(mPct);
+                    String mColor = ms > 100 ? "§c" : ms > 30 ? "§e" : "§a";
+
+                    builder.option(Option.<Boolean>createBuilder()
+                        .name(Text.literal("  " + mEntry.getKey()))
+                        .description(OptionDescription.of(Text.literal(
+                            "Mixin application time: " + ms + "ms (" + String.format("%.1f%%", mPct) + " of mixin total)\n\n" + mBar)))
+                        .binding(true, () -> true, v -> {})
+                        .controller(opt -> BooleanControllerBuilder.create(opt)
+                            .formatValue(v -> Text.literal(mColor + ms + "ms")))
+                        .build());
+                }
             }
         }
 

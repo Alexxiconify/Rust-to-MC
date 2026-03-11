@@ -1,13 +1,12 @@
 package com.alexxiconify.rustmc;
 
+import com.alexxiconify.rustmc.util.BlameLog;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
 
 public class MixinManager implements IMixinConfigPlugin {
@@ -17,26 +16,70 @@ public class MixinManager implements IMixinConfigPlugin {
     /** Lookup table: mixin class name → condition that must be true for the mixin to apply. */
     private static final Map<String, BooleanSupplier> MIXIN_CONDITIONS;
 
+    /** Per-group cumulative mixin application time in nanoseconds. */
+    private static final Map<String, Long> groupTimings = new ConcurrentHashMap<>();
+
+    /** ThreadLocal to track preApply start time. */
+    private static final ThreadLocal<Long> applyStartNanos = new ThreadLocal<>();
+
+    /** Map-based mixin classification — avoids long if-chain for cognitive complexity. */
+    private static final Map<String, String> MIXIN_GROUP_PREFIXES = buildGroupPrefixes();
+
+    private static Map<String, String> buildGroupPrefixes() {
+        Map<String, String> m = new LinkedHashMap<>();
+        m.put("compat.Xaero", "Xaero Minimap/WorldMap");
+        m.put("compat.BBE", "Better Block Entities");
+        m.put("compat.EntityRender", "Entity Rendering (EMF/ETF/IF)");
+        m.put("compat.ClientRedstone", "Redstone Optimization");
+        m.put("compat.TickSync", "Tick Sync");
+        m.put("compat.MiniHUD", "MiniHUD/Lighty");
+        m.put("minihud.", "MiniHUD Culling");
+        m.put("screen.", "Screen Overlays");
+        m.put("MathHelper", "Math (sin/cos/sqrt/atan2)");
+        m.put("Lighting", "Lighting Engine");
+        m.put("SimplexNoise", "Noise Generation");
+        m.put("Pathfinding", "Pathfinding");
+        m.put("Packet", "Network Compression");
+        m.put("Decoder", "Network Compression");
+        m.put("Frustum", "Frustum/Raycast Culling");
+        m.put("BoxMixin", "Frustum/Raycast Culling");
+        m.put("Particle", "Particle Culling");
+        m.put("ChunkBuilder", "Chunk Builder Threads");
+        m.put("Resource", "Resource Reload");
+        m.put("Bootstrap", "Bootstrap/DFU");
+        m.put("Schemas", "Bootstrap/DFU");
+        m.put("ServerPinger", "DNS/Server List");
+        m.put("ServerAddress", "DNS/Server List");
+        m.put("Multiplayer", "DNS/Server List");
+        m.put("DebugHud", "Debug HUD Overlays");
+        m.put("MinecraftClient", "Frame Timing");
+        m.put("RenderBudget", "Render Budget");
+        return Collections.unmodifiableMap(m);
+    }
+
     static {
-     // Always-on
-
-     MIXIN_CONDITIONS = Map.ofEntries (
-       Map.entry ( PKG + "CommandManagerMixin" , ( ) -> true ) ,
-
-       // Subsystem ownership guards
-       Map.entry ( PKG + "LightingMixin" , ( ) -> !ModBridge.isLightingOwned ( ) ) , Map.entry ( PKG + "MathHelperMixin" , ( ) -> ModBridge.isMathOwned ( ) ) , Map.entry ( PKG + "SimplexNoiseSamplerMixin" , ( ) -> ModBridge.isMathOwned ( ) ) , Map.entry ( PKG + "PathfindingMixin" , ( ) -> !ModBridge.isPathfindingOwned ( ) ) , Map.entry ( PKG + "PacketDeflaterMixin" , ( ) -> ModBridge.isNetworkingOwned ( ) ) , Map.entry ( PKG + "DecoderHandlerMixin" , ( ) -> ModBridge.isNetworkingOwned ( ) ) ,
-
-       // Config-gated
-       Map.entry ( PKG + "BlockStateMixin" , RustMC.CONFIG :: isUseNativeCulling ) , Map.entry ( PKG + "ChunkBuilderMixin" , ( ) -> RustMC.CONFIG.isEnableChunkBuilderExpand ( ) && !ModBridge.SODIUM ) , Map.entry ( PKG + "compat.ClientRedstoneSkipMixin" , RustMC.CONFIG :: isEnableClientRedstoneSkip ) , Map.entry ( PKG + "compat.TickSyncCompatMixin" , RustMC.CONFIG :: isEnableTickSyncCompat ) , Map.entry ( PKG + "compat.BBECompatMixin" , RustMC.CONFIG :: isEnableBBECompat ) , Map.entry (
-         PKG + "compat.EntityRenderCompatMixin" , ( ) -> RustMC.CONFIG.isEnableEMFCompat ( )
-           || RustMC.CONFIG.isEnableETFCompat ( )
-           || RustMC.CONFIG.isEnableEntityCullingCompat ( )
-           || RustMC.CONFIG.isEnableImmediatelyFastCompat ( )
-       ) ,
-
-       // DNS cache mixins
-       Map.entry ( PKG + "ServerPingerMixin" , RustMC.CONFIG :: isEnableDnsCache ) , Map.entry ( PKG + "ServerAddressMixin" , RustMC.CONFIG :: isEnableDnsCache ) , Map.entry ( PKG + "screen.MultiplayerScreenMixin" , RustMC.CONFIG :: isEnableDnsCache )
-     );
+        MIXIN_CONDITIONS = Map.ofEntries(
+            Map.entry(PKG + "CommandManagerMixin", () -> true),
+            Map.entry(PKG + "LightingMixin", () -> !ModBridge.isLightingOwned()),
+            Map.entry(PKG + "MathHelperMixin", () -> ModBridge.isMathOwned()),
+            Map.entry(PKG + "SimplexNoiseSamplerMixin", () -> ModBridge.isMathOwned()),
+            Map.entry(PKG + "PathfindingMixin", () -> !ModBridge.isPathfindingOwned()),
+            Map.entry(PKG + "PacketDeflaterMixin", () -> ModBridge.isNetworkingOwned()),
+            Map.entry(PKG + "DecoderHandlerMixin", () -> ModBridge.isNetworkingOwned()),
+            Map.entry(PKG + "BlockStateMixin", RustMC.CONFIG::isUseNativeCulling),
+            Map.entry(PKG + "ChunkBuilderMixin", () -> RustMC.CONFIG.isEnableChunkBuilderExpand() && !ModBridge.SODIUM),
+            Map.entry(PKG + "compat.ClientRedstoneSkipMixin", RustMC.CONFIG::isEnableClientRedstoneSkip),
+            Map.entry(PKG + "compat.TickSyncCompatMixin", RustMC.CONFIG::isEnableTickSyncCompat),
+            Map.entry(PKG + "compat.BBECompatMixin", RustMC.CONFIG::isEnableBBECompat),
+            Map.entry(PKG + "compat.EntityRenderCompatMixin", () ->
+                RustMC.CONFIG.isEnableEMFCompat()
+                || RustMC.CONFIG.isEnableETFCompat()
+                || RustMC.CONFIG.isEnableEntityCullingCompat()
+                || RustMC.CONFIG.isEnableImmediatelyFastCompat()),
+            Map.entry(PKG + "ServerPingerMixin", RustMC.CONFIG::isEnableDnsCache),
+            Map.entry(PKG + "ServerAddressMixin", RustMC.CONFIG::isEnableDnsCache),
+            Map.entry(PKG + "screen.MultiplayerScreenMixin", RustMC.CONFIG::isEnableDnsCache)
+        );
     }
 
     @Override
@@ -51,12 +94,69 @@ public class MixinManager implements IMixinConfigPlugin {
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         BooleanSupplier condition = MIXIN_CONDITIONS.get(mixinClassName);
         if (condition != null) return condition.getAsBoolean();
-        // Unknown mixin — apply by default (runtime checks guard actual behavior)
         return true;
     }
 
-    @Override public void acceptTargets(Set<String> myTargets, Set<String> otherTargets) { /* No-op: we don't need to filter targets */ }
-    @Override public List<String> getMixins() { return Collections.emptyList(); }
-    @Override public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) { /* No-op: no pre-apply transforms needed */ }
-    @Override public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) { /* No-op: no post-apply transforms needed */ }
+    @Override
+    public void acceptTargets(Set<String> myTargets, Set<String> otherTargets) {
+        // No target filtering needed — all targets accepted
+    }
+
+    @Override
+    public List<String> getMixins() { return Collections.emptyList(); }
+
+    @Override
+    public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
+        applyStartNanos.set(System.nanoTime());
+    }
+
+    @Override
+    public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
+        Long start = applyStartNanos.get();
+        if (start == null) return;
+        long elapsed = System.nanoTime() - start;
+        applyStartNanos.remove();
+        String group = classifyMixin(mixinClassName);
+        groupTimings.merge(group, elapsed, Long::sum);
+    }
+
+    /** Classifies a mixin into a human-readable blame group via map lookup. */
+    @SuppressWarnings({"java:S3776", "CognitiveComplexity"})
+    private static String classifyMixin(String mixinClassName) {
+        for (Map.Entry<String, String> entry : MIXIN_GROUP_PREFIXES.entrySet()) {
+            if (mixinClassName.contains(entry.getKey())) return entry.getValue();
+        }
+        int dot = mixinClassName.lastIndexOf('.');
+        return dot >= 0 ? mixinClassName.substring(dot + 1) : mixinClassName;
+    }
+
+    /**
+     * Flushes per-group mixin timings into the BlameLog.
+     * Called once from mod init after all mixins are applied.
+     */
+    public static void flushBlameTimings() {
+        if (groupTimings.isEmpty()) return;
+
+        List<Map.Entry<String, Long>> sorted = new ArrayList<>(groupTimings.entrySet());
+        sorted.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+
+        for (Map.Entry<String, Long> entry : sorted) {
+            long ms = entry.getValue() / 1_000_000;
+            if (ms > 0) {
+                BlameLog.begin("Mixin: " + entry.getKey());
+                BlameLog.end();
+            }
+        }
+
+        long totalMs = groupTimings.values().stream().mapToLong(Long::longValue).sum() / 1_000_000;
+        RustMC.LOGGER.info("[Rust-MC] Mixin application totals ({}ms across {} groups):", totalMs, groupTimings.size());
+        for (Map.Entry<String, Long> entry : sorted) {
+            RustMC.LOGGER.info("[Rust-MC]   {}: {}ms", entry.getKey(), entry.getValue() / 1_000_000);
+        }
+    }
+
+    /** Returns per-group timing snapshot for the blame chart UI. */
+    public static Map<String, Long> getGroupTimings() {
+        return Map.copyOf(groupTimings);
+    }
 }

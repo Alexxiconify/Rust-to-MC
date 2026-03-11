@@ -26,6 +26,7 @@
     "MinecraftClientMixin",
     "DebugHudMixin",
     "ResourceReloadMixin",
+    "RenderBudgetMixin",
     "ServerPingerMixin",
     "ServerAddressMixin",
     "screen.SplashOverlayMixin",

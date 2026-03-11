@@ -37,8 +37,10 @@ public class XaeroWorldMapGhostMixin {
             int mouseY,
             float delta,
             CallbackInfo ci
-    ) {
-        if ( RustMC.CONFIG.isGhostMapEnabled ( ) ) return;
+    )
+
+    {
+        if (!RustMC.CONFIG.isGhostMapEnabled()) return;
 
         Identifier tex = XaeroGhostMapCompat.getGhostTexture();
         if (tex == null) return;

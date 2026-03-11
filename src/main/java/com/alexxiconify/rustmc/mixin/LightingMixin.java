@@ -33,19 +33,24 @@ public class LightingMixin {
     @Unique
     private static final int[] flatBuffer = new int[4096 * 4];
 
-    @Unique
-    private static void flushToRust() {
-        if (PENDING.isEmpty()) return;
 
-        int idx = 0;
-        int[] entry;
-        while ((entry = PENDING.poll()) != null && idx + 4 <= flatBuffer.length) {
-            System.arraycopy(entry, 0, flatBuffer, idx, 4);
+    /** Drains the queue starting from the given item and dispatches to Rust. */
+    @Unique
+    private static void drainAndDispatch(int[] firstItem) {
+        System.arraycopy(firstItem, 0, flatBuffer, 0, 4);
+        int idx = 4;
+        int[] next;
+        while ((next = PENDING.poll()) != null && idx + 4 <= flatBuffer.length) {
+            System.arraycopy(next, 0, flatBuffer, idx, 4);
             idx += 4;
         }
-        if (idx > 0) {
-            NativeBridge.propagateLightBulk(flatBuffer, idx / 4);
-        }
+        NativeBridge.propagateLightBulk(flatBuffer, idx / 4);
+    }
+
+    @Unique
+    private static boolean isRustLightingActive() {
+        return NativeBridge.isReady() && !ModBridge.isLightingOwned()
+                && RustMC.CONFIG.isUseNativeLighting();
     }
 
     @Unique
@@ -55,17 +60,9 @@ public class LightingMixin {
         Thread.ofVirtual().name("rustmc-light-propagation").start(() -> {
             try {
                 while (!Thread.currentThread().isInterrupted()) {
-                    // Block on the queue — properly parks without busy-waiting
                     int[] item = PENDING.poll(50, TimeUnit.MILLISECONDS);
-                    if (item != null && !PENDING.offer(item)) {
-                            // Queue full — process just this item directly
-                            System.arraycopy(item, 0, flatBuffer, 0, 4);
-                            NativeBridge.propagateLightBulk(flatBuffer, 1);
-                        }
-
-                    if (NativeBridge.isReady() && !ModBridge.isLightingOwned()
-                            && RustMC.CONFIG.isUseNativeLighting()) {
-                        flushToRust();
+                    if (item != null && isRustLightingActive()) {
+                        drainAndDispatch(item);
                     }
                 }
             } catch (InterruptedException e) {

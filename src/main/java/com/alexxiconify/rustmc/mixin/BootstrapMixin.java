@@ -2,6 +2,7 @@ package com.alexxiconify.rustmc.mixin;
 
 import net.minecraft.Bootstrap;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -21,9 +22,13 @@ public class BootstrapMixin {
 
     private BootstrapMixin() {}
 
-    private static final AtomicBoolean prewarmStarted = new AtomicBoolean(false);
+    @Unique
+    private static final AtomicBoolean prewarmStarted = new AtomicBoolean( false);
 
-    /** Fire the pre-warm at the very first call site we can reach. */
+    /** Fire the pre-warm at the very first call site we can reach.
+     *  The virtual thread re-enters Bootstrap.initialize(), which hits this mixin again,
+     *  but the CAS prevents a second prewarm thread. Bootstrap itself guards with a
+     *  static boolean, so the concurrent call is harmless and overlaps DFU build time. */
     @Inject(method = "initialize", at = @At("HEAD"))
     private static void prewarm(CallbackInfo ci) {
         if (prewarmStarted.compareAndSet(false, true)) {

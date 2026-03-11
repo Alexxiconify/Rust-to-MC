@@ -25,12 +25,12 @@ public class RustMCConfig {
     private boolean useFastLoadingScreen = false;
     private boolean useNativeCommands    = false;
     public enum GhostMapMode {
-        NONE, DH_ONLY, SEED_ONLY, DH_THEN_SEED
+        NONE, SEED_ONLY
     }
 
     private boolean limitXaeroMinimap    = true;
-    private GhostMapMode ghostMapMode    = GhostMapMode.DH_THEN_SEED;
-    private String customGhostMapSeed    = "609567216262790763";
+    private GhostMapMode ghostMapMode    = GhostMapMode.SEED_ONLY;
+    private String customGhostMapSeed    = "";
 
     // Mod compat toggles (new — each can be disabled in ModMenu)
     private boolean enableParticleCulling      = true;
@@ -132,7 +132,8 @@ public class RustMCConfig {
     public boolean isUseFastLoadingScreen() { return useFastLoadingScreen; }
     public boolean isUseNativeCommands()    { return useNativeCommands; }
     public boolean isLimitXaeroMinimap()    { return limitXaeroMinimap; }
-    public boolean isGhostMapEnabled()      { return ghostMapMode == GhostMapMode.NONE; }
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    public boolean isGhostMapEnabled()      { return ghostMapMode != GhostMapMode.NONE; }
     public boolean isEnableParticleCulling()      { return enableParticleCulling; }
     public boolean isEnableChunkBuilderExpand()   { return enableChunkBuilderExpand; }
     public boolean isEnableTickSyncCompat()       { return enableTickSyncCompat; }

@@ -7,6 +7,7 @@ import net.minecraft.entity.Entity;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -16,13 +17,21 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class RenderUtilsMixin {
     private RenderUtilsMixin() {}
 
-    /** Returns viewDist^2 (with +32 block pad), or -1 if no camera entity. */
+    /** Returns viewDist² (with +32 block pad), or -1 if no camera entity. */
+    @Unique
     private static double cullRadiusSq() {
         MinecraftClient mc = MinecraftClient.getInstance();
         Entity cam = mc.getCameraEntity();
         if (cam == null) return -1;
         double d = mc.options.getClampedViewDistance() * 16.0 + 32.0;
         return d * d;
+    }
+
+    /** Checks if the center point is beyond cull distance. Returns true if it should be culled. */
+    @Unique
+    private static boolean shouldCullCenter(double rSq, double cx, double cy, double cz) {
+        Entity cam = MinecraftClient.getInstance().getCameraEntity();
+        return cam != null && cam.squaredDistanceTo(cx, cy, cz) > rSq;
     }
 
     @SuppressWarnings("all")
@@ -34,10 +43,9 @@ public class RenderUtilsMixin {
             float r, float g, float b, float a, CallbackInfo ci) {
         double rSq = cullRadiusSq();
         if (rSq < 0) return;
-        MinecraftClient mc = MinecraftClient.getInstance();
-        Entity cam = mc.getCameraEntity();
-        double cx = (minX + maxX) * 0.5, cy = (minY + maxY) * 0.5, cz = (minZ + maxZ) * 0.5;
-        if (cam.squaredDistanceTo(cx, cy, cz) > rSq) ci.cancel();
+        if (shouldCullCenter(rSq, (minX + maxX) * 0.5, (minY + maxY) * 0.5, (minZ + maxZ) * 0.5)) {
+            ci.cancel();
+        }
     }
 
     @SuppressWarnings("all")
@@ -48,10 +56,9 @@ public class RenderUtilsMixin {
             CallbackInfo ci) {
         double rSq = cullRadiusSq();
         if (rSq < 0) return;
-        MinecraftClient mc = MinecraftClient.getInstance();
-        Entity cam = mc.getCameraEntity();
-        double cx = (minX + maxX) * 0.5, cy = (minY + maxY) * 0.5, cz = (minZ + maxZ) * 0.5;
-        if (cam.squaredDistanceTo(cx, cy, cz) > rSq) ci.cancel();
+        if (shouldCullCenter(rSq, (minX + maxX) * 0.5, (minY + maxY) * 0.5, (minZ + maxZ) * 0.5)) {
+            ci.cancel();
+        }
     }
 
     @SuppressWarnings("all")
@@ -64,9 +71,8 @@ public class RenderUtilsMixin {
             VertexConsumer buffer, CallbackInfo ci) {
         double rSq = cullRadiusSq();
         if (rSq < 0) return;
-        MinecraftClient mc = MinecraftClient.getInstance();
-        Entity cam = mc.getCameraEntity();
-        double cx = (x1 + x2) * 0.5, cy = (y1 + y2) * 0.5, cz = (z1 + z2) * 0.5;
-        if (cam.squaredDistanceTo(cx, cy, cz) > rSq) ci.cancel();
+        if (shouldCullCenter(rSq, (x1 + x2) * 0.5, (y1 + y2) * 0.5, (z1 + z2) * 0.5)) {
+            ci.cancel();
+        }
     }
 }

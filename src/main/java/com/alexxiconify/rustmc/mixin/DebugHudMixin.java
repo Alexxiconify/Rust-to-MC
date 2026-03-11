@@ -8,6 +8,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.DebugHud;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -20,13 +21,27 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * Uses require=0 to gracefully skip if DebugHud.render changes signature
  * across MC versions (the method was refactored in 1.21.11).
  */
-@SuppressWarnings ( "ALL" )
+@SuppressWarnings("ALL")
 @Mixin(DebugHud.class)
 public class DebugHudMixin {
+
+    // ── Cached sparkline data (avoids JNI every render frame) ──
+    @Unique private static float[] cachedHistory;
+    @Unique private static float cachedAvg;
+    @Unique private static float cachedMin;
+    @Unique private static float cachedMax;
+    @Unique private static long lastHistoryUpdateMs;
+    @Unique private static final long HISTORY_UPDATE_INTERVAL_MS = 100; // 10 Hz refresh
 
     @Inject(method = "render", at = @At("TAIL"), require = 0)
     private void onRenderTail(DrawContext context, CallbackInfo ci) {
         if (!NativeBridge.isReady()) return;
+
+        // Only render overlays when actually in a world — suppress on title screen,
+        // multiplayer list, singleplayer list, and other menu screens.
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.world == null || mc.player == null) return;
+
         // Early exit if neither overlay is enabled — avoids any JNI/rendering overhead
         if (!RustMC.CONFIG.isEnableDebugHudGraph() && !RustMC.CONFIG.isEnablePieChart()) return;
 
@@ -36,21 +51,47 @@ public class DebugHudMixin {
         }
 
         // ── Pie chart (F7 toggle) ──
-        if (RustMC.CONFIG.isEnablePieChart()) {
-            MinecraftClient mc = MinecraftClient.getInstance();
-            if (mc.textRenderer != null) {
-                int screenW = context.getScaledWindowWidth();
-                PieChartRenderer.draw(context, mc.textRenderer, screenW);
-            }
+        if (RustMC.CONFIG.isEnablePieChart() && mc.textRenderer != null) {
+            int screenW = context.getScaledWindowWidth();
+            PieChartRenderer.draw(context, mc.textRenderer, screenW);
         }
     }
 
-    private static void drawSparkline(DrawContext context) {
+    @Unique
+    private static void refreshHistoryCache() {
+        long now = System.currentTimeMillis();
+        if (cachedHistory != null && now - lastHistoryUpdateMs < HISTORY_UPDATE_INTERVAL_MS) return;
+
         float[] history = NativeBridge.invokeGetFrameHistory();
-        if (history == null || history.length == 0) return;
+        if (history == null || history.length == 0) {
+            cachedHistory = null;
+            return;
+        }
+
+        cachedHistory = history;
+        int len = Math.min(history.length, 240);
+        float total = 0;
+        float min = Float.MAX_VALUE;
+        float max = 0;
+        for (int i = 0; i < len; i++) {
+            float ms = history[i];
+            total += ms;
+            if (ms < min) min = ms;
+            if (ms > max) max = ms;
+        }
+        cachedAvg = total / len;
+        cachedMin = min;
+        cachedMax = max;
+        lastHistoryUpdateMs = now;
+    }
+
+    @Unique
+    private static void drawSparkline(DrawContext context) {
+        refreshHistoryCache();
+        if (cachedHistory == null) return;
 
         MinecraftClient mc = MinecraftClient.getInstance();
-        int graphW = Math.min(history.length, 240);
+        int graphW = Math.min(cachedHistory.length, 240);
         int graphH = 40;
         int x0 = 2;
         int y0 = 2;
@@ -66,15 +107,9 @@ public class DebugHudMixin {
         int target30Y = y0 + graphH - (int)(33.33f / 50.0f * graphH);
         context.fill(x0, target30Y, x0 + graphW, target30Y + 1, 0x40FFFF00);
 
-        // Compute stats while drawing bars
-        float total = 0;
-        float min = Float.MAX_VALUE;
-        float max = 0;
+        // Draw bars
         for (int i = 0; i < graphW; i++) {
-            float ms = history[i];
-            total += ms;
-            if (ms < min) min = ms;
-            if (ms > max) max = ms;
+            float ms = cachedHistory[i];
             int barH = Math.clamp((int)(ms / 50.0f * graphH), 1, graphH);
             int barY = y0 + graphH - barH;
             int color;
@@ -94,11 +129,10 @@ public class DebugHudMixin {
             context.drawTextWithShadow(mc.textRenderer, "60", x0 + graphW + 2, targetY - 4, 0xFF00CC44);
             context.drawTextWithShadow(mc.textRenderer, "30", x0 + graphW + 2, target30Y - 4, 0xFFCCAA00);
 
-            // Stats below graph
-            float avg = total / graphW;
+            // Stats below graph — use cached values
             int statsY = y0 + graphH + 3;
             context.drawTextWithShadow(mc.textRenderer,
-                    "%.1fms avg | %.1f min | %.1f max".formatted(avg, min, max),
+                    "%.1fms avg | %.1f min | %.1f max".formatted(cachedAvg, cachedMin, cachedMax),
                     x0, statsY, 0xFFAAAAAA);
 
             // Color legend

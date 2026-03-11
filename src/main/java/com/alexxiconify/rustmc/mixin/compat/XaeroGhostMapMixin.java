@@ -34,7 +34,7 @@ public class XaeroGhostMapMixin {
             int scale,
             CallbackInfo ci
     ) {
-        if ( RustMC.CONFIG.isGhostMapEnabled ( ) ) return;
+        if (!RustMC.CONFIG.isGhostMapEnabled()) return;
 
         Identifier tex = XaeroGhostMapCompat.getGhostTexture();
         if (tex == null) return;

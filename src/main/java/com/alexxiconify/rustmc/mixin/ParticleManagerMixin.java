@@ -31,19 +31,28 @@ public class ParticleManagerMixin {
 
         double baseDistance = MinecraftClient.getInstance().options.getClampedViewDistance() * 8.0;
 
-        // When heavy entity mods are active, tighten particle cutoff to free GPU/CPU headroom
-        // When ImmediatelyFast is batching, be slightly more generous since draws are cheaper
+        // Adaptive culling based on render budget + mod state
+        double cutoff = getCutoff ( baseDistance );
+
+        if (player.squaredDistanceTo(x, y, z) > cutoff * cutoff) {
+            cir.setReturnValue(null);
+        }
+    }
+
+    private static double getCutoff ( double baseDistance ) {
         double cutoff;
-        if (RenderState.heavyEntityModsActive) {
+        if (RenderState.renderBudgetTight) {
+            // FPS < 60: aggressive particle cutoff to recover framerate
+            cutoff = baseDistance * 0.4;
+        } else if (RenderState.heavyEntityModsActive) {
             cutoff = baseDistance * 0.6; // 40% tighter when EMF/ETF are heavy
+        } else if (RenderState.immediatelyFastActive && RenderState.renderBudgetRelaxed) {
+            cutoff = baseDistance * 1.4; // 40% more generous with IF + high FPS
         } else if (RenderState.immediatelyFastActive) {
             cutoff = baseDistance * 1.2; // 20% more generous with IF batching
         } else {
             cutoff = baseDistance;
         }
-
-        if (player.squaredDistanceTo(x, y, z) > cutoff * cutoff) {
-            cir.setReturnValue(null);
-        }
+        return cutoff;
     }
 }
