@@ -91,6 +91,12 @@ public class DistantHorizonsCompat {
                     }
                     float[] vpArray = (float[]) getValuesAsArrayMethod.invoke(mat);
                     com.alexxiconify.rustmc.NativeBridge.updateRustFrustum(rustFrustumPtr, vpArray);
+
+                    // Update FOV scale to prevent aggressive clipping with DH
+                    double fov = net.minecraft.client.MinecraftClient.getInstance().options.getFov().getValue();
+                    // 1.0 is standard (70), expand by roughly 15% at 70, scaling with FOV.
+                    double fovScale = 1.15 * (fov / 70.0);
+                    com.alexxiconify.rustmc.NativeBridge.setRustFrustumFovScale(rustFrustumPtr, fovScale);
                 }
                 yield null;
             }

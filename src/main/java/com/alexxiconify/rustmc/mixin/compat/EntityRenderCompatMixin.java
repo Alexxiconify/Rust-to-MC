@@ -21,9 +21,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(WorldRenderer.class)
 public class EntityRenderCompatMixin {
+    private EntityRenderCompatMixin() {}
 
     @Inject(method = "render", at = @At("HEAD"), require = 0)
-    private void onEntityRenderPass(CallbackInfo ci) {
+    private static void onEntityRenderPass(CallbackInfo ci) {
         // If EntityCulling is installed, it handles visibility — yield culling to it
         if (ModBridge.ENTITYCULLING && RustMC.CONFIG.isEnableEntityCullingCompat()) {
             RenderState.heavyEntityModsActive = false;

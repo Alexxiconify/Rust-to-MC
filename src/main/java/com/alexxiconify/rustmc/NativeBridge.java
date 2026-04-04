@@ -72,6 +72,7 @@ public class NativeBridge {
     // Frustum state management
     private static native long rustFrustumCreate();
     private static native void rustFrustumUpdate(long ptr, float[] vpMatrix);
+    private static native void rustFrustumSetFovScale(long ptr, double fovScale);
     private static native boolean rustFrustumTest(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
     private static native void rustFrustumDestroy(long ptr);
     private static native float rustClamp(float value, float min, float max);
@@ -254,6 +255,12 @@ public class NativeBridge {
     public static void updateRustFrustum(long ptr, float[] vpMatrix) {
         if (!libLoaded || ptr == 0 || vpMatrix == null || vpMatrix.length < 16) return;
         try { rustFrustumUpdate(ptr, vpMatrix); }
+        catch (UnsatisfiedLinkError ignored) { /* Optional native method */ }
+    }
+
+    public static void setRustFrustumFovScale(long ptr, double fovScale) {
+        if (!libLoaded || ptr == 0) return;
+        try { rustFrustumSetFovScale(ptr, fovScale); }
         catch (UnsatisfiedLinkError ignored) { /* Optional native method */ }
     }
 

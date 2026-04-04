@@ -31,7 +31,6 @@ dependencies {
 
     // Core dependencies from Oxidizium
     include implementation("org.joml:joml:1.10.8")
-    include implementation("com.moulberry:mixinconstraints:1.1.0")
     include implementation("com.github.zafarkhaja:java-semver:0.10.2")
 
     // Config & UI
