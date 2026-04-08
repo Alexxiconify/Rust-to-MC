@@ -75,7 +75,16 @@ public class LightingMixin {
 
     @Inject(method = "hasUpdates()Z", at = @At("HEAD"))
     private void onHasUpdates(CallbackInfoReturnable<Boolean> cir) {
-        if (!RustMC.CONFIG.isUseNativeLighting() || ModBridge.isLightingOwned() || !NativeBridge.isReady()) return;
+        if (!isRustLightingActive()) return;
         ensureRustThread();
+    }
+
+    @Inject(method = "enqueue(Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/world/LightType;)V", at = @At("HEAD"))
+    private void rustmcOnEnqueue(net.minecraft.util.math.BlockPos pos, net.minecraft.world.LightType type, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        if (!isRustLightingActive()) return;
+        // Optimization: only capture block light for now as sky light involves vertical scanning
+        if (type == net.minecraft.world.LightType.BLOCK && !PENDING.offer(new int[]{pos.getX(), pos.getY(), pos.getZ(), 15})) {
+             // Queue full: silently skip as JNI will handle it on next bulk run.
+        }
     }
 }

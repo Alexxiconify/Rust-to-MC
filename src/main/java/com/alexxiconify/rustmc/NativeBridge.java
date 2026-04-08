@@ -16,6 +16,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class NativeBridge {
     private NativeBridge() {}
 
+    public static final int CONTEXT_VANILLA = 0;
+    public static final int CONTEXT_SODIUM = 1;
+    public static final int CONTEXT_LUX = 2;
+    public static final int CONTEXT_STARLIGHT = 3;
+
     private static boolean libLoaded;
     private static final AtomicBoolean noiseSeeded = new AtomicBoolean(false);
 
@@ -62,22 +67,124 @@ public class NativeBridge {
     private static native double rustNoise3d(double x, double y, double z);
     private static native float rustGetGhostHeight(double x, double z);
     private static native long[] rustGetSystemMemory();
-    private static native int rustPropagateLightBulk(int[] data, int count);
+    private static native int rustPropagateLightBulk(int[] data, int count, int context);
+    private static native int rustPropagateLightDH(long[] tasks, int count);
     private static native byte[] rustCompress(byte[] input);
     private static native int[] rustGenerateGhostMap(double centerX, double centerZ, int size, double scale);
     private static native byte[] rustDecompress(byte[] input, int maxOutputSize);
     private static native int rustFindPath(int[] start, int[] end);
     private static native int rustExecuteCommand(byte[] cmd);
     private static native int rustProcessPacket(byte[] buf, int len);
+    private static native void rustProcessChunkData(byte[] buf, int len, int chunkX, int chunkZ);
+    private static native void rustRequestMemoryCleanup();
+
+    /**
+     * Subverts Java-side chunk data parsing by offloading large byte buffers 
+     * directly to Rust's optimized decoder (PumpkinMC style).
+     */
+    public static void processChunkData(byte[] buf, int chunkX, int chunkZ) {
+        if (!libLoaded) return;
+        rustProcessChunkData(buf, buf.length, chunkX, chunkZ);
+    }
+
+    public static void requestMemoryCleanup() {
+        if (libLoaded) rustRequestMemoryCleanup();
+    }
     // Frustum state management
     private static native long rustFrustumCreate();
     private static native void rustFrustumUpdate(long ptr, float[] vpMatrix);
-    private static native void rustFrustumSetFovScale(long ptr, double fovScale);
-    private static native boolean rustFrustumTest(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
+    private static native boolean rustIsOutsideFrustum(long ptr, double x, double y, double z, double radius);
+    private static native int rustCullEntities(long ptr, double[] positions, int count, boolean[] results);
     private static native void rustFrustumDestroy(long ptr);
+    
+    private static long activeFrustum = 0;
+
+    /** 
+     * Optimizes entity culling by offloading frustum intersection checks to Rust.
+     * Use batching to minimize JNI transitions.
+     */
+    public static boolean isOutsideFrustum(double x, double y, double z, double radius) {
+        if (!libLoaded || activeFrustum == 0) return false;
+        return rustIsOutsideFrustum(activeFrustum, x, y, z, radius);
+    }
+
+    public static int cullEntities(double[] positions, boolean[] results) {
+        if (!libLoaded || activeFrustum == 0) return 0;
+        return rustCullEntities(activeFrustum, positions, positions.length / 3, results);
+    }
+
+    /** 
+     * Offloads heavy vertex transformations (EMF/ETF animations) to Rust.
+     * Processes XYZ and Normal arrays in parallel.
+     */
+    public static void transformVertices(float[] vertices, float[] normals, float[] matrix) {
+        if (!libLoaded) return;
+        rustTransformVertices(vertices, normals, matrix, vertices.length / 3);
+    }
+
+    private static native void rustTransformVertices(float[] vertices, float[] normals, float[] matrix, int count);
+    private static native int[] rustSampleBiomes(long seed, int x, int z, int width, int height);
+
+    public static int[] sampleBiomes(long seed, int x, int z, int width, int height) {
+        if (!libLoaded) return new int[width * height];
+        return rustSampleBiomes(seed, x, z, width, height);
+    }
+
+    private static native void rustTickParticles(double[] positions, double[] velocities, int count, double gravity);
+    /**
+     * Parallelizes particle physics (gravity, velocity decay).
+     * Ideal for mods that spawn thousands of environmental particles.
+     */
+    public static void tickParticles(double[] positions, double[] velocities, double gravity) {
+        if (!libLoaded || positions.length == 0) return;
+        rustTickParticles(positions, velocities, positions.length / 3, gravity);
+    }
+
+    private static native void rustProcessSoundPhysics(float[] samples, int count, double distance, double occlusion);
+    private static native int[] rustBlendBiomes(int[] biomeIds, int width, int height, int radius);
+
+    /**
+     * Offloads sound occlusion and reverb math to Rust.
+     */
+    public static void processSoundPhysics(float[] samples, double distance, double occlusion) {
+        if (!libLoaded) return;
+        rustProcessSoundPhysics(samples, samples.length, distance, occlusion);
+    }
+
+    /**
+     * Multi-threaded biome blending (supports Better Biome Blend).
+     */
+    public static int[] blendBiomes(int[] biomeIds, int width, int height, int radius) {
+        if (!libLoaded) return biomeIds;
+        return rustBlendBiomes(biomeIds, width, height, radius);
+    }
+
+    private static native void rustFrustumSetFovScale(long ptr, double fovScale);
+    private static native boolean rustFrustumTest(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin);
+    private static native byte[] rustBatchFrustumTest(long ptr, double[] aabbs, int count, double margin);
+
+    /**
+     * Conservative frustum test with margin (useful for DH chunks/LODs).
+     */
+    public static boolean frustumTest(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin) {
+        if (!libLoaded) return true;
+        return rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
+    }
+
+    /**
+     * Batch frustum test with margin.
+     */
+    public static byte[] batchFrustumTest(long ptr, double[] aabbs, double margin) {
+        if (!libLoaded) return new byte[0];
+        return rustBatchFrustumTest(ptr, aabbs, aabbs.length / 6, margin);
+    }
+
+    private static native boolean rustDHCull(double minY, double maxY, double surfaceY);
+    private static native float rustGetAvgFps();
     private static native float rustClamp(float value, float min, float max);
     private static native double rustLerp(double delta, double start, double end);
     private static native double rustAbsMax(double a, double b);
+    private static native float rustWrapDegrees(float value);
     @SuppressWarnings("java:S107")
     private static native boolean rustRayIntersectsBox(double rx, double ry, double rz, double dx, double dy, double dz, double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
     private static native float[] rustComputeAmbientOcclusion(float[] vertexData, int vertexCount);
@@ -162,6 +269,22 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError e) { return max; }
     }
 
+    public static float invokeWrapDegrees(float value) {
+        if (!libLoaded) {
+            float v = value % 360.0f;
+            if (v >= 180.0f) v -= 360.0f;
+            else if (v < -180.0f) v += 360.0f;
+            return v;
+        }
+        try { return rustWrapDegrees(value); }
+        catch (UnsatisfiedLinkError e) { 
+            float v = value % 360.0f;
+            if (v >= 180.0f) v -= 360.0f;
+            else if (v < -180.0f) v += 360.0f;
+            return v;
+        }
+    }
+
     public static double noise2d(double x, double y) {
         if (!libLoaded) return 0.0;
         try { return rustNoise2d(x, y); }
@@ -193,7 +316,23 @@ public class NativeBridge {
 
     public static int propagateLightBulk(int[] data, int len) {
         if (!libLoaded) return -1;
-        try { return rustPropagateLightBulk(data, len); }
+        int context = CONTEXT_VANILLA;
+        
+        if (ModBridge.SCALABLELUX) {
+            context = CONTEXT_LUX;
+        } else if (ModBridge.STARLIGHT) {
+            context = CONTEXT_STARLIGHT;
+        } else if (ModBridge.SODIUM) {
+            context = CONTEXT_SODIUM;
+        }
+
+        try { return rustPropagateLightBulk(data, len, context); }
+        catch (UnsatisfiedLinkError e) { return -1; }
+    }
+
+    public static int propagateLightDH(long[] tasks, int len) {
+        if (!libLoaded) return -1;
+        try { return rustPropagateLightDH(tasks, len); }
         catch (UnsatisfiedLinkError e) { return -1; }
     }
 
@@ -265,8 +404,12 @@ public class NativeBridge {
     }
 
     public static boolean testRustFrustum(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        return testRustFrustum(ptr, minX, minY, minZ, maxX, maxY, maxZ, 0.0);
+    }
+
+    public static boolean testRustFrustum(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin) {
         if (!libLoaded || ptr == 0) return true; // Default to visible if Rust is not available or ptr is 0
-        try { return rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ); }
+        try { return rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin); }
         catch (UnsatisfiedLinkError e) { return true; }
     }
 
@@ -274,6 +417,38 @@ public class NativeBridge {
         if (!libLoaded || ptr == 0) return;
         try { rustFrustumDestroy(ptr); }
         catch (UnsatisfiedLinkError ignored) { /* Optional native method */ }
+    }
+
+    /** Tests multiple AABBs in one JNI call. aabbs is flat [minX,minY,minZ,maxX,maxY,maxZ,...]. */
+    public static byte[] batchFrustumTest(long ptr, double[] aabbs, int count) {
+        return batchFrustumTest(ptr, aabbs, count, 0.0);
+    }
+
+    public static byte[] batchFrustumTest(long ptr, double[] aabbs, int count, double margin) {
+        if (!libLoaded || ptr == 0 || aabbs == null || count <= 0) {
+            byte[] all = new byte[count];
+            java.util.Arrays.fill(all, (byte) 1);
+            return all;
+        }
+        try { return rustBatchFrustumTest(ptr, aabbs, count, margin); }
+        catch (UnsatisfiedLinkError e) {
+            byte[] all = new byte[count];
+            java.util.Arrays.fill(all, (byte) 1);
+            return all;
+        }
+    }
+
+    public static boolean invokeDHCull(double minY, double maxY, double surfaceY) {
+        if (!libLoaded) return true;
+        try { return rustDHCull(minY, maxY, surfaceY); }
+        catch (UnsatisfiedLinkError e) { return true; }
+    }
+
+    /** Returns smoothed avg FPS from the Rust frame-time ring buffer (240-frame window). */
+    public static float invokeGetAvgFps() {
+        if (!libLoaded) return 0;
+        try { return rustGetAvgFps(); }
+        catch (UnsatisfiedLinkError e) { return 0; }
     }
 
     @SuppressWarnings("java:S107")

@@ -73,7 +73,6 @@ public class RustMC implements ModInitializer {
                 LOGGER.debug("[Rust-MC] Cache stats at unload: hits={}, misses={}, ratio={}%",
                         NativeCache.getHits(), NativeCache.getMisses(),
                         String.format("%.1f", NativeCache.getHitRatio() * 100));
-                com.alexxiconify.rustmc.compat.XaeroGhostMapCompat.cleanup();
                 BlameLog.end();
                 LOGGER.info("[Rust-MC] {}", BlameLog.summary());
             });

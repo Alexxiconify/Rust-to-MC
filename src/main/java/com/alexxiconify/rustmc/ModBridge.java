@@ -207,9 +207,20 @@ public class ModBridge {
 
     // ── Ownership Checks ────────────────────────────────────────────────────
 
-    /** Returns true if another mod completely owns the lighting threading model. */
+    /** 
+     * Returns true if another mod completely owns the lighting threading model and 
+     * we cannot safely intervene. We now allow intervention for Lux and Sodium 
+     * where we have specific Rust-based sub-functions.
+     */
     public static boolean isLightingOwned() {
-        return STARLIGHT || SCALABLELUX || FERRITECORE || C2ME;
+        // Starlight is very intrusive; we usually yield unless we have a specific hook.
+        // For ScalableLux and Sodium, we can co-optimize.
+        return STARLIGHT && !RustMC.CONFIG.isExperimentalCoexistEnabled();
+    }
+
+    /** Returns true if DH is present and handles its own high-performance lighting. */
+    public static boolean isDhLightingActive() {
+        return DISTANT_HORIZONS;
     }
 
     /** Returns true when C2ME or similar controls math/noise so we should skip our hooks. */

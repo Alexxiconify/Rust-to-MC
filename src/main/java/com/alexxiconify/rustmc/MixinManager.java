@@ -118,7 +118,7 @@ public class MixinManager implements IMixinConfigPlugin {
         long elapsed = System.nanoTime() - start;
         applyStartNanos.remove();
         String group = classifyMixin(mixinClassName);
-        groupTimings.merge(group, elapsed, Long::sum);
+        groupTimings.merge(group, elapsed, (a, b) -> a + b);
     }
 
     /** Classifies a mixin into a human-readable blame group via map lookup. */

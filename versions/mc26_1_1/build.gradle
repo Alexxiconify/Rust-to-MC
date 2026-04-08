@@ -1,0 +1,73 @@
+// ─── 26.1.1 subproject ───────────────────────────────────────────────────────
+// NOTE: Yarn is deprecated for 26.1.1. Uses officialMojangMappings().
+plugins {
+    id 'fabric-loom'
+    id 'maven-publish'
+}
+
+version = rootProject.version + '+26.1.1'
+group = rootProject.group
+
+base { archivesName = 'rust-mc-26_1_1' }
+
+loom {}
+
+sourceSets {
+    main {
+        java {
+            srcDirs rootProject.file('src/main/java')
+            srcDirs 'src/main/java'   // version-specific overrides
+        }
+        resources {
+            srcDirs rootProject.file('src/main/resources')
+            srcDirs 'src/main/resources'  // overrides fabric.mod.json
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = "https://maven.terraformersmc.com/" }
+    maven { url = "https://maven.isxander.dev/releases" }
+    maven { url = "https://maven.fabricmc.net/" }
+    maven { url = 'https://jitpack.io' }
+    maven { url = "https://maven.bawnorton.com/releases" }
+    maven { name = "Modrinth"; url = "https://api.modrinth.com/maven" }
+}
+
+dependencies {
+	// To change the versions see the gradle.properties file
+	minecraft "com.mojang:minecraft:${rootProject.minecraft_version_26}"
+	mappings loom.officialMojangMappings()
+
+	modImplementation "net.fabricmc:fabric-loader:${rootProject.loader_version_26}"
+
+	// Fabric API. This is technically optional, but you probably want it anyway.
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_version_26}"
+
+	modImplementation "com.terraformersmc:modmenu:${rootProject.modmenu_version_26}"
+	modImplementation "dev.isxander.yacl:yet-another-config-lib-fabric:${rootProject.yacl_version_26}"
+
+    include implementation("org.joml:joml:1.10.8")
+    include implementation("com.github.zafarkhaja:java-semver:0.10.2")
+
+    // Add 26.1.1 Xaero jars once released:
+    // implementation files(rootProject.file("libs/xaerominimap-fabric-26.1.1-XX.jar"))
+    // implementation files(rootProject.file("libs/xaeroworldmap-fabric-26.1.1-XX.jar"))
+}
+
+processResources {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    inputs.property "version", project.version
+    filteringCharset = "UTF-8"
+    filesMatching("fabric.mod.json") {
+        expand "version": rootProject.version
+    }
+}
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach { it.options.release = 25 }

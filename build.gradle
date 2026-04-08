@@ -1,78 +1,11 @@
 plugins {
-    id 'fabric-loom' version '1.14.7'
-    id 'maven-publish'
+    id 'fabric-loom' version '1.15.0-alpha.25' apply false
 }
 
 version = '1.0.2'
 group = 'com.alexxiconify.rustmc'
 
-base {
-    archivesName = 'rust-mc'
-}
-
-repositories {
-    mavenCentral()
-    maven { url = "https://maven.terraformersmc.com/" }
-    maven { url = "https://maven.isxander.dev/releases" }
-    maven { url = "https://maven.fabricmc.net/" }
-    maven { url = 'https://jitpack.io' }
-    maven { url = "https://maven.bawnorton.com/releases" }
-    maven {
-        name = "Modrinth"
-        url = "https://api.modrinth.com/maven"
-    }
-}
-
-dependencies {
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
-    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-
-    // Core dependencies from Oxidizium
-    include implementation("org.joml:joml:1.10.8")
-    include implementation("com.github.zafarkhaja:java-semver:0.10.2")
-
-    // Config & UI
-    modImplementation "dev.isxander:yet-another-config-lib:${project.yacl_version}"
-    modImplementation "com.terraformersmc:modmenu:${project.modmenu_version}"
-
-    // Local Xaero Jars
-    modImplementation files("libs/xaerominimap-fabric-1.21.11-25.3.10.jar")
-    modImplementation files("libs/xaeroworldmap-fabric-1.21.11-1.40.11.jar")
-    modImplementation files("libs/XaeroPlus-2.30.9+fabric-1.21.11-WM1.40.11-MM25.3.10.jar")
-}
-
-processResources {
-    def targetVersion = project.version.toString()
-    inputs.property "version", targetVersion
-    filteringCharset = "UTF-8"
-
-    filesMatching("fabric.mod.json") {
-        expand "version": targetVersion
-    }
-}
-
-// loom handles sourceSets automatically
-
-tasks.withType(JavaCompile).configureEach {
-    it.options.release = 21
-}
-
-java {
-    withSourcesJar()
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
-}
-
-jar {
-    def archivesName = project.base.archivesName.get()
-    from("LICENSE") {
-        rename { "${it}_${archivesName}" }
-    }
-}
-
-// - - - - Rust Automation - - - - \\
+// ─── Rust native library build ───────────────────────────────────────────────
 
 tasks.register('rustBuild', Exec) {
     workingDir 'rust_mc_core'
@@ -87,17 +20,12 @@ tasks.register('rustBuild', Exec) {
 tasks.register('moveRustBinaries') {
     dependsOn 'rustBuild'
     doLast {
-        def buildDir = file('rust_mc_core/target/release')
+        def buildDir   = file('rust_mc_core/target/release')
         def resourceDir = file('src/main/resources')
-
-        def libName = System.mapLibraryName("rust_mc_core")
-        def libFile = file("${buildDir}/${libName}")
-
+        def libName    = System.mapLibraryName('rust_mc_core')
+        def libFile    = file("${buildDir}/${libName}")
         if (libFile.exists()) {
-            copy {
-                from libFile
-                into resourceDir
-            }
+            copy { from libFile; into resourceDir }
             println "Moved ${libName} to resources."
         } else {
             println "Warning: ${libName} not found in ${buildDir}"
@@ -105,4 +33,16 @@ tasks.register('moveRustBinaries') {
     }
 }
 
+// ─── Convenience tasks ───────────────────────────────────────────────────────
+
+// Build both jars:  ./gradlew buildAll
+tasks.register('buildAll') {
+    dependsOn ':versions:mc1_21_11:build'//, ':versions:mc26_1_1:build'
+    group = 'build'
+    description = 'Builds jars for both 1.21.11'// and 26.1.1 (currently dev-limited to 1.21.11)'
+}
+
 // Run 'gradlew moveRustBinaries' manually to update the native library in resources.
+// Run 'gradlew buildAll'          to produce both version jars.
+// Run 'gradlew :versions:mc1_21_11:build' for only the 1.21.11 jar.
+// Run 'gradlew :versions:mc26_1_1:build'  for only the 26.1.1 jar.

@@ -131,9 +131,6 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildBooleanOption("Native Commands (Experimental)",
                 "Passes server commands to Rust before Brigadier. Currently a no-op — leave OFF.",
                 cfg::isUseNativeCommands, v -> cfg.setUseNativeCommands(v != null && v)))
-            .option(buildBooleanOption("Limit Xaero Minimap",
-                "Limits Xaero's Minimap to ~30 FPS update rate to save CPU/GPU.",
-                cfg::isLimitXaeroMinimap, v -> cfg.setLimitXaeroMinimap(v != null && v)))
             .option(buildBooleanOption("DNS Cache (Server Pings)",
                 "Caches DNS lookups for 5 minutes via Rust to speed up server list pings.\n" +
                 "Eliminates repeated DNS resolution when refreshing the multiplayer server list.\n" +
@@ -206,18 +203,6 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildBooleanOption("Disable DH Chunk Fade",
                 "Disables Distant Horizons LOD fade for a sharper look.",
                 cfg::isDisableDhFade, v -> cfg.setDisableDhFade(v != null && v)))
-            .option(Option.<RustMCConfig.GhostMapMode>createBuilder()
-                .name(Text.literal("Ghost Map Mode"))
-                .description(OptionDescription.of(Text.literal("Configure ghost map generation. SEED_ONLY uses noise from a world seed. NONE disables it.")))
-                .binding(RustMCConfig.GhostMapMode.SEED_ONLY, cfg::getGhostMapMode, cfg::setGhostMapMode)
-                .controller(opt -> dev.isxander.yacl3.api.controller.EnumControllerBuilder.create(opt).enumClass(RustMCConfig.GhostMapMode.class))
-                .build())
-            .option(Option.<String>createBuilder()
-                .name(Text.literal("Server Ghost Map Seeds"))
-                .description(OptionDescription.of(Text.literal("Set seeds per server. Format: server=seed, server2=seed2\nE.g. my.server.com=609567216262790763\nSingleplayer worlds use the world seed automatically.")))
-                .binding("", cfg::getCustomGhostMapSeed, cfg::setCustomGhostMapSeed)
-                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
-                .build())
             .build();
     }
 

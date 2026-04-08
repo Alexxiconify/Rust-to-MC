@@ -9,4 +9,11 @@ pluginManagement {
     }
 }
 
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.9.0'
+}
+
 rootProject.name = 'rust-mc'
+
+include ':versions:mc1_21_11'
+// include ':versions:mc26_1_1'

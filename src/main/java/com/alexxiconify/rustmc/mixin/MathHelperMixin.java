@@ -116,4 +116,10 @@ public class MathHelperMixin {
     public static double absMax(double a, double b) {
         return Math.max(Math.abs(a), Math.abs(b));
     }
+
+    /** @author Alexxiconify @reason Native wrapDegrees */
+    @Overwrite
+    public static float wrapDegrees(float value) {
+        return com.alexxiconify.rustmc.NativeBridge.invokeWrapDegrees(value);
+    }
 }

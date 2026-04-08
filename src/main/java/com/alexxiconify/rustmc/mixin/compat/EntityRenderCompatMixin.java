@@ -23,20 +23,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class EntityRenderCompatMixin {
     private EntityRenderCompatMixin() {}
 
+    @SuppressWarnings("java:S2696") // Mixin @Inject must be instance; writing static RenderState fields is intentional
     @Inject(method = "render", at = @At("HEAD"), require = 0)
-    private static void onEntityRenderPass(CallbackInfo ci) {
-        // If EntityCulling is installed, it handles visibility — yield culling to it
+    private void onEntityRenderPass(CallbackInfo ci) {
         if (ModBridge.ENTITYCULLING && RustMC.CONFIG.isEnableEntityCullingCompat()) {
             RenderState.heavyEntityModsActive = false;
             return;
         }
-
-        // Track whether heavy entity mods need tighter distance culling
         boolean emfActive = ModBridge.ENTITY_MODEL_FEATURES && RustMC.CONFIG.isEnableEMFCompat();
         boolean etfActive = ModBridge.ENTITY_TEXTURE_FEATURES && RustMC.CONFIG.isEnableETFCompat();
         RenderState.heavyEntityModsActive = emfActive || etfActive;
-
-        // Track ImmediatelyFast batching state
         RenderState.immediatelyFastActive = ModBridge.IMMEDIATELYFAST && RustMC.CONFIG.isEnableImmediatelyFastCompat();
     }
 }

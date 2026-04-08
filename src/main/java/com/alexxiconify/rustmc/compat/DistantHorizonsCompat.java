@@ -92,10 +92,16 @@ public class DistantHorizonsCompat {
                     float[] vpArray = (float[]) getValuesAsArrayMethod.invoke(mat);
                     com.alexxiconify.rustmc.NativeBridge.updateRustFrustum(rustFrustumPtr, vpArray);
 
-                    // Update FOV scale to prevent aggressive clipping with DH
-                    double fov = net.minecraft.client.MinecraftClient.getInstance().options.getFov().getValue();
-                    // 1.0 is standard (70), expand by roughly 15% at 70, scaling with FOV.
-                    double fovScale = 1.15 * (fov / 70.0);
+                    // FOV+aspect-aware scale to prevent aggressive DH LOD clipping.
+                    net.minecraft.client.MinecraftClient mc2 = net.minecraft.client.MinecraftClient.getInstance();
+                    double fov = mc2.options.getFov().getValue();
+                    double aspect = mc2.getWindow().getFramebufferWidth()
+                        / Math.max(1.0, mc2.getWindow().getFramebufferHeight());
+                    // Ultrawide screens have narrower vertical FOV — boost scale slightly so
+                    // tall DH sections at the horizontal edges are not incorrectly culled.
+                    double aspectBoost = Math.max(1.0, aspect / (16.0 / 9.0));
+                    double fovScale = 1.15 * (fov / 70.0) * Math.sqrt(aspectBoost);
+                    fovScale = Math.clamp(fovScale, 0.8, 2.5);
                     com.alexxiconify.rustmc.NativeBridge.setRustFrustumFovScale(rustFrustumPtr, fovScale);
                 }
                 yield null;
@@ -105,12 +111,31 @@ public class DistantHorizonsCompat {
                     int minX = (int) args[0];
                     int minZ = (int) args[1];
                     int width = (int) args[2];
-                    // Add 10% padding to prevent aggressive LOD clipping at screen edges
-                    double pad = width * 0.1;
+                    // Native side-plane culling (hides vertical geometry below surface)
+                    // We treat currentMinY as a rough surface proxy if it's below sea level
+                    if (!com.alexxiconify.rustmc.NativeBridge.invokeDHCull(currentMinY, currentMaxY, 62.0)) {
+                        yield false; 
+                    }
+                    // Use native margin support instead of manual inflation for better performance
+                    // margin = 1.0 (standard) + distance-based expansion
+                    double margin = 1.0;
+
+                    net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
+                    net.minecraft.entity.Entity cam = client.getCameraEntity();
+                    if (cam != null) {
+                        double camX = cam.getX();
+                        double camZ = cam.getZ();
+                        double centerX = minX + width / 2.0;
+                        double centerZ = minZ + width / 2.0;
+                        double distSq = (centerX - camX) * (centerX - camX) + (centerZ - camZ) * (centerZ - camZ);
+                        margin += Math.sqrt(distSq) * 0.05;
+                    }
+
                     yield com.alexxiconify.rustmc.NativeBridge.testRustFrustum(
                         rustFrustumPtr,
-                        minX - pad, currentMinY, minZ - pad,
-                        (double) minX + width + pad, currentMaxY, (double) minZ + width + pad);
+                        minX, currentMinY, minZ,
+                        (double) minX + width, currentMaxY, (double) minZ + width,
+                        margin);
                 }
                 yield true; // default: visible
             }
@@ -198,5 +223,17 @@ public class DistantHorizonsCompat {
                 RustMC.LOGGER.debug("[Rust-MC] DH prefetch skipped: {}", e.getMessage());
             }
         });
+    }
+
+    /**
+     * Offloads Distant Horizons "Ghost" lighting tasks to Rust.
+     * DH uses a separate light engine for LODs that can be run in parallel
+     * without touching vanilla world state.
+     */
+    public static void optimizeLighting(long[] lightTasks) {
+        if (lightTasks == null || lightTasks.length == 0) return;
+        if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID) || !com.alexxiconify.rustmc.NativeBridge.isReady()) return;
+
+        com.alexxiconify.rustmc.NativeBridge.propagateLightDH(lightTasks, lightTasks.length);
     }
 }

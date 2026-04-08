@@ -3,7 +3,6 @@ package com.alexxiconify.rustmc.config;
 /**
  * Configuration POJO for Rust-MC. All fields are serialized/deserialized by Gson,
  * and getters/setters are referenced by ModMenu (YACL) via method references.
- * Static analysis may report some as "unused" but they are all part of the config surface.
  */
 @SuppressWarnings("unused")
 public class RustMCConfig {
@@ -24,15 +23,8 @@ public class RustMCConfig {
     private boolean useNativeCulling     = true;
     private boolean useFastLoadingScreen = false;
     private boolean useNativeCommands    = false;
-    public enum GhostMapMode {
-        NONE, SEED_ONLY
-    }
 
-    private boolean limitXaeroMinimap    = true;
-    private GhostMapMode ghostMapMode    = GhostMapMode.SEED_ONLY;
-    private String customGhostMapSeed    = "";
-
-    // Mod compat toggles (new — each can be disabled in ModMenu)
+    // Mod compat toggles
     private boolean enableParticleCulling      = true;
     private boolean enableChunkBuilderExpand   = true;
     private boolean enableTickSyncCompat       = true;
@@ -57,7 +49,7 @@ public class RustMCConfig {
     private boolean bridgeLithium   = true;
     private boolean disableDhFade   = true;
 
-    // Loading screen colors (ARGB int)
+    // Loading screen colors
     private int loadingBarBgColor      = 0xFF1A1A1A;
     private int loadingBarLowColor     = 0xFF22AA44;
     private int loadingBarMidColor     = 0xFFCCAA00;
@@ -68,52 +60,51 @@ public class RustMCConfig {
     // Developer
     private boolean silenceLogs = true;
     private boolean nativeReady = false;
+    private boolean experimentalCoexistEnabled = true;
 
     public void copyFrom(RustMCConfig o) {
-        useNativeSine         = o.useNativeSine;
-        useNativeCos          = o.useNativeCos;
-        useNativeSqrt         = o.useNativeSqrt;
-        useNativeInvSqrt      = o.useNativeInvSqrt;
-        useNativeAtan2        = o.useNativeAtan2;
-        useNativeFloor        = o.useNativeFloor;
-        useNativeNoise        = o.useNativeNoise;
-        useNativeF3           = o.useNativeF3;
-        useNativeLighting     = o.useNativeLighting;
-        useNativeCompression  = o.useNativeCompression;
-        useNativePathfinding  = o.useNativePathfinding;
-        useNativeCulling      = o.useNativeCulling;
-        useFastLoadingScreen  = o.useFastLoadingScreen;
-        useNativeCommands     = o.useNativeCommands;
-        limitXaeroMinimap     = o.limitXaeroMinimap;
-        enableParticleCulling      = o.enableParticleCulling;
-        enableChunkBuilderExpand   = o.enableChunkBuilderExpand;
-        enableTickSyncCompat       = o.enableTickSyncCompat;
-        enableBBECompat            = o.enableBBECompat;
-        enableEMFCompat            = o.enableEMFCompat;
-        enableETFCompat            = o.enableETFCompat;
-        enableAppleSkinCompat      = o.enableAppleSkinCompat;
-        enableEntityCullingCompat  = o.enableEntityCullingCompat;
-        enableImmediatelyFastCompat = o.enableImmediatelyFastCompat;
-        enableClientRedstoneSkip   = o.enableClientRedstoneSkip;
-        enableDebugHudGraph        = o.enableDebugHudGraph;
-        enablePieChart             = o.enablePieChart;
-        enableDnsCache             = o.enableDnsCache;
-        bridgeSodium          = o.bridgeSodium;
-        bridgeStarlight       = o.bridgeStarlight;
-        bridgeC2ME            = o.bridgeC2ME;
-        bridgeIris            = o.bridgeIris;
-        bridgeLithium         = o.bridgeLithium;
-        disableDhFade         = o.disableDhFade;
-        ghostMapMode          = o.ghostMapMode;
-        customGhostMapSeed    = o.customGhostMapSeed;
-        loadingBarBgColor     = o.loadingBarBgColor;
-        loadingBarLowColor    = o.loadingBarLowColor;
-        loadingBarMidColor    = o.loadingBarMidColor;
-        loadingBarHighColor   = o.loadingBarHighColor;
-        loadingBarTextColor   = o.loadingBarTextColor;
-        loadingBarSubtextColor = o.loadingBarSubtextColor;
-        silenceLogs           = o.silenceLogs;
-        nativeReady           = o.nativeReady;
+        this.useNativeSine = o.useNativeSine;
+        this.useNativeCos = o.useNativeCos;
+        this.useNativeSqrt = o.useNativeSqrt;
+        this.useNativeInvSqrt = o.useNativeInvSqrt;
+        this.useNativeAtan2 = o.useNativeAtan2;
+        this.useNativeFloor = o.useNativeFloor;
+        this.useNativeNoise = o.useNativeNoise;
+        this.useNativeF3 = o.useNativeF3;
+        this.useNativeLighting = o.useNativeLighting;
+        this.useNativeCompression = o.useNativeCompression;
+        this.useNativePathfinding = o.useNativePathfinding;
+        this.useNativeCulling = o.useNativeCulling;
+        this.useFastLoadingScreen = o.useFastLoadingScreen;
+        this.useNativeCommands = o.useNativeCommands;
+        this.enableParticleCulling = o.enableParticleCulling;
+        this.enableChunkBuilderExpand = o.enableChunkBuilderExpand;
+        this.enableTickSyncCompat = o.enableTickSyncCompat;
+        this.enableBBECompat = o.enableBBECompat;
+        this.enableEMFCompat = o.enableEMFCompat;
+        this.enableETFCompat = o.enableETFCompat;
+        this.enableAppleSkinCompat = o.enableAppleSkinCompat;
+        this.enableEntityCullingCompat = o.enableEntityCullingCompat;
+        this.enableImmediatelyFastCompat = o.enableImmediatelyFastCompat;
+        this.enableClientRedstoneSkip = o.enableClientRedstoneSkip;
+        this.enableDebugHudGraph = o.enableDebugHudGraph;
+        this.enablePieChart = o.enablePieChart;
+        this.enableDnsCache = o.enableDnsCache;
+        this.bridgeSodium = o.bridgeSodium;
+        this.bridgeStarlight = o.bridgeStarlight;
+        this.bridgeC2ME = o.bridgeC2ME;
+        this.bridgeIris = o.bridgeIris;
+        this.bridgeLithium = o.bridgeLithium;
+        this.disableDhFade = o.disableDhFade;
+        this.loadingBarBgColor = o.loadingBarBgColor;
+        this.loadingBarLowColor = o.loadingBarLowColor;
+        this.loadingBarMidColor = o.loadingBarMidColor;
+        this.loadingBarHighColor = o.loadingBarHighColor;
+        this.loadingBarTextColor = o.loadingBarTextColor;
+        this.loadingBarSubtextColor = o.loadingBarSubtextColor;
+        this.silenceLogs = o.silenceLogs;
+        this.nativeReady = o.nativeReady;
+        this.experimentalCoexistEnabled = o.experimentalCoexistEnabled;
     }
 
     // Getters
@@ -131,9 +122,6 @@ public class RustMCConfig {
     public boolean isUseNativeCulling()     { return useNativeCulling; }
     public boolean isUseFastLoadingScreen() { return useFastLoadingScreen; }
     public boolean isUseNativeCommands()    { return useNativeCommands; }
-    public boolean isLimitXaeroMinimap()    { return limitXaeroMinimap; }
-    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
-    public boolean isGhostMapEnabled()      { return ghostMapMode != GhostMapMode.NONE; }
     public boolean isEnableParticleCulling()      { return enableParticleCulling; }
     public boolean isEnableChunkBuilderExpand()   { return enableChunkBuilderExpand; }
     public boolean isEnableTickSyncCompat()       { return enableTickSyncCompat; }
@@ -153,8 +141,6 @@ public class RustMCConfig {
     public boolean isBridgeIris()           { return bridgeIris; }
     public boolean isBridgeLithium()        { return bridgeLithium; }
     public boolean isDisableDhFade()        { return disableDhFade; }
-    public GhostMapMode getGhostMapMode()   { return ghostMapMode; }
-    public String getCustomGhostMapSeed()    { return customGhostMapSeed; }
     public int getLoadingBarBgColor()       { return loadingBarBgColor; }
     public int getLoadingBarLowColor()      { return loadingBarLowColor; }
     public int getLoadingBarMidColor()      { return loadingBarMidColor; }
@@ -163,6 +149,7 @@ public class RustMCConfig {
     public int getLoadingBarSubtextColor()  { return loadingBarSubtextColor; }
     public boolean isSilenceLogs()          { return silenceLogs; }
     public boolean isNativeReady()          { return nativeReady; }
+    public boolean isExperimentalCoexistEnabled() { return experimentalCoexistEnabled; }
 
     // Setters
     public void setUseNativeSine(boolean v)        { useNativeSine = v; }
@@ -178,7 +165,6 @@ public class RustMCConfig {
     public void setUseNativeCulling(boolean v)     { useNativeCulling = v; }
     public void setUseFastLoadingScreen(boolean v) { useFastLoadingScreen = v; }
     public void setUseNativeCommands(boolean v)    { useNativeCommands = v; }
-    public void setLimitXaeroMinimap(boolean v)    { limitXaeroMinimap = v; }
     public void setEnableParticleCulling(boolean v)      { enableParticleCulling = v; }
     public void setEnableChunkBuilderExpand(boolean v)   { enableChunkBuilderExpand = v; }
     public void setEnableTickSyncCompat(boolean v)       { enableTickSyncCompat = v; }
@@ -198,8 +184,6 @@ public class RustMCConfig {
     public void setBridgeIris(boolean v)           { bridgeIris = v; }
     public void setBridgeLithium(boolean v)        { bridgeLithium = v; }
     public void setDisableDhFade(boolean v)        { disableDhFade = v; }
-    public void setGhostMapMode(GhostMapMode v)    { ghostMapMode = v; }
-    public void setCustomGhostMapSeed(String v)    { customGhostMapSeed = v; }
     public void setLoadingBarBgColor(int v)        { loadingBarBgColor = v; }
     public void setLoadingBarLowColor(int v)       { loadingBarLowColor = v; }
     public void setLoadingBarMidColor(int v)       { loadingBarMidColor = v; }
@@ -208,4 +192,5 @@ public class RustMCConfig {
     public void setLoadingBarSubtextColor(int v)   { loadingBarSubtextColor = v; }
     public void setSilenceLogs(boolean v)          { silenceLogs = v; }
     public void setNativeReady(boolean v)          { nativeReady = v; }
+    public void setExperimentalCoexistEnabled(boolean v) { experimentalCoexistEnabled = v; }
 }
