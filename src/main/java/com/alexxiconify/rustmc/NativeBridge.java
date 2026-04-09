@@ -23,6 +23,9 @@ public class NativeBridge {
 
     private static boolean libLoaded;
     private static final AtomicBoolean noiseSeeded = new AtomicBoolean(false);
+    
+    // ── Debug Counters ──
+    public static final java.util.concurrent.atomic.AtomicInteger frustumChecksThisFrame = new java.util.concurrent.atomic.AtomicInteger(0);
 
     public static boolean isReady() { return libLoaded; }
 
@@ -83,7 +86,7 @@ public class NativeBridge {
      * directly to Rust's optimized decoder (PumpkinMC style).
      */
     public static void processChunkData(byte[] buf, int chunkX, int chunkZ) {
-        if (!libLoaded) return;
+        if (!libLoaded || buf == null) return;
         rustProcessChunkData(buf, buf.length, chunkX, chunkZ);
     }
 
@@ -114,6 +117,7 @@ public class NativeBridge {
      * Uses the persistent global frustum updated via 'updateVanillaFrustum'.
      */
     public static boolean isOutsideFrustum(double x, double y, double z, double radius) {
+        frustumChecksThisFrame.incrementAndGet();
         if (!libLoaded) return false;
         try {
             return rustIsOutsideFrustum(0, x, y, z, radius);
@@ -123,6 +127,8 @@ public class NativeBridge {
     }
 
     public static int cullEntities(double[] positions, boolean[] results) {
+        if (positions == null || results == null) return 0;
+        frustumChecksThisFrame.addAndGet(positions.length / 3);
         if (!libLoaded) return 0;
         try {
             return rustCullEntities(0, positions, positions.length / 3, results);
@@ -136,7 +142,7 @@ public class NativeBridge {
      * Processes XYZ and Normal arrays in parallel.
      */
     public static void transformVertices(float[] vertices, float[] normals, float[] matrix) {
-        if (!libLoaded) return;
+        if (!libLoaded || vertices == null || normals == null || matrix == null) return;
         rustTransformVertices(vertices, normals, matrix, vertices.length / 3);
     }
 
@@ -162,7 +168,7 @@ public class NativeBridge {
      * Ideal for mods that spawn thousands of environmental particles.
      */
     public static void tickParticles(double[] positions, double[] velocities, double gravity) {
-        if (!libLoaded || positions.length == 0) return;
+        if (!libLoaded || positions == null || velocities == null || positions.length == 0) return;
         rustTickParticles(positions, velocities, positions.length / 3, gravity);
     }
 
@@ -173,7 +179,7 @@ public class NativeBridge {
      * Offloads sound occlusion and reverb math to Rust.
      */
     public static void processSoundPhysics(float[] samples, double distance, double occlusion) {
-        if (!libLoaded) return;
+        if (!libLoaded || samples == null) return;
         rustProcessSoundPhysics(samples, samples.length, distance, occlusion);
     }
 
@@ -211,6 +217,7 @@ public class NativeBridge {
      * Conservative frustum test with margin (useful for DH chunks/LODs).
      */
     public static boolean frustumTest(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin) {
+        frustumChecksThisFrame.incrementAndGet();
         if (!libLoaded) return true;
         return rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
     }
@@ -219,6 +226,8 @@ public class NativeBridge {
      * Batch frustum test with margin.
      */
     public static byte[] batchFrustumTest(long ptr, double[] aabbs, double margin) {
+        if (aabbs == null) return new byte[0];
+        frustumChecksThisFrame.addAndGet(aabbs.length / 6);
         if (!libLoaded) return new byte[0];
         return rustBatchFrustumTest(ptr, aabbs, aabbs.length / 6, margin);
     }
@@ -453,6 +462,7 @@ public class NativeBridge {
     }
 
     public static boolean testRustFrustum(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin) {
+        frustumChecksThisFrame.incrementAndGet();
         if (!libLoaded || ptr == 0) return true; // Default to visible if Rust is not available or ptr is 0
         try { return rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin); }
         catch (UnsatisfiedLinkError e) { return true; }
@@ -470,6 +480,7 @@ public class NativeBridge {
     }
 
     public static byte[] batchFrustumTest(long ptr, double[] aabbs, int count, double margin) {
+        frustumChecksThisFrame.addAndGet(count);
         if (!libLoaded || ptr == 0 || aabbs == null || count <= 0) {
             byte[] all = new byte[count];
             java.util.Arrays.fill(all, (byte) 1);

@@ -9,6 +9,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 
 /**
@@ -18,10 +20,11 @@ import java.lang.reflect.Method;
 @Mixin(ClientChunkManager.class)
 public class MiniHUDLightUpdateMixin {
 
-    private static Method minihudSetNeedsUpdate = null;
+    private static MethodHandle minihudSetNeedsUpdate = null;
     private static Object minihudInstance = null;
-    private static Method lightyInvalidate = null;
+    private static MethodHandle lightyInvalidate = null;
     private static boolean initDone = false;
+    private static long lastUpdateTime = 0;
 
     private static void tryBindMiniHUD() {
         if (!ModBridge.MINIHUD) return;
@@ -29,7 +32,9 @@ public class MiniHUDLightUpdateMixin {
             Class<?> cls = Class.forName("fi.dy.masa.minihud.renderer.OverlayRendererLightLevel");
             Object inst = cls.getDeclaredField("INSTANCE").get(null);
             if (inst != null) {
-                minihudSetNeedsUpdate = cls.getMethod("setNeedsUpdate");
+                Method method = cls.getMethod("setNeedsUpdate");
+                method.setAccessible(true);
+                minihudSetNeedsUpdate = MethodHandles.lookup().unreflect(method);
                 minihudInstance = inst;
             }
         } catch (Exception | LinkageError ignored) { // MiniHUD absent or incompatible
@@ -40,7 +45,11 @@ public class MiniHUDLightUpdateMixin {
         if (!ModBridge.LIGHTY) return;
         try {
             Class<?> compute = Class.forName("dev.schmarrn.lighty.core.Compute");
-            lightyInvalidate = probeMethod(compute, "requestRecompute", "markDirty", "clear");
+            Method method = probeMethod(compute, "requestRecompute", "markDirty", "clear");
+            if (method != null) {
+                method.setAccessible(true);
+                lightyInvalidate = MethodHandles.lookup().unreflect(method);
+            }
         } catch (Exception | LinkageError ignored) { // Lighty absent or incompatible
         }
     }
@@ -66,14 +75,21 @@ public class MiniHUDLightUpdateMixin {
     @Inject(method = "onLightUpdate", at = @At("TAIL"))
     private void rustmcOnLightUpdate(LightType type, ChunkSectionPos pos, CallbackInfo ci) {
         ensureInit();
+        
+        // Use a fast time-based rate limit of min 16ms between dispatches 
+        // to avoid freezing the lighting thread during massive batch updates.
+        long now = System.currentTimeMillis();
+        if (now - lastUpdateTime < 16) return;
+        lastUpdateTime = now;
+
         if (minihudSetNeedsUpdate != null) {
             try { minihudSetNeedsUpdate.invoke(minihudInstance); }
-            catch (Exception ignored) { // MiniHUD instance gone
+            catch (Throwable ignored) { // MiniHUD instance gone
             }
         }
         if (lightyInvalidate != null) {
-            try { lightyInvalidate.invoke(null); }
-            catch (Exception ignored) { // Lighty static call failed
+            try { lightyInvalidate.invoke(); }
+            catch (Throwable ignored) { // Lighty static call failed
             }
         }
     }

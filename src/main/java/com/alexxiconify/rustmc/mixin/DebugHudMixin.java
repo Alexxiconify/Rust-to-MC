@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Draws a compact frame-time sparkline graph in the F3 overlay when enabled.
@@ -54,6 +55,36 @@ public class DebugHudMixin {
         if (RustMC.CONFIG.isEnablePieChart() && mc.textRenderer != null) {
             int screenW = context.getScaledWindowWidth();
             PieChartRenderer.draw(context, mc.textRenderer, screenW);
+        }
+    }
+
+    @Inject(method = "getLeftText", at = @At("RETURN"), cancellable = true, require = 0)
+    private void onGetLeftText(CallbackInfoReturnable<java.util.List<String>> cir) {
+        java.util.List<String> list = cir.getReturnValue();
+        if (list == null || list.isEmpty()) return;
+
+        // BetterF3 or other HUD mods might provide an immutable list. 
+        // We create a fresh copy to ensure we can append our info without side effects.
+        java.util.List<String> newList = new java.util.ArrayList<>(list);
+        
+        try {
+            newList.add("");
+            newList.add("§6[Rust-MC] General Info§r");
+            newList.add("Native Status: " + (NativeBridge.isReady() ? "§aReady§r" : "§cOffline§r"));
+            newList.add("Native Frustum Calls/frame: " + NativeBridge.frustumChecksThisFrame.getAndSet(0));
+            newList.add(String.format("Tweaks: Culling=%s | Light=%s | F3Sync=%s",
+                    RustMC.CONFIG.isUseNativeCulling() ? "§aOn§r" : "§cOff§r",
+                    RustMC.CONFIG.isUseNativeLighting() ? "§aOn§r" : "§cOff§r",
+                    RustMC.CONFIG.isUseNativeF3() ? "§aOn§r" : "§cOff§r"
+            ));
+            newList.add(String.format("Compat: DH=%s SLX=%s",
+                    ModBridge.DISTANT_HORIZONS ? "§aOn§r" : "§cOff§r",
+                    ModBridge.SCALABLELUX ? "§aOn§r" : "§cOff§r"
+            ));
+            
+            cir.setReturnValue(newList);
+        } catch (Exception ignored) {
+            // Silently fail if something goes wrong during list construction
         }
     }
 

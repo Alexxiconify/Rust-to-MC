@@ -76,6 +76,8 @@ public class DistantHorizonsCompat {
         return null;
     }
 
+    private static float[] lastVpArray = null;
+
     @SuppressWarnings("java:S112") // Reflection methods throw many checked exception types
     private static Object handleFrustumProxy(Object proxy, java.lang.reflect.Method method, Object[] args) throws Exception {
         String name = method.getName();
@@ -90,19 +92,23 @@ public class DistantHorizonsCompat {
                         getValuesAsArrayMethod = mat.getClass().getMethod("getValuesAsArray");
                     }
                     float[] vpArray = (float[]) getValuesAsArrayMethod.invoke(mat);
-                    com.alexxiconify.rustmc.NativeBridge.updateRustFrustum(rustFrustumPtr, vpArray);
+                    
+                    if (lastVpArray == null || !java.util.Arrays.equals(lastVpArray, vpArray)) {
+                        lastVpArray = vpArray != null ? vpArray.clone() : null;
+                        com.alexxiconify.rustmc.NativeBridge.updateRustFrustum(rustFrustumPtr, vpArray);
 
-                    // FOV+aspect-aware scale to prevent aggressive DH LOD clipping.
-                    net.minecraft.client.MinecraftClient mc2 = net.minecraft.client.MinecraftClient.getInstance();
-                    double fov = mc2.options.getFov().getValue();
-                    double aspect = mc2.getWindow().getFramebufferWidth()
-                        / Math.max(1.0, mc2.getWindow().getFramebufferHeight());
-                    // Ultrawide screens have narrower vertical FOV — boost scale slightly so
-                    // tall DH sections at the horizontal edges are not incorrectly culled.
-                    double aspectBoost = Math.max(1.0, aspect / (16.0 / 9.0));
-                    double fovScale = 1.15 * (fov / 70.0) * Math.sqrt(aspectBoost);
-                    fovScale = Math.clamp(fovScale, 0.8, 2.5);
-                    com.alexxiconify.rustmc.NativeBridge.setRustFrustumFovScale(rustFrustumPtr, fovScale);
+                        // FOV+aspect-aware scale to prevent aggressive DH LOD clipping.
+                        net.minecraft.client.MinecraftClient mc2 = net.minecraft.client.MinecraftClient.getInstance();
+                        double fov = mc2.options.getFov().getValue();
+                        double aspect = mc2.getWindow().getFramebufferWidth()
+                            / Math.max(1.0, mc2.getWindow().getFramebufferHeight());
+                        // Ultrawide screens have narrower vertical FOV — boost scale slightly so
+                        // tall DH sections at the horizontal edges are not incorrectly culled.
+                        double aspectBoost = Math.max(1.0, aspect / (16.0 / 9.0));
+                        double fovScale = 1.15 * (fov / 70.0) * Math.sqrt(aspectBoost);
+                        fovScale = Math.clamp(fovScale, 0.8, 2.5);
+                        com.alexxiconify.rustmc.NativeBridge.setRustFrustumFovScale(rustFrustumPtr, fovScale);
+                    }
                 }
                 yield null;
             }
@@ -110,7 +116,8 @@ public class DistantHorizonsCompat {
                 if (args != null && args.length == 4) {
                     int minX = (int) args[0];
                     int minZ = (int) args[1];
-                    int width = (int) args[2];
+                    int maxX = (int) args[2];
+                    int maxZ = (int) args[3];
                     // Native side-plane culling (hides vertical geometry below surface)
                     // We treat currentMinY as a rough surface proxy if it's below sea level
                     if (!com.alexxiconify.rustmc.NativeBridge.invokeDHCull(currentMinY, currentMaxY, 62.0)) {
@@ -125,8 +132,8 @@ public class DistantHorizonsCompat {
                     if (cam != null) {
                         double camX = cam.getX();
                         double camZ = cam.getZ();
-                        double centerX = minX + width / 2.0;
-                        double centerZ = minZ + width / 2.0;
+                        double centerX = minX + (maxX - minX) / 2.0;
+                        double centerZ = minZ + (maxZ - minZ) / 2.0;
                         double distSq = (centerX - camX) * (centerX - camX) + (centerZ - camZ) * (centerZ - camZ);
                         margin += Math.sqrt(distSq) * 0.05;
                     }
@@ -134,7 +141,7 @@ public class DistantHorizonsCompat {
                     yield com.alexxiconify.rustmc.NativeBridge.testRustFrustum(
                         rustFrustumPtr,
                         minX, currentMinY, minZ,
-                        (double) minX + width, currentMaxY, (double) minZ + width,
+                        maxX, currentMaxY, maxZ,
                         margin);
                 }
                 yield true; // default: visible
