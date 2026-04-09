@@ -1,15 +1,48 @@
 plugins {
     id 'fabric-loom' version '1.15.0-alpha.25' apply false
+    id 'base'
 }
 
-version = '1.0.2'
+version = '1.0.3'
 group = 'com.alexxiconify.rustmc'
 
-// ─── Rust native library build ───────────────────────────────────────────────
+// ─── Rust native library build (Incremental Support) ───────────────────────
 
 tasks.register('rustBuild', Exec) {
+    group = 'build'
+    description = 'Compiles the Rust native library'
     workingDir 'rust_mc_core'
+    
+    // Gradle Incremental Build Tracking
+    inputs.dir('rust_mc_core/src')
+    inputs.file('rust_mc_core/Cargo.toml')
+    inputs.file('rust_mc_core/Cargo.lock') // Watch lockfile for dependency changes
+    
+    // Enable Gradle build cache for this task
+    outputs.cacheIf { true }
+
+    def libName = System.mapLibraryName('rust_mc_core')
+    outputs.file("rust_mc_core/target/release/${libName}")
+
     environment 'RUSTFLAGS', '-C target-cpu=native'
+    environment 'CARGO_INCREMENTAL', '1'
+    
+    // Use sccache if available for faster re-builds
+    doFirst {
+        try {
+            def sccachePath = "sccache"
+            if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
+                def where = "where sccache".execute()
+                where.waitFor()
+                if (where.exitValue() == 0) environment 'RUSTC_WRAPPER', 'sccache'
+            } else {
+                def command = ["sh", "-c", "command -v sccache"].execute()
+                command.waitFor()
+                if (command.exitValue() == 0) environment 'RUSTC_WRAPPER', 'sccache'
+            }
+        } catch (Exception ignored) {}
+    }
+    
     if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
         commandLine 'cmd', '/c', 'cargo build --release'
     } else {
@@ -17,32 +50,43 @@ tasks.register('rustBuild', Exec) {
     }
 }
 
-tasks.register('moveRustBinaries') {
-    dependsOn 'rustBuild'
-    doLast {
-        def buildDir   = file('rust_mc_core/target/release')
-        def resourceDir = file('src/main/resources')
-        def libName    = System.mapLibraryName('rust_mc_core')
-        def libFile    = file("${buildDir}/${libName}")
-        if (libFile.exists()) {
-            copy { from libFile; into resourceDir }
-            println "Moved ${libName} to resources."
-        } else {
-            println "Warning: ${libName} not found in ${buildDir}"
-        }
+tasks.register('rustClean', Exec) {
+    group = 'build'
+    description = 'Cleans the Rust build artifacts'
+    workingDir 'rust_mc_core'
+    if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
+        commandLine 'cmd', '/c', 'cargo clean'
+    } else {
+        commandLine 'cargo', 'clean'
     }
 }
 
-// ─── Convenience tasks ───────────────────────────────────────────────────────
-
-// Build both jars:  ./gradlew buildAll
-tasks.register('buildAll') {
-    dependsOn ':versions:mc1_21_11:build'//, ':versions:mc26_1_1:build'
-    group = 'build'
-    description = 'Builds jars for both 1.21.11'// and 26.1.1 (currently dev-limited to 1.21.11)'
+tasks.named('clean') {
+    dependsOn 'rustClean'
 }
 
-// Run 'gradlew moveRustBinaries' manually to update the native library in resources.
-// Run 'gradlew buildAll'          to produce both version jars.
-// Run 'gradlew :versions:mc1_21_11:build' for only the 1.21.11 jar.
-// Run 'gradlew :versions:mc26_1_1:build'  for only the 26.1.1 jar.
+tasks.register('moveRustBinaries', Copy) {
+    group = 'build'
+    description = 'Updates resources with latest Rust binaries'
+    dependsOn 'rustBuild'
+    
+    def libName = System.mapLibraryName('rust_mc_core')
+    from("rust_mc_core/target/release/${libName}")
+    into 'src/main/resources'
+}
+
+// ─── Multi-project Logic ──────────────────────────────────────────────────
+
+// Ensure native lib is always updated before subprojects try to package resources
+subprojects {
+    tasks.withType(ProcessResources).configureEach {
+        dependsOn ':moveRustBinaries'
+    }
+}
+
+tasks.register('buildAll') {
+    group = 'build'
+    description = 'Builds jars for both 1.21.11 and 26.1.1'
+    dependsOn ':versions:mc1_21_11:build'
+    // dependsOn ':versions:mc26_1_1:build'
+}

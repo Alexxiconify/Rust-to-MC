@@ -25,3 +25,9 @@ The project consists of two main parts:
 ## Compatibility
 
 The mod includes a `MixinManager` that automatically disables specific optimizations if conflicting mods (like Lithium or Starlight) are detected.
+
+---
+
+## 🗺️ Future Plans
+
+See our [ROADMAP.md](ROADMAP.md) for detailed future optimization goals and feature plans.

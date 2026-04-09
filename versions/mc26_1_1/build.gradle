@@ -5,10 +5,10 @@ plugins {
     id 'maven-publish'
 }
 
-version = rootProject.version + '+26.1.1'
+version = rootProject.version
 group = rootProject.group
 
-base { archivesName = 'rust-mc-26_1_1' }
+base { archivesName = "rust-mc-${rootProject.minecraft_version_26}" }
 
 loom {}
 

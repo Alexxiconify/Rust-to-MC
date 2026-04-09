@@ -336,6 +336,7 @@ public class ModMenuIntegration implements ModMenuApi {
                 .binding(false, () -> false, v -> {})
                 .controller(opt -> BooleanControllerBuilder.create(opt)
                     .formatValue(v -> Text.literal("§7—")))
+                .available(false)
                 .build());
         } else {
             addTotalSummary(builder, tracked, wallClock);
@@ -359,6 +360,7 @@ public class ModMenuIntegration implements ModMenuApi {
             .binding(true, () -> true, v -> {})
             .controller(opt -> BooleanControllerBuilder.create(opt)
                 .formatValue(v -> Text.literal("§e" + String.format("%.1fs", wallClock / 1000.0))))
+            .available(false)
             .build());
 
         if (untracked > 500) {
@@ -371,6 +373,7 @@ public class ModMenuIntegration implements ModMenuApi {
                 .binding(true, () -> true, v -> {})
                 .controller(opt -> BooleanControllerBuilder.create(opt)
                     .formatValue(v -> Text.literal("§c" + untracked + "ms")))
+                .available(false)
                 .build());
         }
     }
@@ -397,6 +400,7 @@ public class ModMenuIntegration implements ModMenuApi {
                 .binding(true, () -> true, v -> {})
                 .controller(opt -> BooleanControllerBuilder.create(opt)
                     .formatValue(v -> Text.literal(color + dur + "ms")))
+                .available(false)
                 .build());
         }
     }
@@ -416,6 +420,7 @@ public class ModMenuIntegration implements ModMenuApi {
             .binding(true, () -> true, v -> {})
             .controller(opt -> BooleanControllerBuilder.create(opt)
                 .formatValue(v -> Text.literal("§d" + mixinTotalMs + "ms")))
+            .available(false)
             .build());
 
         java.util.List<java.util.Map.Entry<String, Long>> sorted = new java.util.ArrayList<>(mixinTimings.entrySet());
@@ -434,6 +439,7 @@ public class ModMenuIntegration implements ModMenuApi {
                 .binding(true, () -> true, v -> {})
                 .controller(opt -> BooleanControllerBuilder.create(opt)
                     .formatValue(v -> Text.literal(mColor + ms + "ms")))
+                .available(false)
                 .build());
         }
     }

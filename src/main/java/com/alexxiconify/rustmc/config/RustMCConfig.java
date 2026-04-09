@@ -4,7 +4,6 @@ package com.alexxiconify.rustmc.config;
  * Configuration POJO for Rust-MC. All fields are serialized/deserialized by Gson,
  * and getters/setters are referenced by ModMenu (YACL) via method references.
  */
-@SuppressWarnings("unused")
 public class RustMCConfig {
     // Math optimizations
     private boolean useNativeSine     = true;

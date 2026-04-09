@@ -27,16 +27,9 @@ public abstract class ParticleMixin {
             return;
         }
 
-        String className = this.getClass().getName();
-        
-        // Enhance: Particle Rain support
-        // We apply aggressive culling to rain/snow particles since they are high-count.
-        boolean isHeavyParticle = className.contains("rain") || className.contains("snow") || className.contains("ParticleRain");
-        double radius = isHeavyParticle ? 0.2 : 0.5;
-
-        if (NativeBridge.isOutsideFrustum(this.x, this.y, this.z, radius)) {
-            // Log throwaway state for debug
-            RustMC.LOGGER.trace("[Rust-MC] Culled particle of type: {}", className);
+        // Avoid expensive reflection and string allocations per-particle.
+        // Fast path for all particles with a safe default radius.
+        if (NativeBridge.isOutsideFrustum(this.x, this.y, this.z, 0.5)) {
             ci.cancel();
         }
     }

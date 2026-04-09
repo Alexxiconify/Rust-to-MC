@@ -100,17 +100,35 @@ public class NativeBridge {
     private static long activeFrustum = 0;
 
     /** 
-     * Optimizes entity culling by offloading frustum intersection checks to Rust.
-     * Use batching to minimize JNI transitions.
+     * Updates the persistent Vanilla frustum in Rust's global context.
+     * This avoids creating new frustum objects every frame.
+     */
+    public static void updateVanillaFrustum(float[] vpMatrix) {
+        if (!libLoaded || vpMatrix == null || vpMatrix.length < 16) return;
+        try { rustFrustumUpdate(0, vpMatrix); }
+        catch (UnsatisfiedLinkError ignored) {}
+    }
+
+    /** 
+     * Optimizes entity/particle culling by offloading frustum intersection checks to Rust.
+     * Uses the persistent global frustum updated via 'updateVanillaFrustum'.
      */
     public static boolean isOutsideFrustum(double x, double y, double z, double radius) {
-        if (!libLoaded || activeFrustum == 0) return false;
-        return rustIsOutsideFrustum(activeFrustum, x, y, z, radius);
+        if (!libLoaded) return false;
+        try {
+            return rustIsOutsideFrustum(0, x, y, z, radius);
+        } catch (UnsatisfiedLinkError e) {
+            return false;
+        }
     }
 
     public static int cullEntities(double[] positions, boolean[] results) {
-        if (!libLoaded || activeFrustum == 0) return 0;
-        return rustCullEntities(activeFrustum, positions, positions.length / 3, results);
+        if (!libLoaded) return 0;
+        try {
+            return rustCullEntities(0, positions, positions.length / 3, results);
+        } catch (UnsatisfiedLinkError e) {
+            return 0;
+        }
     }
 
     /** 
@@ -180,6 +198,7 @@ public class NativeBridge {
     }
 
     private static native boolean rustDHCull(double minY, double maxY, double surfaceY);
+    private static native void rustSetCaveStatus(boolean inCave);
     private static native float rustGetAvgFps();
     private static native float rustClamp(float value, float min, float max);
     private static native double rustLerp(double delta, double start, double end);
@@ -442,6 +461,12 @@ public class NativeBridge {
         if (!libLoaded) return true;
         try { return rustDHCull(minY, maxY, surfaceY); }
         catch (UnsatisfiedLinkError e) { return true; }
+    }
+
+    public static void updateCaveStatus(boolean inCave) {
+        if (!libLoaded) return;
+        try { rustSetCaveStatus(inCave); }
+        catch (UnsatisfiedLinkError ignored) { }
     }
 
     /** Returns smoothed avg FPS from the Rust frame-time ring buffer (240-frame window). */

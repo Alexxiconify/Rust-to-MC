@@ -4,10 +4,10 @@ plugins {
     id 'maven-publish'
 }
 
-version = rootProject.version + '+1.21.11'
+version = rootProject.version
 group = rootProject.group
 
-base { archivesName = 'rust-mc-1_21_11' }
+base { archivesName = "rust-mc-${rootProject.minecraft_version}" }
 
 // Pull shared sources from root project
 sourceSets {

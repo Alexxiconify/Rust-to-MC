@@ -22,6 +22,8 @@ These mods are planned for future integration, specialized Mixins, or config-dri
 
 - **Reese's Sodium Options / Sodium Extra**: Planned: Integrate Rust-MC's visual configurations (like Culling toggles) directly into the Sodium video settings screen.
 
+_For a comprehensive list of technical and performance goals, see the [Main Roadmap](ROADMAP.md)._
+
 _(This list is dynamically updated as new integrations are built)._
 
 List of all mods that may or may not be supported in the future:
