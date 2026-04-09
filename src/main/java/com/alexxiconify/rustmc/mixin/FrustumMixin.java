@@ -34,9 +34,9 @@ public class FrustumMixin {
             MinecraftClient client = MinecraftClient.getInstance();
             if (client != null) {
                 var world = client.world;
-                var player = client.player;
-                if (world != null && player != null) {
-                    BlockPos pos = player.getBlockPos();
+                var cameraEntity = client.getCameraEntity();
+                if (world != null && cameraEntity != null) {
+                    BlockPos pos = cameraEntity.getBlockPos();
                     boolean inCave = world.getLightLevel(LightType.SKY, pos) == 0 && pos.getY() < 50;
                     NativeBridge.updateCaveStatus(inCave);
                 }

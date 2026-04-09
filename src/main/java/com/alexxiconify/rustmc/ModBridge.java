@@ -242,7 +242,7 @@ public class ModBridge {
 
     /** Returns true when another mod's frustum would conflict with our Rust frustum. */
     public static boolean isFrustumOwned() {
-        return SODIUM || MORECULLING;
+        return (SODIUM && !RustMC.CONFIG.isBridgeSodium()) || MORECULLING;
     }
 
     /** Returns true if interaction/raycasting logic is handled by other mods. */

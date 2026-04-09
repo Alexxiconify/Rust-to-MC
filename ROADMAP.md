@@ -10,95 +10,73 @@ To minimize Java's overhead in Minecraft's **client-side** hot-paths by leveragi
 
 ## 📅 Short-Term Goals (1-2 Months)
 
-### 1. Parallel Lighting Propagation
+### 1. Zero-Copy Map Processing
 
-- **Status**: Researching/In-Progress
-- **Goal**: Fully implement the `rustPropagateLightBulk` hooks for Sodium and Starlight (client-side context).
-- **Benefit**: Faster chunk updates and reduced stuttering when moving through differently lit areas.
+- **Status**: Hook Implemented (MapRendererMixin)
+- **Goal**: Move from array-based processing to direct memory address manipulation for map textures.
+- **Benefit**: Zero-allocation map updates, making high-count item frame maps (like server hubs) lag-free even at high resolutions.
 
-### 2. WGPU Ambient Occlusion Stabilization
+### 2. SIMD Frustum & Occlusion
 
-- **Status**: Stable (v22.1 Migration Complete)
-- **Goal**: Maintain GPU-accelerated AO, now migrated to latest `wgpu` (22.x) and `sysinfo` (0.33) APIs.
-- **Next Steps**:
-  - **Voxel Grid Sampling**: Implement native voxel structure sampling in Rust for true geometric occlusion.
-  - **Depth Buffer Occlusion**: Integrate with Iris depth buffers for screen-space AO effects.
-- **Benefit**: Premium visual quality without the heavy CPU cost of traditional AO calculations.
+- **Status**: Implemented (Vanilla) / Optimized (LODs)
+- **Goal**: Rewrite the `isOutside` and `batchFrustumTest` in Rust using explicit SIMD instructions (SSE2/AVX2).
+- **Benefit**: Near-instant culling for thousands of particles and entities per frame.
+
+### 3. Native HUD Matrix Stack
+
+- **Status**: Supplemented via Matrix4f.mul
+- **Goal**: Create a native-backed `MatrixStack` chain calculation to offload complex HUD layout transformations.
+- **Benefit**: Complements ImmediatelyFast to reduce HUD rendering overhead to absolute minimum.
 
 ---
 
 ## 🛠 Medium-Term Goals (3-6 Months)
 
-### 1. Native Chunk Meshing
+### 1. Native Chunk Meshing & Parsing
 
 - **Status**: Planning
-- **Goal**: Offload the construction of render meshes (Vertex Buffers) from Java to Rust.
-- **Benefit**: Lower memory pressure (less GC) and faster chunk re-renders when blocks change.
+- **Goal**: Offload vertex buffer construction and use a native chunk decoder (PumpkinMC style) to bypass Java-side NBT parsing.
+- **Benefit**: Drastically reduced "World Load" times and zero GC pressure during high-speed flight.
 
-### 2. Batched Entity & Particle Culling
+### 2. Starlight-Native BFS Lighting
 
-- **Status**: Implemented / Optimizing
-- **Goal**: Offload thousands of entity and particle intersection checks to Rust via batch JNI calls.
-- **Benefit**: Eliminated per-object JNI overhead. Batch testing now uses Rayon for multi-threaded parallel execution.
-- **Next Steps**: implement SIMD (SSE/AVX) for plane-point tests.
+- **Status**: Researching
+- **Goal**: Replace the current bit-packed placeholder in `rustPropagateLightBulk` with a high-speed Breadth-First Search (BFS) in Rust.
+- **Benefit**: Real-time lighting updates for mods like ScalableLux and Starlight, eliminating "lighting lag" during TNT explosions or terrain edits.
 
-### 3. Native Client Packet Processing
+### 3. Native Packet Interception
 
-- **Status**: Conceptual
-- **Goal**: Use Rust to deserialize incoming networking packets directly into native structures, bypassing slow Java Reflection and reducing heap allocations.
-- **Benefit**: Smoother experience on high-traffic servers and reduced GC pressure.
-
----
-
-## 🌌 Long-Term Alpha Goals (6+ Months)
-
-### 1. Full WGPU Renderer Backend
-
-- **Goal**: A complete alternative to the OpenGL renderer using WGPU (WebGPU for Rust).
-- **Benefit**: Modern API features (Vulkan/Metal/DX12), better multi-threading, and eliminated "OpenGL bottleneck."
-
----
-
-## ✨ New Feature Ideas
-
-- **Native DNS Dashboard**: An in-game UI to monitor and manage the DNS disk cache and resolution speeds.
-- **Rust-MC Resource Monitor**: A premium HUD showing real-time Rust memory usage, SIMD status, and FFI transition latencies.
-- **Ghost World API**: An API for other mods to query "Ghost Heights" and "Ghost Biomes" without loading chunks, perfect for world-map mods.
-- **SIMD Audio Processor**: Real-time environmental audio effects (echo, occlusion) processed in parallel in Rust.
-
----
-
-## 🤝 Compatibility Focus
-
-We aim to stay compatible with the "Big 3" of Minecraft optimization:
-
-- **Sodium**: Native meshing and lighting integration.
-- **Lithium**: Offloading math and collection logic.
-- **Iris**: Ensuring Rust-side rendering hooks don't break shader pipelines.
+- **Status**: Hook Implemented (DecoderHandlerMixin)
+- **Goal**: Offload repetitive packet handling (KeepAlives, Heartbeats) to Rust to save Java main thread time and reduce allocations.
+- **Benefit**: Smoother server play and reduced networking-related GC pressure.
 
 ---
 
 ## ✅ Completed & Optimized
 
-### 1. State Management & Lifecycle
+### 1. Rendering & Math Hot-Paths
 
-- **Persistent Vanilla Frustums**: Implemented shared global context in Rust. Minecraft matrix updates are now synced once per frame via `FrustumMixin`, eliminating redundant object creation.
-- **JNI Critical Access**: All high-count array transfers (Particles, Entities, Sound samples) now use `get_array_elements_critical` to bypass GC pauses and array copies.
+- **Native Matrix Math (SIMD)**: All `Matrix4f.mul` operations are now offloaded to Rust SIMD. Benefits both Vanilla and Sodium pipelines.
+- **Adaptive Particle Culling**: Intelligent throttle that relaxes when ImmediatelyFast is active and tightens when heavy entity mods (EMF/ETF) are present.
+- **SIMD Frustum Optimization**: Fully unrolled native frustum intersection tests to maximize scalar throughput and pipeline efficiency.
+- **Parallel Map Processing**: Added `rustProcessMapTexture` logic to parallelize map color calculations for Item Frames.
 
-### 2. API & Core Stability
+### 2. Infrastructure & Audio
 
-- **Native Implementation Review**: Filled all missing native method gaps (Culling, Entity Batches) that were previously silent no-ops.
-- **WGPU 22.1 Migration**: Successfully upgraded to the latest WebGPU API and `sysinfo` 0.33 with high-performance device descriptors.
+- **SIMD Audio Suite**: Native volume scaling and stereo panning implemented using Rayon for high-frequency sound buffer manipulation.
+- **Zero-Allocation Lighting Queue**: Replaced `ArrayBlockingQueue<int[]>` with primitive-backed synchronized `long[]` buffers, eliminating all per-task allocations.
+- **Shared Global Frustum**: Persistent native context syncs once per frame, avoiding per-call frustum recreation.
+- **Virtual Threaded Initialization**: Mod compatibility layers (DH, ScalableLux) now initialize in parallel on virtual threads.
 
 ---
 
 ## 🔍 Feature Backlog (From Source TODOs)
 
-### 1. Advanced Light Engines (Rust-Side)
+### 1. Native Packet Subversion
 
-- **Starlight Depth-Aware Propagator**: Replace the current `*x -= 2` placeholder with true 17-block sky and block light propagation logic in Rust.
-- **Distant Horizons BFS Lighting**: Replace the bit-packed decrement placeholder with a high-speed Breadth-First Search (BFS) on 3D grid data for optimized LOD lighting.
+- **Fast Packet Decoder**: Implement native packet deserialization to bypass Java reflection in `PacketDeflaterMixin`.
+- **Distant Horizons BFS**: Replace bit-packed LOD light task decrements with a true 3D BFS grid propagator.
 
 ---
 
-### Last Updated: April 9, 2026*
+### Last Updated: May 15, 2026*

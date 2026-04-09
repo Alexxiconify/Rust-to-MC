@@ -61,6 +61,7 @@ public class MixinManager implements IMixinConfigPlugin {
     static {
         MIXIN_CONDITIONS = Map.ofEntries(
             Map.entry(PKG + "CommandManagerMixin", () -> true),
+            Map.entry(PKG + "MatrixMixin", ModBridge::isMathOwned),
             Map.entry(PKG + "LightingMixin", () -> !ModBridge.isLightingOwned()),
             Map.entry(PKG + "MathHelperMixin", ModBridge::isMathOwned),
             Map.entry(PKG + "SimplexNoiseSamplerMixin", ModBridge::isMathOwned),

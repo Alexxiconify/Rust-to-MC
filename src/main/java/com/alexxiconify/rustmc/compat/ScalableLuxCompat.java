@@ -97,7 +97,7 @@ public class ScalableLuxCompat {
                     // Extract update count and pass to specialized Rust path
                     // We generate a dummy array of the same size to trigger the context-aware
                     // propagation in Rust, which will effectively 'subvert' the original method.
-                    int result = NativeBridge.propagateLightBulk(new int[0], col.size());
+                    int result = NativeBridge.propagateLightBulk(new int[col.size()], col.size());
                     if (result >= 0) {
                         RustMC.LOGGER.debug("[Rust-MC] Offloaded {} ScalableLux tasks to Rust cores.", col.size());
                     }

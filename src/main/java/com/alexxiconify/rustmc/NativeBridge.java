@@ -140,7 +140,15 @@ public class NativeBridge {
         rustTransformVertices(vertices, normals, matrix, vertices.length / 3);
     }
 
+    public static void invokeMatrixMul(float[] left, float[] right, float[] result) {
+        if (!libLoaded) return;
+        rustMatrixMul(left, right, result);
+    }
+
+    private static native void rustProcessMapTexture(int[] pixels, int width, int height);
+    private static native void rustProcessAudio(float[] samples, int count, float volume, float pan);
     private static native void rustTransformVertices(float[] vertices, float[] normals, float[] matrix, int count);
+    private static native void rustMatrixMul(float[] left, float[] right, float[] result);
     private static native int[] rustSampleBiomes(long seed, int x, int z, int width, int height);
 
     public static int[] sampleBiomes(long seed, int x, int z, int width, int height) {
@@ -167,6 +175,24 @@ public class NativeBridge {
     public static void processSoundPhysics(float[] samples, double distance, double occlusion) {
         if (!libLoaded) return;
         rustProcessSoundPhysics(samples, samples.length, distance, occlusion);
+    }
+
+    /**
+     * Multi-threaded map texture processing.
+     * Ideal for mods that render complex maps in item frames or UI.
+     */
+    public static void processMapTexture(int[] pixels, int width, int height) {
+        if (!libLoaded || pixels == null || pixels.length == 0) return;
+        rustProcessMapTexture(pixels, width, height);
+    }
+
+    /**
+     * SIMD Audio processing (Volume/Pan/Normalization).
+     * Offloads sound buffer manipulation to Rust.
+     */
+    public static void processAudio(float[] samples, float volume, float pan) {
+        if (!libLoaded || samples == null || samples.length == 0) return;
+        rustProcessAudio(samples, samples.length, volume, pan);
     }
 
     /**

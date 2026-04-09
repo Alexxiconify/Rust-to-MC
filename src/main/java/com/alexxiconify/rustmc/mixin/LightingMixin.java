@@ -10,10 +10,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
-
 /**
  * Routes pending light tasks through Rust's parallel propagation thread pool when:
  *  - useNativeLighting is enabled in config
@@ -24,27 +20,41 @@ import java.util.concurrent.TimeUnit;
 public class LightingMixin {
 
     @Unique
-    private static final BlockingQueue<int[]> PENDING = new ArrayBlockingQueue<>(4096);
+    private static final long[] PENDING_POS = new long[8192];
+    @Unique
+    private static final int[] PENDING_VAL = new int[8192];
+    @Unique
+    private static int head = 0;
+    @Unique
+    private static int tail = 0;
+    @Unique
+    private static final Object QUEUE_LOCK = new Object();
+
     @Unique
     private static volatile boolean rustLightThreadRunning = false;
 
-    // Single reusable buffer — only accessed from the single virtual thread.
-    // Holds up to 4096 entries × 4 ints each = 16384 ints.
     @Unique
-    private static final int[] flatBuffer = new int[4096 * 4];
+    private static final int[] flatBuffer = new int[8192 * 4];
 
-
-    /** Drains the queue starting from the given item and dispatches to Rust. */
+    /** Drains the queue and dispatches to Rust. */
     @Unique
-    private static void drainAndDispatch(int[] firstItem) {
-        System.arraycopy(firstItem, 0, flatBuffer, 0, 4);
-        int idx = 4;
-        int[] next;
-        while ((next = PENDING.poll()) != null && idx + 4 <= flatBuffer.length) {
-            System.arraycopy(next, 0, flatBuffer, idx, 4);
-            idx += 4;
+    private static void drainAndDispatch() {
+        int idx = 0;
+        synchronized (QUEUE_LOCK) {
+            while (head < tail && idx + 4 <= flatBuffer.length) {
+                int qIdx = head % 8192;
+                long pos = PENDING_POS[qIdx];
+                int val = PENDING_VAL[qIdx];
+                flatBuffer[idx++] = (int) (pos >> 38);       // X
+                flatBuffer[idx++] = (int) (pos << 52 >> 52); // Y
+                flatBuffer[idx++] = (int) (pos << 26 >> 38); // Z
+                flatBuffer[idx++] = val;                     // Value
+                head++;
+            }
         }
-        NativeBridge.propagateLightBulk(flatBuffer, idx / 4);
+        if (idx > 0) {
+            NativeBridge.propagateLightBulk(flatBuffer, idx / 4);
+        }
     }
 
     @Unique
@@ -60,9 +70,9 @@ public class LightingMixin {
         Thread.ofVirtual().name("rustmc-light-propagation").start(() -> {
             try {
                 while (!Thread.currentThread().isInterrupted()) {
-                    int[] item = PENDING.poll(50, TimeUnit.MILLISECONDS);
-                    if (item != null && isRustLightingActive()) {
-                        drainAndDispatch(item);
+                    Thread.sleep(10);
+                    if (isRustLightingActive()) {
+                        drainAndDispatch();
                     }
                 }
             } catch (InterruptedException e) {
@@ -82,9 +92,17 @@ public class LightingMixin {
     @Inject(method = "enqueue(Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/world/LightType;)V", at = @At("HEAD"))
     private void rustmcOnEnqueue(net.minecraft.util.math.BlockPos pos, net.minecraft.world.LightType type, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
         if (!isRustLightingActive()) return;
-        // Optimization: only capture block light for now as sky light involves vertical scanning
-        if (type == net.minecraft.world.LightType.BLOCK && !PENDING.offer(new int[]{pos.getX(), pos.getY(), pos.getZ(), 15})) {
-             // Queue full: silently skip as JNI will handle it on next bulk run.
+        
+        // Capture both BLOCK and SKY light to supplement the lighting engine more effectively
+        int val = type == net.minecraft.world.LightType.SKY ? 16 : 15;
+        
+        synchronized (QUEUE_LOCK) {
+            if (tail - head < 8192) {
+                int qIdx = tail % 8192;
+                PENDING_POS[qIdx] = pos.asLong();
+                PENDING_VAL[qIdx] = val;
+                tail++;
+            }
         }
     }
 }

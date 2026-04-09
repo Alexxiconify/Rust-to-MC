@@ -2,6 +2,7 @@ package com.alexxiconify.rustmc.mixin;
 
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
+import com.alexxiconify.rustmc.util.RenderState;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.VertexConsumer;
@@ -29,7 +30,19 @@ public abstract class ParticleMixin {
 
         // Avoid expensive reflection and string allocations per-particle.
         // Fast path for all particles with a safe default radius.
-        if (NativeBridge.isOutsideFrustum(this.x, this.y, this.z, 0.5)) {
+        // Adaptive culling threshold based on render budget and mod ecosystem.
+        double radius = 0.5;
+        if (RenderState.renderBudgetTight) {
+            radius = 0.2; // Tighten: only show large particles center-screen
+        } else if (RenderState.renderBudgetRelaxed || RenderState.immediatelyFastActive) {
+            radius = 0.8; // Relax: IF makes each draw cheaper, so show more.
+        }
+
+        if (RenderState.heavyEntityModsActive) {
+            radius *= 0.7; // EMF/ETF active: reduce particle density to keep FPS stable.
+        }
+
+        if (NativeBridge.isOutsideFrustum(this.x, this.y, this.z, radius)) {
             ci.cancel();
         }
     }
