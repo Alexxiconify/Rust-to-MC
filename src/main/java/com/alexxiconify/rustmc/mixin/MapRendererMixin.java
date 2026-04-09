@@ -43,12 +43,7 @@ public class MapRendererMixin {
             net.minecraft.client.texture.NativeImage image = this.texture.getImage();
             if (image != null) {
                 // Accessing the raw pixel buffer via native bridge.
-                // In many 1.21 mappings, image has a direct way to retrieve pixels as an array.
-                // We supplement the atlas generation by processing these tiles in parallel.
-                int[] pixels = ((com.alexxiconify.rustmc.mixin.accessor.NativeImageAccessor)(Object)image).rustmc$getPixels();
-                if (pixels != null) {
-                    NativeBridge.processMapTexture(pixels, 128, 128);
-                }
+                // TODO: Re-implement map processing using the 1.21.11 long pointer field
             }
         }
     }

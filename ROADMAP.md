@@ -12,9 +12,9 @@ To minimize Java's overhead in Minecraft's **client-side** hot-paths by leveragi
 
 ### 1. Zero-Copy Map Processing
 
-- **Status**: Hook Implemented (MapRendererMixin)
-- **Goal**: Move from array-based processing to direct memory address manipulation for map textures.
-- **Benefit**: Zero-allocation map updates, making high-count item frame maps (like server hubs) lag-free even at high resolutions.
+- **Status**: Hook Paused (MapRendererMixin) / Refactoring Accessor
+- **Goal**: Re-implement map processing using a direct memory pointer from 1.21.11's `NativeImage` (pointer: long) instead of the broken `pixels` accessor.
+- **Benefit**: Zero-allocation, zero-copy map updates bypassing the Java array heap entirely.
 
 ### 2. SIMD Frustum & Occlusion
 

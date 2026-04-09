@@ -28,7 +28,6 @@ public class MixinManager implements IMixinConfigPlugin {
     private static Map<String, String> buildGroupPrefixes() {
         String dnsGroup = "DNS/Server List";
         Map<String, String> m = new LinkedHashMap<>();
-        m.put("compat.Xaero", "Xaero Minimap/WorldMap");
         m.put("compat.BBE", "Better Block Entities");
         m.put("compat.EntityRender", "Entity Rendering (EMF/ETF/IF)");
         m.put("compat.ClientRedstone", "Redstone Optimization");
@@ -61,26 +60,26 @@ public class MixinManager implements IMixinConfigPlugin {
     static {
         MIXIN_CONDITIONS = Map.ofEntries(
             Map.entry(PKG + "CommandManagerMixin", () -> true),
-            Map.entry(PKG + "MatrixMixin", ModBridge::isMathOwned),
+            Map.entry(PKG + "MatrixMixin", () -> ModBridge.isMathOwned()),
             Map.entry(PKG + "LightingMixin", () -> !ModBridge.isLightingOwned()),
-            Map.entry(PKG + "MathHelperMixin", ModBridge::isMathOwned),
-            Map.entry(PKG + "SimplexNoiseSamplerMixin", ModBridge::isMathOwned),
+            Map.entry(PKG + "MathHelperMixin", () -> ModBridge.isMathOwned()),
+            Map.entry(PKG + "SimplexNoiseSamplerMixin", () -> ModBridge.isMathOwned()),
             Map.entry(PKG + "PathfindingMixin", () -> !ModBridge.isPathfindingOwned()),
-            Map.entry(PKG + "PacketDeflaterMixin", ModBridge::isNetworkingOwned),
-            Map.entry(PKG + "DecoderHandlerMixin", ModBridge::isNetworkingOwned),
-            Map.entry(PKG + "BlockStateMixin", RustMC.CONFIG::isUseNativeCulling),
+            Map.entry(PKG + "PacketDeflaterMixin", () -> ModBridge.isNetworkingOwned()),
+            Map.entry(PKG + "DecoderHandlerMixin", () -> ModBridge.isNetworkingOwned()),
+            Map.entry(PKG + "BlockStateMixin", () -> RustMC.CONFIG.isUseNativeCulling()),
             Map.entry(PKG + "ChunkBuilderMixin", () -> RustMC.CONFIG.isEnableChunkBuilderExpand() && !ModBridge.SODIUM),
-            Map.entry(PKG + "compat.ClientRedstoneSkipMixin", RustMC.CONFIG::isEnableClientRedstoneSkip),
-            Map.entry(PKG + "compat.TickSyncCompatMixin", RustMC.CONFIG::isEnableTickSyncCompat),
-            Map.entry(PKG + "compat.BBECompatMixin", RustMC.CONFIG::isEnableBBECompat),
+            Map.entry(PKG + "compat.ClientRedstoneSkipMixin", () -> RustMC.CONFIG.isEnableClientRedstoneSkip()),
+            Map.entry(PKG + "compat.TickSyncCompatMixin", () -> RustMC.CONFIG.isEnableTickSyncCompat()),
+            Map.entry(PKG + "compat.BBECompatMixin", () -> RustMC.CONFIG.isEnableBBECompat()),
             Map.entry(PKG + "compat.EntityRenderCompatMixin", () ->
                 RustMC.CONFIG.isEnableEMFCompat()
                 || RustMC.CONFIG.isEnableETFCompat()
                 || RustMC.CONFIG.isEnableEntityCullingCompat()
                 || RustMC.CONFIG.isEnableImmediatelyFastCompat()),
-            Map.entry(PKG + "ServerPingerMixin", RustMC.CONFIG::isEnableDnsCache),
-            Map.entry(PKG + "ServerAddressMixin", RustMC.CONFIG::isEnableDnsCache),
-            Map.entry(PKG + "screen.MultiplayerScreenMixin", RustMC.CONFIG::isEnableDnsCache)
+            Map.entry(PKG + "ServerPingerMixin", () -> RustMC.CONFIG.isEnableDnsCache()),
+            Map.entry(PKG + "ServerAddressMixin", () -> RustMC.CONFIG.isEnableDnsCache()),
+            Map.entry(PKG + "screen.MultiplayerScreenMixin", () -> RustMC.CONFIG.isEnableDnsCache())
         );
     }
 

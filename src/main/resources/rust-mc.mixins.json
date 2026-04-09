@@ -17,7 +17,6 @@
     "DecoderHandlerMixin",
     "BlockStateMixin",
     "CrashReportSectionMixin",
-    "accessor.NativeImageAccessor",
     "SchemasMixin"
   ],
   "client": [
