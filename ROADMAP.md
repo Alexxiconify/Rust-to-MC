@@ -77,7 +77,7 @@ To minimize Java's overhead in Minecraft's **client-side** hot-paths by leveragi
 
 ### 3. Infrastructure & Build
 
-- **Fast Build Pipeline**: Migrated from Fat LTO to **Thin LTO** and increased **codegen-units to 16** to parallelize compilation.
+- **Fast Build Pipeline**: Migrated to **Thin LTO**, parallel codegen, and robust change detection; disabled incremental release builds to prevent cache corruption.
 - **LLD Linker Integration**: Configured `rust-lld` for Windows MSVC to drastically reduce linking times.
 - **SIMD Audio Suite**: Native volume scaling and stereo panning implemented using Rayon for high-frequency sound buffer manipulation.
 - **Zero-Allocation Lighting Queue**: Replaced `ArrayBlockingQueue<int[]>` with primitive-backed synchronized `long[]` buffers, eliminating all per-task allocations.

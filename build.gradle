@@ -16,20 +16,29 @@ tasks.register('rustBuild', Exec) {
     // Gradle Incremental Build Tracking
     inputs.dir('rust_mc_core/src')
     inputs.file('rust_mc_core/Cargo.toml')
-    inputs.file('rust_mc_core/Cargo.lock') // Watch lockfile for dependency changes
+    inputs.file('rust_mc_core/Cargo.lock')
     
-    // Enable Gradle build cache for this task
-    outputs.cacheIf { true }
+    // Track environment variables that affect the build
+    inputs.property('rust_flags', '-C target-cpu=native')
 
     def libName = System.mapLibraryName('rust_mc_core')
-    outputs.file("rust_mc_core/target/release/${libName}")
+    def outputBin = file("rust_mc_core/target/release/${libName}")
+    outputs.file(outputBin)
 
     environment 'RUSTFLAGS', '-C target-cpu=native'
-    environment 'CARGO_INCREMENTAL', '1'
+    // Disabling CARGO_INCREMENTAL for release builds to prevent potential cache corruption
+    // and ensure clean LTO optimization across all codegen units.
+    environment 'CARGO_INCREMENTAL', '0'
     
-    // Standard cargo incremental build is enough for most local development
     doFirst {
-        // No-op for now to keep the task structure, sccache logic removed to prevent build hangs
+        if (org.gradle.internal.os.OperatingSystem.current().isWindows() && outputBin.exists()) {
+            // Pre-check if the DLL is locked by a running Minecraft instance
+            try {
+                outputBin.renameTo(outputBin)
+            } catch (Exception ignored) {
+                throw new GradleException("[Rust-MC] Cannot build: ${libName} is locked. Please close Minecraft/Loom first.")
+            }
+        }
     }
     
     if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
