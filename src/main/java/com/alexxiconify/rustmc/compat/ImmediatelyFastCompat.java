@@ -6,20 +6,6 @@ import com.alexxiconify.rustmc.RustMC;
 /**
  * Integration with ImmediatelyFast (IF) — a rendering optimization mod that batches
  * draw calls, defers HUD rendering, and optimizes text/map rendering.
- * <p>
- * Our integration strategy:
- * <ol>
- *   <li>Detect IF's configuration via reflection and adapt our optimizations accordingly</li>
- *   <li>When IF's batching is active, relax our particle/entity culling since each draw is cheaper</li>
- *   <li>Disable our own batching hints that would conflict with IF's pipeline</li>
- *   <li>Tune IF's config for maximum performance when our mod manages the render budget</li>
- * </ol>
- * <p>
- * IF features we leverage:
- * - HUD batching: reduces HUD draw calls from ~300 to ~10 per frame
- * - Map rendering: faster item frame maps via IF's atlas batching
- * - Text rendering: IF's font atlas optimizations complement our native math
- * - Entity batching: IF batches entity renders, so our distance-based throttle is less needed
  */
 @SuppressWarnings("unused") // Public API surface for mixins and future compat hooks
 public final class ImmediatelyFastCompat {

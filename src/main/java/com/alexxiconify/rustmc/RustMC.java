@@ -48,13 +48,11 @@ public class RustMC implements ModInitializer {
         // Reflect real native status into config so ModMenu Status screen is accurate
         CONFIG.setNativeReady(NativeBridge.isReady());
 
-        // Wait for compat init to finish before registering world events
-        java.util.concurrent.CompletableFuture.allOf(scalableLuxFuture, dhFuture).join();
-
         if (NativeBridge.isReady()) {
             LOGGER.info("[Rust-MC] Native optimizations ACTIVE.");
-            // Load persisted DNS cache from disk for instant server list lookups
-            NativeBridge.dnsCacheLoad();
+            // Load persisted DNS cache from disk for instant server list lookups - backgrounded
+            Thread.ofVirtual().name("rustmc-dns-load").start(NativeBridge::dnsCacheLoad);
+
             // Seed noise on every world load so it matches the world seed
             ServerWorldEvents.LOAD.register((server, world) -> {
                 BlameLog.begin("World Load (" + world.getRegistryKey().getValue() + ")");
