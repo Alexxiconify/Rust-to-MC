@@ -42,8 +42,10 @@ public class MapRendererMixin {
             // Map textures in MC are strictly 128x128.
             net.minecraft.client.texture.NativeImage image = this.texture.getImage();
             if (image != null) {
-                // Accessing the raw pixel buffer via native bridge.
-                // TODO: Re-implement map processing using the 1.21.11 long pointer field
+                long ptr = ((com.alexxiconify.rustmc.mixin.accessor.NativeImageAccessor) (Object) image).getPointer();
+                if (ptr != 0) {
+                    NativeBridge.processMapTexturePtr(ptr, 128, 128);
+                }
             }
         }
     }

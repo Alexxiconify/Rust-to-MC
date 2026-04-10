@@ -124,24 +124,23 @@ public class DistantHorizonsCompat {
                         yield false; 
                     }
                     // Use native margin support instead of manual inflation for better performance
-                    // margin = 1.0 (standard) + distance-based expansion
-                    double margin = 1.0;
+                    // margin = 4.0 (base) + distance-based expansion
+                    double margin = 4.0;
 
                     net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
                     net.minecraft.entity.Entity cam = client.getCameraEntity();
                     if (cam != null) {
                         double camX = cam.getX();
                         double camZ = cam.getZ();
-                        double centerX = minX + (maxX - minX) / 2.0;
-                        double centerZ = minZ + (maxZ - minZ) / 2.0;
-                        double distSq = (centerX - camX) * (centerX - camX) + (centerZ - camZ) * (centerZ - camZ);
-                        margin += Math.sqrt(distSq) * 0.05;
+                        // Use minX/minZ directly for distance check to avoid 'aggressive' center-based culling
+                        double distSq = (minX - camX) * (minX - camX) + (minZ - camZ) * (minZ - camZ);
+                        margin += Math.sqrt(distSq) * 0.08; // Increased expansion factor
                     }
 
                     yield com.alexxiconify.rustmc.NativeBridge.testRustFrustum(
                         rustFrustumPtr,
-                        minX, currentMinY, minZ,
-                        maxX, currentMaxY, maxZ,
+                        Math.min(minX, maxX), currentMinY, Math.min(minZ, maxZ),
+                        Math.max(minX, maxX), currentMaxY, Math.max(minZ, maxZ),
                         margin);
                 }
                 yield true; // default: visible

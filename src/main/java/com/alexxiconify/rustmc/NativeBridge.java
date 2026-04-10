@@ -37,24 +37,24 @@ public class NativeBridge {
             if (Files.exists(devPath)) {
                 System.load(devPath.toString());
             } else {
-                try (java.io.InputStream is = NativeBridge.class.getResourceAsStream("/" + libName)) {
-                    if (is == null) throw new IllegalStateException("Library " + libName + " not found in dev path or resources");
-                    Path tmpLib = Files.createTempFile("rust_mc_" + System.currentTimeMillis() + "_", "_" + libName);
-                    Files.copy(is, tmpLib, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                    System.load(tmpLib.toString());
+                // Use a persistent cache path in the game config directory to avoid re-extracting every launch
+                Path cacheDir = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("rustmc-bin");
+                Files.createDirectories(cacheDir);
+                Path cachedLib = cacheDir.resolve(libName + "-" + RustMC.class.getPackage().getImplementationVersion());
 
-                    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                        try { Files.deleteIfExists(tmpLib); } catch (Exception ignored) {
-                            // Best effort cleanup during shutdown
-                        }
-                    }, "rust-mc-tmplib-cleanup"));
+                if (!Files.exists(cachedLib)) {
+                    try (java.io.InputStream is = NativeBridge.class.getResourceAsStream("/" + libName)) {
+                        if (is == null) throw new IllegalStateException("Library " + libName + " not found in dev path or resources");
+                        Files.copy(is, cachedLib, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    }
                 }
+                System.load(cachedLib.toString());
             }
             libLoaded = true;
-            RustMC.LOGGER.info("[Rust-MC] Native library loaded successfully via JNI.");
+            RustMC.LOGGER.info("[Rust-MC] Native library loaded successfully.");
         } catch (Exception t) {
             libLoaded = false;
-            RustMC.LOGGER.error("[Rust-MC] WARNING: Failed to load native library – all Rust optimizations disabled. Cause: {}", t.getMessage());
+            RustMC.LOGGER.error("[Rust-MC] Failed to load native library ({}). fallback to Java.", t.getMessage());
         }
     }
 
@@ -97,7 +97,7 @@ public class NativeBridge {
     private static native long rustFrustumCreate();
     private static native void rustFrustumUpdate(long ptr, float[] vpMatrix);
     private static native boolean rustIsOutsideFrustum(long ptr, double x, double y, double z, double radius);
-    private static native int rustCullEntities(long ptr, double[] positions, int count, boolean[] results);
+    private static native int rustCullEntities(long ptr, double[] positions, int count, boolean[] results, float margin);
     private static native void rustFrustumDestroy(long ptr);
     
     private static long activeFrustum = 0;
@@ -131,7 +131,8 @@ public class NativeBridge {
         frustumChecksThisFrame.addAndGet(positions.length / 3);
         if (!libLoaded) return 0;
         try {
-            return rustCullEntities(0, positions, positions.length / 3, results);
+            float margin = com.alexxiconify.rustmc.compat.ImmediatelyFastCompat.getCullingDistanceMultiplier();
+            return rustCullEntities(0, positions, positions.length / 3, results, margin);
         } catch (UnsatisfiedLinkError e) {
             return 0;
         }
@@ -152,6 +153,7 @@ public class NativeBridge {
     }
 
     private static native void rustProcessMapTexture(int[] pixels, int width, int height);
+    private static native void rustProcessMapTexturePtr(long ptr, int width, int height);
     private static native void rustProcessAudio(float[] samples, int count, float volume, float pan);
     private static native void rustTransformVertices(float[] vertices, float[] normals, float[] matrix, int count);
     private static native void rustMatrixMul(float[] left, float[] right, float[] result);
@@ -190,6 +192,14 @@ public class NativeBridge {
     public static void processMapTexture(int[] pixels, int width, int height) {
         if (!libLoaded || pixels == null || pixels.length == 0) return;
         rustProcessMapTexture(pixels, width, height);
+    }
+
+    /**
+     * Zero-copy map texture processing using a direct memory pointer.
+     */
+    public static void processMapTexturePtr(long ptr, int width, int height) {
+        if (!libLoaded || ptr == 0) return;
+        rustProcessMapTexturePtr(ptr, width, height);
     }
 
     /**
@@ -252,6 +262,7 @@ public class NativeBridge {
     private static native int rustDnsCacheSize();
     private static native String rustDnsCacheExport();
     private static native void rustDnsCacheImport(String json);
+    private static native int rustInflateRaw(byte[] input, int inputOffset, int inputLen, byte[] output, int outputOffset, int outputMaxLen);
 
     // --- Wrapper Methods ---
 
@@ -400,6 +411,12 @@ public class NativeBridge {
         if (!libLoaded) return new int[size * size];
         try { return rustGenerateGhostMap(centerX, centerZ, size, scale); }
         catch (UnsatisfiedLinkError e) { return new int[size * size]; }
+    }
+
+    public static int inflateRaw(byte[] input, int inputOffset, int inputLen, byte[] output, int outputOffset, int outputMaxLen) {
+        if (!libLoaded || input == null || output == null) return -1;
+        try { return rustInflateRaw(input, inputOffset, inputLen, output, outputOffset, outputMaxLen); }
+        catch (UnsatisfiedLinkError e) { return -1; }
     }
 
     public static byte[] invokeDecompress(byte[] input, int maxOutputSize) {

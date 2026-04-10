@@ -27,20 +27,9 @@ tasks.register('rustBuild', Exec) {
     environment 'RUSTFLAGS', '-C target-cpu=native'
     environment 'CARGO_INCREMENTAL', '1'
     
-    // Use sccache if available for faster re-builds
+    // Standard cargo incremental build is enough for most local development
     doFirst {
-        try {
-            def sccachePath = "sccache"
-            if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
-                def where = "where sccache".execute()
-                where.waitFor()
-                if (where.exitValue() == 0) environment 'RUSTC_WRAPPER', 'sccache'
-            } else {
-                def command = ["sh", "-c", "command -v sccache"].execute()
-                command.waitFor()
-                if (command.exitValue() == 0) environment 'RUSTC_WRAPPER', 'sccache'
-            }
-        } catch (Exception ignored) {}
+        // No-op for now to keep the task structure, sccache logic removed to prevent build hangs
     }
     
     if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {

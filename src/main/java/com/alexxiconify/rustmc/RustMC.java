@@ -31,11 +31,11 @@ public class RustMC implements ModInitializer {
 
         // Run independent compat initializations in parallel on virtual threads
         // These have no ordering dependencies on each other
-        var scalableLuxFuture = java.util.concurrent.CompletableFuture.runAsync(
+        java.util.concurrent.CompletableFuture.runAsync(
             com.alexxiconify.rustmc.compat.ScalableLuxCompat::initialize,
             r -> Thread.ofVirtual().name("rustmc-compat-slx").start(r));
 
-        var dhFuture = java.util.concurrent.CompletableFuture.runAsync(() -> {
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
             if (CONFIG.isDisableDhFade()) {
                 com.alexxiconify.rustmc.compat.DistantHorizonsCompat.disableFade();
             }
