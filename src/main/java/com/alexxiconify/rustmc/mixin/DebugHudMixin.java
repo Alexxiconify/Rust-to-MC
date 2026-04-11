@@ -12,7 +12,6 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 // Draws a compact frame-time sparkline graph in the F3 overlay when enabled. The frame history is maintained in the Rust native core as a ring buffer (240 samples). Each bar represents one frame's ms time. Uses require=0 to gracefully skip if DebugHud.render changes signature across MC versions (the method was refactored in 1.21.11).
 @SuppressWarnings("ALL")
@@ -51,31 +50,7 @@ public class DebugHudMixin {
         }
     }
 
-    @Inject(method = {"getLeftText", "getLeftLines"}, at = @At("RETURN"), cancellable = true, require = 0)
-    private void onGetLeftText(CallbackInfoReturnable<java.util.List<String>> cir) {
-        java.util.List<String> list = cir.getReturnValue();
-        if (list == null || list.isEmpty()) return;
-        // BetterF3 or other HUD mods might provide an immutable list. We create a fresh copy to ensure we can append our info without side effects.
-        java.util.List<String> newList = new java.util.ArrayList<>(list);
-        try {
-            newList.add("");
-            newList.add("§6[Rust-MC] General Info§r");
-            newList.add("Native Status: " + (NativeBridge.isReady() ? "§aReady§r" : "§cOffline§r"));
-            newList.add("Native Frustum Calls/frame: " + NativeBridge.frustumChecksThisFrame.getAndSet(0));
-            newList.add(String.format("Tweaks: Culling=%s | Light=%s | F3Sync=%s",
-                    RustMC.CONFIG.isUseNativeCulling() ? ON_STR : OFF_STR,
-                    RustMC.CONFIG.isUseNativeLighting() ? ON_STR : OFF_STR,
-                    RustMC.CONFIG.isUseNativeF3() ? ON_STR : OFF_STR
-            ));
-            newList.add(String.format("Compat: DH=%s SLX=%s",
-                    ModBridge.DISTANT_HORIZONS ? ON_STR : OFF_STR,
-                    ModBridge.SCALABLELUX ? ON_STR : OFF_STR
-            ));    
-            cir.setReturnValue(newList);
-        } catch (Exception ignored) {
-            // Silently fail if something goes wrong during list construction
-        }
-    }
+
 
     @Unique
     private static void refreshHistoryCache() {

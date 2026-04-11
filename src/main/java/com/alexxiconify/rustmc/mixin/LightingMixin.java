@@ -3,22 +3,17 @@ package com.alexxiconify.rustmc.mixin;
 import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
-import net.minecraft.world.LightType;
 import net.minecraft.world.chunk.light.ChunkLightProvider;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// Routes pending light tasks through Rust's parallel propagation thread pool when: - useNativeLighting is enabled in config - No other mod owns lighting (ScalableLux / Starlight / C2ME / FerriteCore) - NativeBridge is ready
+// Routes pending light tasks through Rust's parallel propagation thread pool when native lighting is enabled and no other mod owns lighting.
 @Mixin(ChunkLightProvider.class)
 public abstract class LightingMixin {
-
-    @Shadow @Final protected LightType type;
 
     @Unique
     private static final long[] PENDING_POS = new long[8192];
@@ -34,6 +29,7 @@ public abstract class LightingMixin {
     private static volatile boolean rustLightThreadRunning = false;
     @Unique
     private static final int[] flatBuffer = new int[8192 * 4];
+
     // Drains the queue and dispatches to Rust.
     @Unique
     private static void drainAndDispatch() {
@@ -81,21 +77,23 @@ public abstract class LightingMixin {
         });
     }
 
-    @Inject(method = "hasUpdates()Z", at = @At("HEAD"))
+    // hasUpdates still exists in 1.21.11 — safe hook point for starting the background thread
+    @Inject(method = "hasUpdates()Z", at = @At("HEAD"), require = 0)
     private void onHasUpdates(CallbackInfoReturnable<Boolean> cir) {
         if (!isRustLightingActive()) return;
         ensureRustThread();
     }
 
-    @Inject(method = "checkBlock(Lnet/minecraft/util/math/BlockPos;)V", at = @At("HEAD"), require = 0)
-    private void rustmcOnEnqueue(net.minecraft.util.math.BlockPos pos, CallbackInfo ci) {
+    // 1.21.11 renamed checkBlock(BlockPos) to checkForLightUpdate(long packedBlockPos)
+    @Inject(method = "checkForLightUpdate(J)V", at = @At("HEAD"), require = 0)
+    private void rustmcOnEnqueue(long packedPos, CallbackInfo ci) {
         if (!isRustLightingActive()) return;
-        // Capture both BLOCK and SKY light to supplement the lighting engine more effectively
-        int val = this.type == LightType.SKY ? 16 : 15;
+        // LightType field was removed in 1.21.11; use default value 15
+        int val = 15;
         synchronized (QUEUE_LOCK) {
             if (tail - head < 8192) {
                 int qIdx = tail & 8191;
-                PENDING_POS[qIdx] = pos.asLong();
+                PENDING_POS[qIdx] = packedPos;
                 PENDING_VAL[qIdx] = val;
                 tail++;
             }
