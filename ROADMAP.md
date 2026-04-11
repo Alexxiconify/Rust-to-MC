@@ -18,7 +18,7 @@ To minimize Java's overhead in Minecraft's **client-side** hot-paths by leveragi
 
 ### 2. Starlight-Native BFS Lighting
 
-- **Status**: ⚡ In Progress (1D-packed BFS partially implemented)
+- **Status**: ⚡ In Progress (1D-packed BFS partially implemented; inject migrated to `checkForLightUpdate(J)V` for 1.21.11)
 - **Goal**: Replace the current bit-packed placeholder in `rustPropagateLightBulk` with a high-speed Breadth-First Search (BFS) in Rust.
 - **Benefit**: Massive reduction in light-update stutters during world-gen or large-scale TNT blasts.
 
@@ -54,9 +54,9 @@ To minimize Java's overhead in Minecraft's **client-side** hot-paths by leveragi
 - **SIMD Frustum (SSE2)**: Explicitly vectorized point/plane tests for near-instant culling.
 - **Native HUD Matrix Stack**: Chain multiplication for HUD/Model hierarchies; minimizes JNI roundtrips.
 - **Native Matrix Math (SIMD)**: All `Matrix4f.mul` operations are zero-copy and use a SIMD-friendly column-major pattern.
-- **Adaptive Particle Culling**: Intelligent throttle that relaxes when ImmediatelyFast is active and tightens when heavy entity mods (EMF/ETF) are present.
+- **Adaptive Particle Culling**: Intelligent throttle that relaxes when ImmediatelyFast is active and tightens when heavy entity mods (EMF/ETF) are present. Migrated from `buildGeometry`/`render` (removed in 1.21.11) to `tick()` hook.
 - **Parallel Map Processing**: Added `rustProcessMapTexture` logic to parallelize map color calculations for Item Frames.
-- **Hardware Sqrt (SIMD)**: Replaced magic numbers with native `RSQRTSS` intrinsics for core math paths.
+- **Hardware Sqrt (SIMD)**: Replaced magic numbers with native `RSQRTSS` intrinsics for core math paths. `fastInverseSqrt` modernized to `1.0/Math.sqrt()` fallback (JIT-intrinsic) with native `invSqrt` fast-path.
 - **Absolute World-Space Culling**: Fixed native frustum logic to correctly handle absolute world coordinates for Distant Horizons while preserving high precision using camera-relative internal math.
 - **Adaptive Frustum Culling**: Fixed 'aggressive' culling by incorporating `fov_scale` and normalizing AABB bounds in native code.
 
@@ -72,14 +72,16 @@ To minimize Java's overhead in Minecraft's **client-side** hot-paths by leveragi
 - **Zero-Warning Base**: Fixed all major Clippy and Java IDE warnings in the core bridge logic.
 - **Persistent Lib Cache**: Drastically reduced bootstrap time by caching native binaries in the config folder.
 - **Zero-Alloc Inflation**: Implemented `rustInflateRaw` for high-throughput, allocation-free world decompression.
+- **1.21.11 Mixin Remap Fixes**: Fixed all five `Cannot remap` errors by cross-referencing yarn build.4 mappings — `checkBlock`→`checkForLightUpdate`, removed dead `type` shadow, `buildGeometry`→`tick`, removed dead `getLeftText`/`getLeftLines`.
+- **DistantHorizonsCompat Refactor**: Decomposed `handleFrustumProxy` brain method into `handleFrustumUpdate` and `handleFrustumIntersects` to satisfy Cognitive Complexity limits.
 
 ### 4. Logic & Style
 
 - **Native PRNG (Xoshiro256++)**: High-speed native random number generator (Xoshiro256++) integrated via `RandomMixin` to offload `Xoroshiro128PlusPlusRandom` and `LocalRandom`.
-- **Caveman Documentation Protocol**: Stripped all non-essential grammar from `GEMINI.md` and converted all multi-line Javadoc comments to compact `//` comments across the entire codebase to maximize token efficiency and code density.
+- **Caveman Documentation Protocol**: Stripped all non-essential grammar from `GEMINI.md` and converted all multi-line Javadoc comments to compact `//` comments across the entire codebase (50 files batch-processed) to maximize token efficiency and code density. Sequential `//` lines merged into single lines.
 - **Native Trig Pre-warming**: Optimized startup latency by pre-calculating and pre-warming the Sine/Cosine LUT on a background thread during `JNI_OnLoad`.
 - **ModMenu Statistics (JNI/SIMD Metrics)**: Implemented atomic native counters and `NativeStatsRenderer` HUD to expose JNI call volume, lighting updates, and frustum test counts directly in-game.
 
 ---
 
-### Last Updated: April 11, 2026*
+### Last Updated: April 11, 2026 (1.21.11 mapping fixes, comment convention sweep, DH refactor)*
