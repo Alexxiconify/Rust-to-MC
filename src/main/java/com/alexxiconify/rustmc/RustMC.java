@@ -23,16 +23,18 @@ public class RustMC implements ModInitializer {
     @Override
     public void onInitialize() {
         LOGGER.info("[Rust-MC] Initializing...");
-        loadConfig(); // Safe to re-call: config was preloaded during DFU, this just ensures it's done
-        ModBridge.initialize();
+        new Thread(null, () -> {
+            loadConfig(); // Safe to re-call: config was preloaded during DFU, this just ensures it's done
+            ModBridge.initialize();
 
-        // Flush per-group mixin application timings into the blame chart
-        MixinManager.flushBlameTimings();
+            // Flush per-group mixin application timings into the blame chart
+            MixinManager.flushBlameTimings();
+        }, "rustmc-init").start();
 
-        // Run independent compat initializations in parallel on virtual threads These have no ordering dependencies on each other
+        // Run independent compat initializations in parallel on platform threads These have no ordering dependencies on each other
         java.util.concurrent.CompletableFuture.runAsync(
             com.alexxiconify.rustmc.compat.ScalableLuxCompat::initialize,
-            r -> Thread.ofVirtual().name("rustmc-compat-slx").start(r));
+            r -> new Thread(null, r, "rustmc-compat-slx").start());
 
         java.util.concurrent.CompletableFuture.runAsync(() -> {
             if (CONFIG.isDisableDhFade()) {
@@ -42,7 +44,7 @@ public class RustMC implements ModInitializer {
                 com.alexxiconify.rustmc.compat.DistantHorizonsCompat.registerFrustumCuller();
             }
             com.alexxiconify.rustmc.compat.DistantHorizonsCompat.optimizeLodThreading();
-        }, r -> Thread.ofVirtual().name("rustmc-compat-dh").start(r));
+        }, r -> new Thread(null, r, "rustmc-compat-dh").start());
 
         // Reflect real native status into config so ModMenu Status screen is accurate
         CONFIG.setNativeReady(NativeBridge.isReady());
@@ -50,7 +52,7 @@ public class RustMC implements ModInitializer {
         if (NativeBridge.isReady()) {
             LOGGER.info("[Rust-MC] Native optimizations ACTIVE.");
             // Load persisted DNS cache from disk for instant server list lookups - backgrounded
-            Thread.ofVirtual().name("rustmc-dns-load").start(NativeBridge::dnsCacheLoad);
+            new Thread(null, NativeBridge::dnsCacheLoad, "rustmc-dns-load").start();
 
             // Seed noise on every world load so it matches the world seed
             ServerWorldEvents.LOAD.register((server, world) -> {

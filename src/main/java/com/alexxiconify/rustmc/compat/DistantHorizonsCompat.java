@@ -127,20 +127,20 @@ public class DistantHorizonsCompat {
             if (!com.alexxiconify.rustmc.NativeBridge.invokeDHCull(currentMinY, currentMaxY, 62.0)) {
                 return false; 
             }
-            double margin = 4.0;
             net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
             net.minecraft.entity.Entity cam = client.getCameraEntity();
             if (cam != null) {
                 double camX = cam.getX();
+                double camY = cam.getY();
                 double camZ = cam.getZ();
-                double distSq = (minX - camX) * (minX - camX) + (minZ - camZ) * (minZ - camZ);
-                margin += Math.sqrt(distSq) * 0.08;
+                
+                double dx = Math.max(minX - camX, Math.max(0, camX - maxX));
+                double dy = Math.max(currentMinY - camY, Math.max(0, camY - currentMaxY));
+                double dz = Math.max(minZ - camZ, Math.max(0, camZ - maxZ));
+                
+                return Math.sqrt(dx * dx + dy * dy + dz * dz) < 32768.0;
             }
-            return com.alexxiconify.rustmc.NativeBridge.testRustFrustum(
-                rustFrustumPtr,
-                Math.min(minX, maxX), currentMinY, Math.min(minZ, maxZ),
-                Math.max(minX, maxX), currentMaxY, Math.max(minZ, maxZ),
-                margin);
+            return true;
         }
         return true;
     }

@@ -14,9 +14,9 @@ import java.util.List;
 
 @Mixin(DecoderHandler.class)
 public class DecoderHandlerMixin {
-    @Inject(method = "decode", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "decode", at = @At("HEAD"), cancellable = true, require = 0)
     private void onDecode(ChannelHandlerContext ctx, ByteBuf buf, List<Object> objects, CallbackInfo ci) {
-        if (!NativeBridge.isReady()) return;
+        if (!NativeBridge.isReady() || !com.alexxiconify.rustmc.RustMC.CONFIG.isUseNativeCompression()) return;
 
         int readable = buf.readableBytes();
         if (readable <= 0) return;

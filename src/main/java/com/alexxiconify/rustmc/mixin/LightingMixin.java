@@ -3,7 +3,8 @@ package com.alexxiconify.rustmc.mixin;
 import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
-import net.minecraft.world.chunk.light.ChunkLightProvider;
+import net.minecraft.world.chunk.light.ChunkBlockLightProvider;
+import net.minecraft.world.chunk.light.ChunkSkyLightProvider;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -12,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 // Routes pending light tasks through Rust's parallel propagation thread pool when native lighting is enabled and no other mod owns lighting.
-@Mixin(ChunkLightProvider.class)
+@Mixin({ChunkBlockLightProvider.class, ChunkSkyLightProvider.class})
 public abstract class LightingMixin {
 
     @Unique

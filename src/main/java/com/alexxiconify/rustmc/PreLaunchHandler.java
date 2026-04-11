@@ -237,9 +237,8 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
             stageGameReady = true;
             BlameLog.begin("Game Ready");
             BlameLog.end();
-            if (LOGGER.isInfoEnabled()) {
-                LOGGER.info("[Rust-MC] {}", BlameLog.summary());
-            }
+            if (LOGGER.isInfoEnabled())
+                Thread.ofVirtual().name("rustmc-summary-log").start(() -> LOGGER.info("[Rust-MC] {}", BlameLog.summary()));
         }
     }
 

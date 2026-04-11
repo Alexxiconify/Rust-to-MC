@@ -27,15 +27,19 @@ public class FrustumMixin {
         if (NativeBridge.isReady() && RustMC.CONFIG.isUseNativeCulling()) {
             rustmc$combined.set(projectionMatrix).mul(viewMatrix);
             rustmc$combined.get(rustmc$matrixBuf);
-            // Cave detection for DH culling
+        }
+    }
+
+    @Inject(method = "setPosition", at = @At("RETURN"))
+    private void rustmc$onSetPosition(double cameraX, double cameraY, double cameraZ, CallbackInfo ci) {
+        if (NativeBridge.isReady() && RustMC.CONFIG.isUseNativeCulling()) {
+            NativeBridge.updateVanillaFrustum(rustmc$matrixBuf, cameraX, cameraY, cameraZ);
+            
             MinecraftClient client = MinecraftClient.getInstance();
             if (client != null) {
                 var world = client.world;
-                var cameraEntity = client.getCameraEntity();
-                if (world != null && cameraEntity != null) {
-                    NativeBridge.updateVanillaFrustum(rustmc$matrixBuf, cameraEntity.getX(), cameraEntity.getY(), cameraEntity.getZ());
-                    
-                    BlockPos bpos = cameraEntity.getBlockPos();
+                if (world != null) {
+                    BlockPos bpos = BlockPos.ofFloored(cameraX, cameraY, cameraZ);
                     boolean inCave = world.getLightLevel(LightType.SKY, bpos) == 0 && bpos.getY() < 50;
                     NativeBridge.updateCaveStatus(inCave);
                 }

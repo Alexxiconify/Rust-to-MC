@@ -34,7 +34,9 @@ public class NativeBridge {
                 // Use a persistent cache path in the game config directory to avoid re-extracting every launch
                 Path cacheDir = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("rustmc-bin");
                 Files.createDirectories(cacheDir);
-                Path cachedLib = cacheDir.resolve(libName + "-" + RustMC.class.getPackage().getImplementationVersion());
+                String version = RustMC.class.getPackage().getImplementationVersion();
+                if (version == null) version = "dev";
+                Path cachedLib = cacheDir.resolve(libName + "-" + version).toAbsolutePath();
 
                 if (!Files.exists(cachedLib)) {
                     try (java.io.InputStream is = NativeBridge.class.getResourceAsStream("/" + libName)) {
