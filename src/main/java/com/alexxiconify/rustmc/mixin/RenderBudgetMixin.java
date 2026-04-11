@@ -10,11 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Frame-level render optimizations applied at the WorldRenderer render entry point.
- * Sets render-budget flags that other mixins (particle, entity compat) read to
- * decide how aggressively to cull or throttle.
- */
+// Frame-level render optimizations applied at the WorldRenderer render entry point. Sets render-budget flags that other mixins (particle, entity compat) read to decide how aggressively to cull or throttle.
 @Mixin(WorldRenderer.class)
 class RenderBudgetMixin {
 

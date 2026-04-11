@@ -15,12 +15,7 @@ import com.alexxiconify.rustmc.RustMC;
 
 import java.util.Set;
 
-/**
- * Hooks into mob pathfinding to get a distance estimate from Rust A*.
- * When the mob is already at the target (distance 0), vanilla pathfinding is
- * canceled with null (no path needed).  For all other distances the vanilla
- * A* runs normally; in a future update Rust will return a serialized Path.
- */
+// Hooks into mob pathfinding to get a distance estimate from Rust A*. When the mob is already at the target (distance 0), vanilla pathfinding is canceled with null (no path needed).  For all other distances the vanilla A* runs normally; in a future update Rust will return a serialized Path.
 @Mixin(PathNodeNavigator.class)
 public class PathfindingMixin {
 
@@ -47,8 +42,7 @@ public class PathfindingMixin {
                 cir.setReturnValue(null);
                 return;
             }
-            // result > 0: Rust returned path cost/distance; let vanilla A* navigate
-            // result < 0: error – let vanilla A* handle it
+            // result > 0: Rust returned path cost/distance; let vanilla A* navigate result < 0: error – let vanilla A* handle it
         }
     }
 }

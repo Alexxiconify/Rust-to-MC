@@ -5,13 +5,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * NativeBridge handles all communication between Java and the Rust native core via JNI.
- * <p>
- * Many wrapper methods appear "unused" in static analysis because they form the public API
- * surface for other mods (ImmediatelyFast, Distant Horizons, etc.) and our own mixins.
- * The Rust-side JNI functions are always kept in sync with these wrappers.
- */
+// NativeBridge handles all communication between Java and the Rust native core via JNI. <p> Many wrapper methods appear "unused" in static analysis because they form the public API surface for other mods (ImmediatelyFast, Distant Horizons, etc.) and our own mixins. The Rust-side JNI functions are always kept in sync with these wrappers.
 @SuppressWarnings({"unused", "java:S1135"})
 public class NativeBridge {
     private NativeBridge() {}
@@ -62,6 +56,9 @@ public class NativeBridge {
     private static native void rustNoiseInit(int seed);
     private static native void rustNoiseReset();
     private static native float rustFastInvSqrt(float x);
+    private static native int rustRandomNextInt(int bound);
+    private static native float rustRandomNextFloat();
+    private static native void rustRandomSetSeed(long seed);
     private static native float rustSin(float x);
     private static native float rustCos(float x);
     private static native float rustSqrt(float x);
@@ -78,13 +75,11 @@ public class NativeBridge {
     private static native int rustFindPath(int[] start, int[] end);
     private static native int rustExecuteCommand(byte[] cmd);
     private static native int rustProcessPacket(byte[] buf, int len);
+    private static native int rustProcessPacketDirect(long ptr, int len);
     private static native void rustProcessChunkData(byte[] buf, int len, int chunkX, int chunkZ);
     private static native void rustRequestMemoryCleanup();
 
-    /**
-     * Subverts Java-side chunk data parsing by offloading large byte buffers 
-     * directly to Rust's optimized decoder (PumpkinMC style).
-     */
+    // Subverts Java-side chunk data parsing by offloading large byte buffers directly to Rust's optimized decoder (PumpkinMC style).
     public static void processChunkData(byte[] buf, int chunkX, int chunkZ) {
         if (!libLoaded || buf == null) return;
         rustProcessChunkData(buf, buf.length, chunkX, chunkZ);
@@ -95,27 +90,23 @@ public class NativeBridge {
     }
     // Frustum state management
     private static native long rustFrustumCreate();
-    private static native void rustFrustumUpdate(long ptr, float[] vpMatrix);
+    private static native void rustFrustumUpdate(long ptr, float[] vpMatrix, double camX, double camY, double camZ);
     private static native boolean rustIsOutsideFrustum(long ptr, double x, double y, double z, double radius);
     private static native int rustCullEntities(long ptr, double[] positions, int count, boolean[] results, float margin);
     private static native void rustFrustumDestroy(long ptr);
     
     private static long activeFrustum = 0;
 
-    /** 
-     * Updates the persistent Vanilla frustum in Rust's global context.
-     * This avoids creating new frustum objects every frame.
-     */
-    public static void updateVanillaFrustum(float[] vpMatrix) {
+    // Updates the persistent Vanilla frustum in Rust's global context. This avoids creating new frustum objects every frame.
+    public static void updateVanillaFrustum(float[] vpMatrix, double camX, double camY, double camZ) {
         if (!libLoaded || vpMatrix == null || vpMatrix.length < 16) return;
-        try { rustFrustumUpdate(0, vpMatrix); }
-        catch (UnsatisfiedLinkError ignored) {}
+        try { rustFrustumUpdate(0, vpMatrix, camX, camY, camZ); }
+        catch (UnsatisfiedLinkError ignored) {
+            // Optional native method; ignore if not linked
+        }
     }
 
-    /** 
-     * Optimizes entity/particle culling by offloading frustum intersection checks to Rust.
-     * Uses the persistent global frustum updated via 'updateVanillaFrustum'.
-     */
+    // Optimizes entity/particle culling by offloading frustum intersection checks to Rust. Uses the persistent global frustum updated via 'updateVanillaFrustum'.
     public static boolean isOutsideFrustum(double x, double y, double z, double radius) {
         frustumChecksThisFrame.incrementAndGet();
         if (!libLoaded) return false;
@@ -138,10 +129,7 @@ public class NativeBridge {
         }
     }
 
-    /** 
-     * Offloads heavy vertex transformations (EMF/ETF animations) to Rust.
-     * Processes XYZ and Normal arrays in parallel.
-     */
+    // Offloads heavy vertex transformations (EMF/ETF animations) to Rust. Processes XYZ and Normal arrays in parallel.
     public static void transformVertices(float[] vertices, float[] normals, float[] matrix) {
         if (!libLoaded || vertices == null || normals == null || matrix == null) return;
         rustTransformVertices(vertices, normals, matrix, vertices.length / 3);
@@ -152,11 +140,19 @@ public class NativeBridge {
         rustMatrixMul(left, right, result);
     }
 
+    // Offloads a chain of matrix multiplications (MatrixStack) to Rust. Reducing JNI roundtrips for deep model or HUD hierarchies.
+    public static void applyMatrixStack(float[] matrices, float[] result) {
+        if (!libLoaded || matrices == null || result == null || matrices.length < 16) return;
+        rustApplyMatrixStack(matrices, matrices.length / 16, result);
+    }
+
     private static native void rustProcessMapTexture(int[] pixels, int width, int height);
     private static native void rustProcessMapTexturePtr(long ptr, int width, int height);
     private static native void rustProcessAudio(float[] samples, int count, float volume, float pan);
     private static native void rustTransformVertices(float[] vertices, float[] normals, float[] matrix, int count);
     private static native void rustMatrixMul(float[] left, float[] right, float[] result);
+    private static native void rustApplyMatrixStack(float[] matrices, int count, float[] result);
+    private static native int rustNbtDecodeInt(long ptr, int len, int tagId);
     private static native int[] rustSampleBiomes(long seed, int x, int z, int width, int height);
 
     public static int[] sampleBiomes(long seed, int x, int z, int width, int height) {
@@ -165,10 +161,7 @@ public class NativeBridge {
     }
 
     private static native void rustTickParticles(double[] positions, double[] velocities, int count, double gravity);
-    /**
-     * Parallelizes particle physics (gravity, velocity decay).
-     * Ideal for mods that spawn thousands of environmental particles.
-     */
+    // Parallelizes particle physics (gravity, velocity decay). Ideal for mods that spawn thousands of environmental particles.
     public static void tickParticles(double[] positions, double[] velocities, double gravity) {
         if (!libLoaded || positions == null || velocities == null || positions.length == 0) return;
         rustTickParticles(positions, velocities, positions.length / 3, gravity);
@@ -177,64 +170,49 @@ public class NativeBridge {
     private static native void rustProcessSoundPhysics(float[] samples, int count, double distance, double occlusion);
     private static native int[] rustBlendBiomes(int[] biomeIds, int width, int height, int radius);
 
-    /**
-     * Offloads sound occlusion and reverb math to Rust.
-     */
+    // Offloads sound occlusion and reverb math to Rust.
     public static void processSoundPhysics(float[] samples, double distance, double occlusion) {
         if (!libLoaded || samples == null) return;
         rustProcessSoundPhysics(samples, samples.length, distance, occlusion);
     }
 
-    /**
-     * Multi-threaded map texture processing.
-     * Ideal for mods that render complex maps in item frames or UI.
-     */
+    // Multi-threaded map texture processing. Ideal for mods that render complex maps in item frames or UI.
     public static void processMapTexture(int[] pixels, int width, int height) {
         if (!libLoaded || pixels == null || pixels.length == 0) return;
         rustProcessMapTexture(pixels, width, height);
     }
 
-    /**
-     * Zero-copy map texture processing using a direct memory pointer.
-     */
+    // Zero-copy map texture processing using a direct memory pointer.
     public static void processMapTexturePtr(long ptr, int width, int height) {
         if (!libLoaded || ptr == 0) return;
         rustProcessMapTexturePtr(ptr, width, height);
     }
 
-    /**
-     * SIMD Audio processing (Volume/Pan/Normalization).
-     * Offloads sound buffer manipulation to Rust.
-     */
+    // SIMD Audio processing (Volume/Pan/Normalization). Offloads sound buffer manipulation to Rust.
     public static void processAudio(float[] samples, float volume, float pan) {
         if (!libLoaded || samples == null || samples.length == 0) return;
         rustProcessAudio(samples, samples.length, volume, pan);
     }
 
-    /**
-     * Multi-threaded biome blending (supports Better Biome Blend).
-     */
+    // Multi-threaded biome blending (supports Better Biome Blend).
     public static int[] blendBiomes(int[] biomeIds, int width, int height, int radius) {
         if (!libLoaded) return biomeIds;
         return rustBlendBiomes(biomeIds, width, height, radius);
     }
 
     private static native void rustFrustumSetFovScale(long ptr, double fovScale);
+    @SuppressWarnings("java:S107")
     private static native boolean rustFrustumTest(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin);
     private static native byte[] rustBatchFrustumTest(long ptr, double[] aabbs, int count, double margin);
 
-    /**
-     * Conservative frustum test with margin (useful for DH chunks/LODs).
-     */
+    // Conservative frustum test with margin (useful for DH chunks/LODs).
     public static boolean frustumTest(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin) {
         frustumChecksThisFrame.incrementAndGet();
         if (!libLoaded) return true;
         return rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
     }
 
-    /**
-     * Batch frustum test with margin.
-     */
+    // Batch frustum test with margin.
     public static byte[] batchFrustumTest(long ptr, double[] aabbs, double margin) {
         if (aabbs == null) return new byte[0];
         frustumChecksThisFrame.addAndGet(aabbs.length / 6);
@@ -263,6 +241,7 @@ public class NativeBridge {
     private static native String rustDnsCacheExport();
     private static native void rustDnsCacheImport(String json);
     private static native int rustInflateRaw(byte[] input, int inputOffset, int inputLen, byte[] output, int outputOffset, int outputMaxLen);
+    private static native long[] rustGetMetrics(boolean reset);
 
     // --- Wrapper Methods ---
 
@@ -425,10 +404,38 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError e) { return new byte[0]; }
     }
 
-    // Reusable arrays for pathfinding — avoids per-call allocation.
-    // Safe because pathfinding is only called from the server tick thread.
+    // Reusable arrays for pathfinding — avoids per-call allocation. Safe because pathfinding is only called from the server tick thread.
     private static final int[] PATH_START = new int[3];
     private static final int[] PATH_END = new int[3];
+
+    public static float invSqrt(float x) {
+        if (!libLoaded) return (float) (1.0 / Math.sqrt(x));
+        try { return rustFastInvSqrt(x); }
+        catch (UnsatisfiedLinkError e) { return (float) (1.0 / Math.sqrt(x)); }
+    }
+
+    private static final java.util.Random RANDOM = new java.util.Random();
+
+    public static int randomNextInt(int bound) {
+        if (!libLoaded) return RANDOM.nextInt(bound);
+        try { return rustRandomNextInt(bound); }
+        catch (UnsatisfiedLinkError e) { return RANDOM.nextInt(bound); }
+    }
+
+    public static float randomNextFloat() {
+        if (!libLoaded) return RANDOM.nextFloat();
+        try { return rustRandomNextFloat(); }
+        catch (UnsatisfiedLinkError e) { return RANDOM.nextFloat(); }
+    }
+
+    public static void randomSetSeed(long seed) {
+        if (libLoaded) {
+            try { rustRandomSetSeed(seed); }
+            catch (UnsatisfiedLinkError ignored) {
+                // Optional native method
+            }
+        }
+    }
 
     public static int findPathRaw(int sx, int sy, int sz, int ex, int ey, int ez) {
         if (!libLoaded) return -1;
@@ -451,6 +458,12 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError e) { return -1; }
     }
 
+    public static int invokeProcessPacketDirect(long ptr, int len) {
+        if (!libLoaded || ptr == 0) return -1;
+        try { return rustProcessPacketDirect(ptr, len); }
+        catch (UnsatisfiedLinkError e) { return -1; }
+    }
+
     @SuppressWarnings("unused")
     public static int invokeFrustumIntersect(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
         return -1; // Fallback to Vanilla for now since stateful frustums are only implemented for DH
@@ -462,9 +475,9 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError e) { return 0; }
     }
 
-    public static void updateRustFrustum(long ptr, float[] vpMatrix) {
+    public static void updateRustFrustum(long ptr, float[] vpMatrix, double camX, double camY, double camZ) {
         if (!libLoaded || ptr == 0 || vpMatrix == null || vpMatrix.length < 16) return;
-        try { rustFrustumUpdate(ptr, vpMatrix); }
+        try { rustFrustumUpdate(ptr, vpMatrix, camX, camY, camZ); }
         catch (UnsatisfiedLinkError ignored) { /* Optional native method */ }
     }
 
@@ -478,6 +491,7 @@ public class NativeBridge {
         return testRustFrustum(ptr, minX, minY, minZ, maxX, maxY, maxZ, 0.0);
     }
 
+    @SuppressWarnings("java:S107")
     public static boolean testRustFrustum(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin) {
         frustumChecksThisFrame.incrementAndGet();
         if (!libLoaded || ptr == 0) return true; // Default to visible if Rust is not available or ptr is 0
@@ -491,7 +505,7 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError ignored) { /* Optional native method */ }
     }
 
-    /** Tests multiple AABBs in one JNI call. aabbs is flat [minX,minY,minZ,maxX,maxY,maxZ,...]. */
+    // Tests multiple AABBs in one JNI call. aabbs is flat [minX,minY,minZ,maxX,maxY,maxZ,...].
     public static byte[] batchFrustumTest(long ptr, double[] aabbs, int count) {
         return batchFrustumTest(ptr, aabbs, count, 0.0);
     }
@@ -520,10 +534,12 @@ public class NativeBridge {
     public static void updateCaveStatus(boolean inCave) {
         if (!libLoaded) return;
         try { rustSetCaveStatus(inCave); }
-        catch (UnsatisfiedLinkError ignored) { }
+        catch (UnsatisfiedLinkError ignored) {
+            // Optional native method
+        }
     }
 
-    /** Returns smoothed avg FPS from the Rust frame-time ring buffer (240-frame window). */
+    // Returns smoothed avg FPS from the Rust frame-time ring buffer (240-frame window).
     public static float invokeGetAvgFps() {
         if (!libLoaded) return 0;
         try { return rustGetAvgFps(); }
@@ -572,36 +588,28 @@ public class NativeBridge {
 
     // ─── DNS Cache Methods ──────────────────────────────────────────────────
 
-    /**
-     * Resolves a hostname to an IP address using Rust's cached DNS resolver.
-     * Results are cached for 5 minutes to speed up repeated server list pings.
-     * @return resolved IP, or null if resolution fails or native is unavailable
-     */
+    // Resolves a hostname to an IP address using Rust's cached DNS resolver. Results are cached for 5 minutes to speed up repeated server list pings. @return resolved IP, or null if resolution fails or native is unavailable
     public static String dnsResolve(String hostname) {
         if (!libLoaded || hostname == null || hostname.isEmpty()) return null;
         try { return rustDnsResolve(hostname); }
         catch (UnsatisfiedLinkError e) { return null; }
     }
 
-    /**
-     * Batch resolves multiple hostnames in parallel using Rust's rayon thread pool.
-     * Much faster than sequential Java InetAddress.getByName() for server lists.
-     * @return array of IPs (empty string for failed lookups), or empty array on error
-     */
+    // Batch resolves multiple hostnames in parallel using Rust's rayon thread pool. Much faster than sequential Java InetAddress.getByName() for server lists. @return array of IPs (empty string for failed lookups), or empty array on error
     public static String[] dnsBatchResolve(String[] hostnames) {
         if (!libLoaded || hostnames == null || hostnames.length == 0) return new String[0];
         try { return rustDnsBatchResolve(hostnames); }
         catch (UnsatisfiedLinkError e) { return new String[0]; }
     }
 
-    /** Clears the Rust DNS cache (memory + disk). */
+    // Clears the Rust DNS cache (memory + disk).
     public static void dnsCacheClear() {
         if (!libLoaded) return;
         try { rustDnsCacheClear(); }
         catch (UnsatisfiedLinkError ignored) { /* optional */ }
     }
 
-    /** Returns the number of cached DNS entries. */
+    // Returns the number of cached DNS entries.
     public static int dnsCacheSize() {
         if (!libLoaded) return 0;
         try { return rustDnsCacheSize(); }
@@ -613,10 +621,7 @@ public class NativeBridge {
     private static final java.nio.file.Path DNS_CACHE_PATH =
         net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("rust-mc-dns-cache.json");
 
-    /**
-     * Saves resolved hostname→IP pairs to disk so subsequent launches
-     * can skip DNS lookups entirely. Called on world unload and game exit.
-     */
+    // Saves resolved hostname→IP pairs to disk so subsequent launches can skip DNS lookups entirely. Called on world unload and game exit.
     public static void dnsCacheSave() {
         if (!libLoaded) return;
         try {
@@ -630,10 +635,13 @@ public class NativeBridge {
         }
     }
 
-    /**
-     * Loads persisted hostname→IP pairs from disk into Rust's cache.
-     * Called early at startup so the first server list open is instant.
-     */
+    // Loads persisted hostname→IP pairs from disk into Rust's cache. Called early at startup so the first server list open is instant. Quickly decodes an integer from a raw NBT stream without full deserialization.
+    public static int nbtDecodeInt(long ptr, int len, int tagId) {
+        if (!libLoaded || ptr == 0) return -1;
+        try { return rustNbtDecodeInt(ptr, len, tagId); }
+        catch (UnsatisfiedLinkError e) { return -1; }
+    }
+
     public static void dnsCacheLoad() {
         if (!libLoaded) return;
         try {
@@ -647,5 +655,11 @@ public class NativeBridge {
         } catch (Exception e) {
             RustMC.LOGGER.debug("[Rust-MC] Failed to load DNS cache: {}", e.getMessage());
         }
+    }
+
+    public static long[] getMetrics(boolean reset) {
+        if (!libLoaded) return new long[0];
+        try { return rustGetMetrics(reset); }
+        catch (UnsatisfiedLinkError e) { return new long[0]; }
     }
 }

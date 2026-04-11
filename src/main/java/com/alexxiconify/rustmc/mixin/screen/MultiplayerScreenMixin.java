@@ -12,11 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * When the multiplayer server list screen opens, batch-resolve all server hostnames
- * in parallel via Rust's rayon-backed DNS resolver.  Pre-warms the DNS cache so
- * individual server pings don't block on DNS lookups.
- */
+// When the multiplayer server list screen opens, batch-resolve all server hostnames in parallel via Rust's rayon-backed DNS resolver.  Pre-warms the DNS cache so individual server pings don't block on DNS lookups.
 @Mixin(MultiplayerScreen.class)
 public class MultiplayerScreenMixin {
 

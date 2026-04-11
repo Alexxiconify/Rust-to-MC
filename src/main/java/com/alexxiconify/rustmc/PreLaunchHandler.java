@@ -40,8 +40,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
             startModLoadingProgressThread();
         }
         installSpamFilter();
-        // End PreLaunch phase immediately — the next phase (Mixin Application) runs
-        // outside our control until the log appender detects Datafixer Bootstrap.
+        // End PreLaunch phase immediately — the next phase (Mixin Application) runs outside our control until the log appender detects Datafixer Bootstrap.
         BlameLog.begin("Mixin Application / Class Loading");
     }
 
@@ -59,8 +58,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
         java.security.Security.setProperty("networkaddress.cache.ttl", "300");
         java.security.Security.setProperty("networkaddress.cache.negative.ttl", "10");
 
-        // JIT compilation threshold: compile methods after fewer invocations for faster warmup
-        // Default is 10000; lowering to 2000 makes hot methods compile ~5x sooner
+        // JIT compilation threshold: compile methods after fewer invocations for faster warmup Default is 10000; lowering to 2000 makes hot methods compile ~5x sooner
         System.setProperty("sun.java2d.opengl", "false"); // Avoid Swing GL init overhead for ELB
         System.setProperty("java.awt.headless", "false");  // Allow ELB Swing window
 
@@ -72,11 +70,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
 
     // ─── Early Native Library Load ──────────────────────────────────────────
 
-    /**
-     * Triggers NativeBridge's static initializer on a virtual thread so the native
-     * library extraction + System.load() overlaps with mixin application.
-     * By the time onInitialize() runs, the library is already loaded.
-     */
+    // Triggers NativeBridge's static initializer on a virtual thread so library extraction + System.load() overlaps with mixin application. By the time onInitialize() runs, the library is already loaded.
     private static void triggerEarlyNativeLoad() {
         Thread.ofVirtual().name("rustmc-native-preload").start(() -> {
             try {
@@ -90,12 +84,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
 
     // ─── Live Log4j Appender ────────────────────────────────────────────────
 
-    /**
-     * Attaches a lightweight appender to the root logger.
-     * It increments atomic counters as Fabric logs mixin / mod loading events.
-     * This is far more reliable than reading the log file because it fires on
-     * the logging thread in real time, before log4j flushes to disk.
-     */
+    // Attaches a lightweight appender to the root logger. Increments atomic counters as Fabric logs events. Reliable as it fires on the logging thread in real time.
     private static void installLiveAppender() {
         try {
             LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
@@ -127,21 +116,14 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
 
     // ─── Stage Detection ───────────────────────────────────────────────────
 
-    /**
-     * Detects loading phases from log messages and records them in BlameLog.
-     * Delegates to focused helpers to keep cognitive complexity low.
-     */
+    // Detects loading phases from log messages and records them in BlameLog. Delegates to focused helpers.
     private static void detectStage(String msg) {
         if (detectPerModEntrypoint(msg)) return;
         if (detectEarlyPhases(msg)) return;
         detectMajorMilestones(msg);
     }
 
-    /**
-     * Detects per-mod entrypoint init and mod initializing messages.
-     * Fabric logs: "Invoking entrypoint 'main' for mod 'sodium'" etc.
-     * Also detects "[ModName] Initializing..." patterns.
-     */
+    // Detects per-mod entrypoint init and mod initializing messages.
     private static boolean detectPerModEntrypoint(String msg) {
         if (stageGameReady) return false; // Stop tracking after game is ready
 
@@ -155,12 +137,11 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
             return true;
         }
 
-        // Track mod init messages like "[Rust-MC] Initializing..." or "[Sodium] Initializing"
-        // Don't create a new phase for every "Initializing" — just extend the current one
+        // Track mod init messages like "[Rust-MC] Initializing..." or "[Sodium] Initializing" Don't create a new phase for every "Initializing" — just extend the current one
         return false;
     }
 
-    /** Detects Fabric mod discovery, mixin bootstrap, entrypoint init, and environment setup. */
+    // Detects Fabric mod discovery, mixin bootstrap, entrypoint init, and environment setup.
     private static boolean detectEarlyPhases(String msg) {
         if (stageGameReady) return false;
 
@@ -190,7 +171,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
         return false;
     }
 
-    /** Detects the major milestones: Datafixer, Resources, Sound, Window, Game Ready. */
+    // Detects the major milestones: Datafixer, Resources, Sound, Window, Game Ready.
     private static void detectMajorMilestones(String msg) {
         if (detectDatafixer(msg)) return;
         if (detectResources(msg)) return;
@@ -264,14 +245,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
 
     // ─── ELB Progress Thread ────────────────────────────────────────────────
 
-    /**
-     * Drives the ELB bar using live Log4j event counters (not file I/O).
-     * <p>
-     * Phase   0-20%: preLaunch / mod discovery (time-ramped)
-     * Phase  20-80%: mixin transforms (MIXIN_EVENTS counter)
-     * Phase  80-95%: mod init ("Loaded N mods" seen)
-     * Phase  95-99%: game world prepare
-     */
+    // Drives the ELB bar using live Log4j event counters. Phase 0-20: preLaunch, 20-80: mixins, 80-95: mod init, 95-99: game world.
     private static void startModLoadingProgressThread() {
         Thread.ofVirtual().name("rustmc-elb-progress").start(() -> {
             int modCount = FabricLoader.getInstance().getAllMods().size();
@@ -295,26 +269,11 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
         });
     }
 
-    /**
-     * Dual-strategy progress: time-based baseline + milestone jumps.
-     * <p>
-     * Time baseline: advances smoothly from 3% to 97% over ~40s so the bar NEVER stalls.
-     * Milestone jumps: when a log-detected stage fires, ensure progress is at least
-     * the expected percentage for that stage (prevents going backwards).
-     * <p>
-     * Expected ~35s total:
-     *   ~0-12s  (0-35%): mixin application / class loading
-     *  ~12-18s (35-55%): datafixer / registry bootstrap
-     *  ~18-25s (55-72%): resource loading
-     *  ~25-30s (72-85%): sound + asset stitching
-     *  ~30-35s (85-97%): window init + splash screen
-     */
+    // Dual-strategy progress: time-based baseline + milestone jumps. Expected 35s total: 0-12s mixins, 12-18s datafixer, 18-25s resources, 25-30s sound, 30-35s window.
     private static int computeProgress(long startMs) {
         long elapsed = System.currentTimeMillis() - startMs;
 
-        // Time-based baseline: logarithmic curve that starts fast and slows down
-        // Reaches ~35% at 12s, ~55% at 18s, ~72% at 25s, ~90% at 35s, ~97% at 45s
-        // Formula: 97 * (1 - e^(-elapsed/15000))
+        // Time-based baseline: logarithmic curve that starts fast and slows down Reaches ~35% at 12s, ~55% at 18s, ~72% at 25s, ~90% at 35s, ~97% at 45s Formula: 97 * (1 - e^(-elapsed/15000))
         double timePct = 97.0 * (1.0 - Math.exp(-elapsed / 15000.0));
         int timeProgress = Math.clamp((long) timePct, 3, 97);
 
@@ -330,7 +289,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
         return Math.clamp(Math.max(timeProgress, milestoneMin), 3, 99);
     }
 
-    /** Linearly interpolates from lo to hi over durationMs after the current stage started. */
+    // Linearly interpolates from lo to hi over durationMs after the current stage started.
     private static int timeRamp(int lo, int hi, long stageStartMs, long durationMs) {
         long elapsed = System.currentTimeMillis() - stageStartMs;
         return lo + (int) Math.min((hi - lo - 1), ((long) hi - (long) lo) * elapsed / durationMs);

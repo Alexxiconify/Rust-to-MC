@@ -10,15 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Reduces unnecessary client-side redstone wire neighbor update processing.
- * On the client, redstone wire visual updates are purely cosmetic and the server
- * handles actual signal propagation. We can skip heavy neighbor-update cascades
- * on the client side when the visual power level hasn't actually changed.
- * <p>
- * This maintains vanilla parity because the server still handles all actual
- * redstone logic — we only skip redundant client-side re-calculations.
- */
+// Reduces unnecessary client-side redstone wire neighbor update processing. On the client, redstone wire visual updates are purely cosmetic and the server handles actual signal propagation. We can skip heavy neighbor-update cascades on the client side when the visual power level hasn't actually changed. <p> This maintains vanilla parity because the server still handles all actual redstone logic — we only skip redundant client-side re-calculations.
 @Mixin(RedstoneWireBlock.class)
 public class ClientRedstoneSkipMixin {
 

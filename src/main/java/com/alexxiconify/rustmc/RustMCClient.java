@@ -9,12 +9,7 @@ import net.minecraft.client.util.InputUtil;
 import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
 
-/**
- * Client-side initializer for Rust-MC.
- * Registers keybinds for toggling overlays:
- *   F7 — Performance pie chart
- *   F8 — Frame-time sparkline graph
- */
+// Client-side initializer for Rust-MC. Registers keybinds for toggling overlays: F7 — Performance pie chart F8 — Frame-time sparkline graph
 public class RustMCClient implements ClientModInitializer {
 
     private KeyBinding togglePieChart;

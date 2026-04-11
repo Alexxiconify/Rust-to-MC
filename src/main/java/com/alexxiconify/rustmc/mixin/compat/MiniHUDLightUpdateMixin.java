@@ -13,10 +13,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 
-/**
- * Notifies MiniHUD and Lighty that server-side light data is stale.
- * Reflection is cached once via ensureInit().
- */
+// Notifies MiniHUD and Lighty that server-side light data is stale. Reflection is cached once via ensureInit().
 @Mixin(ClientChunkManager.class)
 public class MiniHUDLightUpdateMixin {
 
@@ -54,7 +51,7 @@ public class MiniHUDLightUpdateMixin {
         }
     }
 
-    /** Returns the first method found by name, or null if none match. */
+    // Returns the first method found by name, or null if none match.
     private static Method probeMethod(Class<?> cls, String... names) {
         for (String name : names) {
             try {
@@ -76,8 +73,7 @@ public class MiniHUDLightUpdateMixin {
     private void rustmcOnLightUpdate(LightType type, ChunkSectionPos pos, CallbackInfo ci) {
         ensureInit();
         
-        // Use a fast time-based rate limit of min 16ms between dispatches 
-        // to avoid freezing the lighting thread during massive batch updates.
+        // Use a fast time-based rate limit of min 16ms between dispatches to avoid freezing the lighting thread during massive batch updates.
         long now = System.currentTimeMillis();
         if (now - lastUpdateTime < 16) return;
         lastUpdateTime = now;

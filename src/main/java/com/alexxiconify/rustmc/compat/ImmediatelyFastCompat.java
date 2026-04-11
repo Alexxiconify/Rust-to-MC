@@ -3,10 +3,7 @@ package com.alexxiconify.rustmc.compat;
 import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.RustMC;
 
-/**
- * Integration with ImmediatelyFast (IF) — a rendering optimization mod that batches
- * draw calls, defers HUD rendering, and optimizes text/map rendering.
- */
+// Integration with ImmediatelyFast (IF) — a rendering optimization mod that batches draw calls, defers HUD rendering, and optimizes text/map rendering.
 @SuppressWarnings("unused") // Public API surface for mixins and future compat hooks
 public final class ImmediatelyFastCompat {
 
@@ -17,10 +14,7 @@ public final class ImmediatelyFastCompat {
     private static boolean mapAtlasActive = false;
     private static boolean textOptActive = false;
 
-    /**
-     * Probes IF's configuration via reflection.
-     * Called once during mod init on a virtual thread.
-     */
+    // Probes IF's configuration via reflection. Called once during mod init on a virtual thread.
     public static void initialize() {
         if (!ModBridge.IMMEDIATELYFAST || initialized) return;
         initialized = true;
@@ -63,30 +57,22 @@ public final class ImmediatelyFastCompat {
 
     // ── Query API for other mixins ──────────────────────────────────────────
 
-    /** True when IF it is handling HUD draw call batching — we should skip our own HUD optimizations. */
+    // True when IF it is handling HUD draw call batching — we should skip our own HUD optimizations.
     public static boolean isHudBatchingActive() {
         return ModBridge.IMMEDIATELYFAST && hudBatchingActive;
     }
 
-    /** True when IF's map atlas is active — skip our own map rendering shortcuts. */
+    // True when IF's map atlas is active — skip our own map rendering shortcuts.
     public static boolean isMapAtlasActive() {
         return ModBridge.IMMEDIATELYFAST && mapAtlasActive;
     }
 
-    /** True when IF it is optimizing text rendering — complement with native math, don't conflict. */
+    // True when IF it is optimizing text rendering — complement with native math, don't conflict.
     public static boolean isTextOptActive() {
         return ModBridge.IMMEDIATELYFAST && textOptActive;
     }
 
-    /**
-     * Returns a multiplier for particle/entity culling distance when IF is active.
-     * IF makes each draw call cheaper through batching, so we can afford more visible entities.
-     * <ul>
-     *   <li>IF active + HUD batching: 1.3x (30% more entities visible)</li>
-     *   <li>IF active without HUD batching: 1.15x</li>
-     *   <li>IF not present: 1.0x (no change)</li>
-     * </ul>
-     */
+    // Returns a multiplier for particle/entity culling distance when IF is active. IF makes each draw call cheaper through batching, so we can afford more visible entities. <ul> <li>IF active + HUD batching: 1.3x (30% more entities visible)</li> <li>IF active without HUD batching: 1.15x</li> <li>IF not present: 1.0x (no change)</li> </ul>
     public static float getCullingDistanceMultiplier() {
         if (!ModBridge.IMMEDIATELYFAST) return 1.0f;
         return hudBatchingActive ? 1.3f : 1.15f;

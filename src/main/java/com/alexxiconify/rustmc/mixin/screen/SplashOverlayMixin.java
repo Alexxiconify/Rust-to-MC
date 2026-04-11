@@ -14,14 +14,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Replaces vanilla's SplashOverlay rendering with a dark background + real progress bar
- * + compact RAM bar underneath.  The HEAD injection fills a dark bg to eliminate the
- * white flash.  The TAIL injection draws progress info on top.
- * <p>
- * This also speeds up loads because we avoid the vanilla logo/orange gradient rendering,
- * freeing up GPU draw calls that would otherwise compete with resource upload.
- */
+// Replaces vanilla's SplashOverlay rendering with a dark background + real progress bar + compact RAM bar underneath.  The HEAD injection fills a dark bg to eliminate the white flash.  The TAIL injection draws progress info on top. <p> This also speeds up loads because we avoid the vanilla logo/orange gradient rendering, freeing up GPU draw calls that would otherwise compete with resource upload.
 @Mixin(SplashOverlay.class)
 public abstract class SplashOverlayMixin {
 

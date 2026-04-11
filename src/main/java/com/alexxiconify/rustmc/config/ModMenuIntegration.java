@@ -37,6 +37,7 @@ public class ModMenuIntegration implements ModMenuApi {
                 .category(buildLoadingScreenCategory(cfg))
                 .category(buildElbCategory())
                 .category(buildDevCategory(cfg))
+                .category(buildMetricsCategory())
                 .category(buildBlameCategory())
                 .save(RustMC::saveConfig)
                 .build()
@@ -136,10 +137,13 @@ public class ModMenuIntegration implements ModMenuApi {
                 "Eliminates repeated DNS resolution when refreshing the multiplayer server list.\n" +
                 "Cached entries: " + NativeBridge.dnsCacheSize(),
                 cfg::isEnableDnsCache, v -> cfg.setEnableDnsCache(v != null && v)))
+            .option(buildBooleanOption("Native Metrics HUD",
+                "Shows live JNI/SIMD metrics in the corner of the screen.",
+                cfg::isEnableNativeMetricsHud, v -> cfg.setEnableNativeMetricsHud(v != null && v)))
             .build();
     }
 
-    /** Mod compatibility feature toggles — each can be disabled individually. */
+    // Mod compatibility feature toggles — each can be disabled individually.
     private ConfigCategory buildModCompatCategory(RustMCConfig cfg) {
         return ConfigCategory.createBuilder()
             .name(Text.literal("Mod Compatibility"))
@@ -206,7 +210,7 @@ public class ModMenuIntegration implements ModMenuApi {
             .build();
     }
 
-    /** Loading screen overlay color configuration. */
+    // Loading screen overlay color configuration.
     private ConfigCategory buildLoadingScreenCategory(RustMCConfig cfg) {
         return ConfigCategory.createBuilder()
             .name(Text.literal("Loading Screen Colors"))
@@ -304,13 +308,41 @@ public class ModMenuIntegration implements ModMenuApi {
             .build();
     }
 
-    /** Same as buildColorOption but for Swing java.awt.Color (ELB colors). */
+    // Same as buildColorOption but for Swing java.awt.Color (ELB colors).
     private Option<Color> buildColorOptionSwing(String name, String desc, Supplier<Color> getter, Consumer<Color> setter) {
         return buildColorOption(name, desc, getter, setter);
     }
 
     private static java.awt.Color parseSwingColor(String val, java.awt.Color fallback) {
         try { return new java.awt.Color(Integer.parseInt(val)); } catch (Exception e) { return fallback; }
+    }
+
+    private ConfigCategory buildMetricsCategory() {
+        return ConfigCategory.createBuilder()
+            .name(Text.literal("Native Metrics"))
+            .tooltip(Text.literal("Live telemetry from the Rust native core."))
+            .option(Option.<Long>createBuilder()
+                .name(Text.literal("Total JNI Calls"))
+                .description(OptionDescription.of(Text.literal("Lifetime count of Java → Rust calls via the NativeBridge.")))
+                .binding(0L, () -> NativeBridge.getMetrics(false)[0], val -> {})
+                .controller(opt -> dev.isxander.yacl3.api.controller.LongFieldControllerBuilder.create(opt)
+                    .formatValue(val -> Text.literal("§e" + NativeBridge.getMetrics(false)[0])))
+                .build())
+            .option(Option.<Long>createBuilder()
+                .name(Text.literal("Lighting Updates"))
+                .description(OptionDescription.of(Text.literal("Total 3D voxel light updates processed by SIMD/Parallel Rust kernels.")))
+                .binding(0L, () -> NativeBridge.getMetrics(false)[1], val -> {})
+                .controller(opt -> dev.isxander.yacl3.api.controller.LongFieldControllerBuilder.create(opt)
+                    .formatValue(val -> Text.literal("§a" + NativeBridge.getMetrics(false)[1])))
+                .build())
+            .option(Option.<Long>createBuilder()
+                .name(Text.literal("Frustum Tests"))
+                .description(OptionDescription.of(Text.literal("Total AABB visibility tests performed in SIMD. High value indicates active entity/DH culling.")))
+                .binding(0L, () -> NativeBridge.getMetrics(false)[2], val -> {})
+                .controller(opt -> dev.isxander.yacl3.api.controller.LongFieldControllerBuilder.create(opt)
+                    .formatValue(val -> Text.literal("§b" + NativeBridge.getMetrics(false)[2])))
+                .build())
+            .build();
     }
 
     // ── Blame Chart ─────────────────────────────────────────────────────────
@@ -444,14 +476,14 @@ public class ModMenuIntegration implements ModMenuApi {
         }
     }
 
-    /** Color code for mixin timing entries. */
+    // Color code for mixin timing entries.
     private static String mixinBlameColor(long ms) {
         if (ms > 100) return "§c";
         if (ms > 30) return "§e";
         return "§a";
     }
 
-    /** Builds an ASCII bar like [████████░░░░] for the given percentage. */
+    // Builds an ASCII bar like [████████░░░░] for the given percentage.
     private static String buildAsciiBar(float pct) {
         int filled = Math.clamp(Math.round(pct / 100f * 20), 0, 20);
         return "[" + "█".repeat(filled) + "░".repeat(20 - filled) + "] " +

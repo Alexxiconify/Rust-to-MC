@@ -50,10 +50,6 @@ dependencies {
 
     include implementation("org.joml:joml:1.10.8")
     include implementation("com.github.zafarkhaja:java-semver:0.10.2")
-
-    // Add 26.1.1 Xaero jars once released:
-    // implementation files(rootProject.file("libs/xaerominimap-fabric-26.1.1-XX.jar"))
-    // implementation files(rootProject.file("libs/xaeroworldmap-fabric-26.1.1-XX.jar"))
 }
 
 processResources {

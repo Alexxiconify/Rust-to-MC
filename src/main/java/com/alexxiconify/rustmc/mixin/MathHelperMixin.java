@@ -20,53 +20,38 @@ public class MathHelperMixin {
 
     private MathHelperMixin() {}
 
-    /** @author Alexxiconify @reason LUT sin or vanilla fallback */
     @Overwrite
     public static float sin(double value) {
-        if (ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeSine())
+        if (!ModBridge.isMathConflict() && RustMC.CONFIG.isUseNativeSine())
             return SINE_TABLE[(int)(value * 10430.378) & 65535];
         return (float) Math.sin(value);
     }
 
-    /** @author Alexxiconify @reason LUT cos or vanilla fallback */
     @Overwrite
     public static float cos(double value) {
-        if (ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeCos())
+        if (!ModBridge.isMathConflict() && RustMC.CONFIG.isUseNativeCos())
             return SINE_TABLE[(int)(value * 10430.378 + 16384.0) & 65535];
         return (float) Math.cos(value);
     }
 
-    /**
-     * @author Alexxiconify
-     * @reason Quake III fast inv-sqrt or vanilla fallback.
-     *         MC deprecated this, but it still exists in 1.21.11.
-     * @deprecated Vanilla deprecated since 1.21; kept for backward compat.
-     */
-    @Deprecated(since = "1.21")
     @Overwrite
     public static double fastInverseSqrt(double x) {
-        if (ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeInvSqrt()) {
-            double half = 0.5 * x;
-            long bits = Double.doubleToLongBits(x);
-            bits = 0x5FE6EB50C7B537A9L - (bits >> 1);
-            x = Double.longBitsToDouble(bits);
-            return x * (1.5 - half * x * x);
+        if (!ModBridge.isMathConflict() && RustMC.CONFIG.isUseNativeInvSqrt()) {
+            return com.alexxiconify.rustmc.NativeBridge.invSqrt((float) x);
         }
         return 1.0 / Math.sqrt(x);
     }
 
-    /** @author Alexxiconify @reason Native sqrt via Rust JNI when enabled */
     @Overwrite
     public static float sqrt(float f) {
-        if (ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeSqrt())
+        if (!ModBridge.isMathConflict() && RustMC.CONFIG.isUseNativeSqrt())
             return com.alexxiconify.rustmc.NativeBridge.invokeSqrt(f);
         return (float) Math.sqrt(f);
     }
 
-    /** @author Alexxiconify @reason Fast atan2 polynomial approximation */
     @Overwrite
     public static double atan2(double y, double x) {
-        if (ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeAtan2())
+        if (!ModBridge.isMathConflict() && RustMC.CONFIG.isUseNativeAtan2())
             return fastAtan2(y, x);
         return Math.atan2(y, x);
     }
@@ -87,37 +72,32 @@ public class MathHelperMixin {
         return y < 0 ? -angle : angle;
     }
 
-    /** @author Alexxiconify @reason Bitwise floor */
     @Overwrite
     public static int floor(double d) {
-        if (ModBridge.isMathOwned() && RustMC.CONFIG.isUseNativeFloor()) {
+        if (!ModBridge.isMathConflict() && RustMC.CONFIG.isUseNativeFloor()) {
             int i = (int) d;
             return d < i ? i - 1 : i;
         }
         return (int) Math.floor(d);
     }
 
-    /** @author Alexxiconify @reason Delegate to Math.clamp for all paths */
     @Overwrite
     public static float clamp(float value, float min, float max) {
         return Math.clamp(value, min, max);
     }
 
-    /** @author Alexxiconify @reason FMA lerp for better precision */
     @Overwrite
     public static double lerp(double delta, double start, double end) {
-        if (ModBridge.isMathOwned())
+        if (!ModBridge.isMathConflict())
             return Math.fma(delta, end - start, start);
         return start + delta * (end - start);
     }
 
-    /** @author Alexxiconify @reason Inline absMax */
     @Overwrite
     public static double absMax(double a, double b) {
         return Math.max(Math.abs(a), Math.abs(b));
     }
 
-    /** @author Alexxiconify @reason Native wrapDegrees */
     @Overwrite
     public static float wrapDegrees(float value) {
         return com.alexxiconify.rustmc.NativeBridge.invokeWrapDegrees(value);

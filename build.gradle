@@ -5,46 +5,76 @@ plugins {
 
 version = '1.0.3'
 group = 'com.alexxiconify.rustmc'
+// ─── Rust native library build (High-Performance & Cache-Compliant) ────────
 
-// ─── Rust native library build (Incremental Support) ───────────────────────
+def rustSrcDir = layout.projectDirectory.dir('rust_mc_core/src')
+def cargoToml = layout.projectDirectory.file('rust_mc_core/Cargo.toml')
+def rustOutputDir = layout.projectDirectory.dir('rust_mc_core/target/release')
 
 tasks.register('rustBuild', Exec) {
     group = 'build'
-    description = 'Compiles the Rust native library'
+    description = 'Compiles the Rust native library with SIMD optimizations'
     workingDir 'rust_mc_core'
     
-    // Gradle Incremental Build Tracking
-    inputs.dir('rust_mc_core/src')
-    inputs.file('rust_mc_core/Cargo.toml')
-    inputs.file('rust_mc_core/Cargo.lock')
+    // Configuration Cache friendly inputs
+    inputs.files(fileTree(rustSrcDir) {
+        include '**/*.rs'
+        include '**/*.wgsl'
+    }).withPropertyName('rustSources')
     
-    // Track environment variables that affect the build
-    inputs.property('rust_flags', '-C target-cpu=native')
+    inputs.file(cargoToml).withPropertyName('cargoConfig')
+    inputs.property('rustFlags', '-C target-cpu=native')
+    inputs.property('incremental', '0')
 
     def libName = System.mapLibraryName('rust_mc_core')
-    def outputBin = file("rust_mc_core/target/release/${libName}")
-    outputs.file(outputBin)
+    def outputBin = rustOutputDir.file(libName).asFile
+    outputs.file(outputBin).withPropertyName('nativeBinary')
 
     environment 'RUSTFLAGS', '-C target-cpu=native'
-    // Disabling CARGO_INCREMENTAL for release builds to prevent potential cache corruption
-    // and ensure clean LTO optimization across all codegen units.
     environment 'CARGO_INCREMENTAL', '0'
     
+    // Ensure we don't try to build if locked
     doFirst {
         if (org.gradle.internal.os.OperatingSystem.current().isWindows() && outputBin.exists()) {
-            // Pre-check if the DLL is locked by a running Minecraft instance
             try {
                 outputBin.renameTo(outputBin)
             } catch (Exception ignored) {
-                throw new GradleException("[Rust-MC] Cannot build: ${libName} is locked. Please close Minecraft/Loom first.")
+                throw new GradleException("[Rust-MC] Build Aborted: ${libName} is locked by Minecraft.")
             }
         }
     }
     
+    executable = org.gradle.internal.os.OperatingSystem.current().isWindows() ? 'cmd' : 'cargo'
     if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
-        commandLine 'cmd', '/c', 'cargo build --release'
+        args '/c', 'cargo build --release'
     } else {
-        commandLine 'cargo', 'build', '--release'
+        args 'build', '--release'
+    }
+}
+
+tasks.register('moveRustBinaries', Copy) {
+    group = 'build'
+    description = 'Deploys latest Rust binaries to resources'
+    dependsOn 'rustBuild'
+    
+    def libName = System.mapLibraryName('rust_mc_core')
+    def sourceFile = rustOutputDir.file(libName)
+    def targetDir = layout.projectDirectory.dir('src/main/resources')
+    
+    from(sourceFile)
+    into(targetDir)
+
+    // Force refresh and check for locks without violating Configuration Cache
+    doFirst {
+        def targetFile = targetDir.file(libName).asFile
+        if (targetFile.exists()) {
+            try {
+                targetFile.renameTo(targetFile) // Quick lock check
+                targetFile.delete()
+            } catch (Exception ignored) {
+                throw new GradleException("[Rust-MC] Deploy Failed: ${libName} is locked. Close Minecraft first.")
+            }
+        }
     }
 }
 
@@ -52,36 +82,24 @@ tasks.register('rustClean', Exec) {
     group = 'build'
     description = 'Cleans the Rust build artifacts'
     workingDir 'rust_mc_core'
+    executable = org.gradle.internal.os.OperatingSystem.current().isWindows() ? 'cmd' : 'cargo'
     if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
-        commandLine 'cmd', '/c', 'cargo clean'
+        args '/c', 'cargo clean'
     } else {
-        commandLine 'cargo', 'clean'
+        args 'clean'
     }
 }
 
 tasks.named('clean') {
     dependsOn 'rustClean'
 }
-
-tasks.register('moveRustBinaries', Copy) {
-    group = 'build'
-    description = 'Updates resources with latest Rust binaries'
-    dependsOn 'rustBuild'
-    
-    def libName = System.mapLibraryName('rust_mc_core')
-    from("rust_mc_core/target/release/${libName}")
-    into 'src/main/resources'
-}
-
 // ─── Multi-project Logic ──────────────────────────────────────────────────
-
 // Ensure native lib is always updated before subprojects try to package resources
 subprojects {
     tasks.withType(ProcessResources).configureEach {
         dependsOn ':moveRustBinaries'
     }
 }
-
 tasks.register('buildAll') {
     group = 'build'
     description = 'Builds jars for both 1.21.11 and 26.1.1'

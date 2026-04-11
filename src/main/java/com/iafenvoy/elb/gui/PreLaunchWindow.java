@@ -9,11 +9,7 @@ import java.io.InputStream;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-/**
- * Modern dark-themed pre-launch splash screen.
- * Custom-painted: rounded gradient bars, anti-aliased text, mod icon,
- * elapsed timer, and periodic memory updates without busy-waiting.
- */
+// Modern dark-themed pre-launch splash screen. Custom-painted: rounded gradient bars, anti-aliased text, mod icon, elapsed timer, and periodic memory updates without busy-waiting.
 @SuppressWarnings({"java:S107", "java:S1948"}) // Swing paintComponent params, serializable fields
 public class PreLaunchWindow extends JFrame {
     private static PreLaunchWindow instance;

@@ -9,10 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Clears the window to a dark color right after GL context init to prevent
- * the white flash before the splash overlay appears.
- */
+// Clears the window to a dark color right after GL context init to prevent the white flash before the splash overlay appears.
 @Mixin(Window.class)
 public class WindowMixin {
 
@@ -21,9 +18,7 @@ public class WindowMixin {
     @Inject(method = "<init>", at = @At("RETURN"))
     private void clearOnInit(CallbackInfo ci) {
         try {
-            // GL.getCapabilities() throws IllegalStateException if no context is current.
-            // We must check capabilities exist before calling any GL function, otherwise
-            // LWJGL dereferences a null function pointer causing a native SIGSEGV crash.
+            // GL.getCapabilities() throws IllegalStateException if no context is current. We must check capabilities exist before calling any GL function, otherwise LWJGL dereferences a null function pointer causing a native SIGSEGV crash.
             GLCapabilities caps = GL.getCapabilities();
             if ( caps.glClearColor == 0L ) return;
 

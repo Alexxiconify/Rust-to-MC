@@ -1,16 +1,9 @@
 package com.alexxiconify.rustmc;
 
-/**
- * Version compatibility shim.
- * Detects at runtime which MC version we are running on and adapts calls
- * that changed between 1.21.11 (old versioning) and 26.1.x (new calendar versioning).
- *
- * Usage: replace direct MC API calls that differ between versions with
- * VersionCompat.xxx() so the shared source compiles and works on both.
- */
+// Version compatibility shim. Detects at runtime which MC version we are running on and adapts calls that changed between 1.21.11 (old versioning) and 26.1.x (new calendar versioning). Usage: replace direct MC API calls that differ between versions with VersionCompat.xxx() so the shared source compiles and works on both.
 public final class VersionCompat {
 
-    /** Detected at class-load time. */
+    // Detected at class-load time.
     public static final boolean IS_26_X;
 
     static {
@@ -24,17 +17,12 @@ public final class VersionCompat {
 
     private VersionCompat() {}
 
-    /**
-     * Returns the current framebuffer width.
-     * Safe across 1.21.x and 26.x (API stable here).
-     */
+    // Returns the current framebuffer width. Safe across 1.21.x and 26.x (API stable here).
     public static int getFramebufferWidth(net.minecraft.client.MinecraftClient mc) {
         return mc.getWindow().getFramebufferWidth();
     }
 
-    /**
-     * Returns the current framebuffer height.
-     */
+    // Returns the current framebuffer height.
     public static int getFramebufferHeight(net.minecraft.client.MinecraftClient mc) {
         return mc.getWindow().getFramebufferHeight();
     }

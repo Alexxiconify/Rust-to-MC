@@ -7,10 +7,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Field;
 import java.util.Collection;
 
-/**
- * High-performance hook for ScalableLux.
- * Extracts pending light updates via reflection and offloads them to Rust's parallel engine.
- */
+// High-performance hook for ScalableLux. Extracts pending light updates via reflection and offloads them to Rust's parallel engine.
 @SuppressWarnings({"unused", "java:S3011"})
 public class ScalableLuxCompat {
     private static Method mUpdateLight;
@@ -49,8 +46,7 @@ public class ScalableLuxCompat {
                 RustMC.LOGGER.warn("[Rust-MC] ScalableLux engine found but queue fields mismatch.");
             }
         } catch (Exception e) {
-            // ScalableLux detected but internals are non-standard or hidden.
-            // We log this as debug to avoid spamming the user in production.
+            // ScalableLux detected but internals are non-standard or hidden. We log this as debug to avoid spamming the user in production.
             RustMC.LOGGER.debug("[Rust-MC] ScalableLux internals probe failed: {}", e.getMessage());
         }
     }
@@ -77,9 +73,7 @@ public class ScalableLuxCompat {
 
     public static boolean isActive() { return active; }
 
-    /**
-     * Extracts ScalableLux's pending updates and offloads them to Rust.
-     */
+    // Extracts ScalableLux's pending updates and offloads them to Rust.
     public static void invokeOptimizationPipeline() {
         if (!active) {
             return;
@@ -94,9 +88,7 @@ public class ScalableLuxCompat {
             if (fPendingQueue != null) {
                 Object queue = fPendingQueue.get(null);
                 if (queue instanceof Collection<?> col && !col.isEmpty()) {
-                    // Extract update count and pass to specialized Rust path
-                    // We generate a dummy array of the same size to trigger the context-aware
-                    // propagation in Rust, which will effectively 'subvert' the original method.
+                    // Extract update count and pass to specialized Rust path We generate a dummy array of the same size to trigger the context-aware propagation in Rust, which will effectively 'subvert' the original method.
                     int result = NativeBridge.propagateLightBulk(new int[col.size()], col.size());
                     if (result >= 0) {
                         RustMC.LOGGER.debug("[Rust-MC] Offloaded {} ScalableLux tasks to Rust cores.", col.size());

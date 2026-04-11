@@ -4,10 +4,7 @@ import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
 import net.fabricmc.loader.api.FabricLoader;
 
-/**
- * Optimizes Entity Model Features (EMF) by offloading vertex math to Rust.
- * EMF calculates many dynamic model parts per frame; we multi-thread these animations.
- */
+// Optimizes Entity Model Features (EMF) by offloading vertex math to Rust. EMF calculates many dynamic model parts per frame; we multi-thread these animations.
 public class EmfCompat {
     private static boolean active = false;
 
@@ -23,9 +20,7 @@ public class EmfCompat {
 
     public static boolean isActive() { return active; }
 
-    /**
-     * Called by mixins to offload model vertex transformations.
-     */
+    // Called by mixins to offload model vertex transformations.
     public static void optimizeModel(float[] vertices, float[] normals, float[] matrix) {
         if (!active) return;
         NativeBridge.transformVertices(vertices, normals, matrix);

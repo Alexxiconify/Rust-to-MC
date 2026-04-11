@@ -3,17 +3,7 @@ package com.alexxiconify.rustmc.util;
 import com.alexxiconify.rustmc.NativeBridge;
 import net.minecraft.client.gui.DrawContext;
 
-/**
- * Draws a lightweight pie chart showing per-category frame-time breakdown.
- * Categories: Render, Tick, Network, GPU Wait, Other.
- * Driven by the native ring buffer frame history — no extra sampling overhead.
- * <p>
- * Performance optimizations:
- * - Cached stats updated at most every 250ms (not every render frame)
- * - Pre-computed sin/cos lookup table (avoids Math.cos/sin per-segment per-frame)
- * - Scanline pie rendering replaces per-pixel fills
- * - Cached formatted legend strings
- */
+// Draws a lightweight pie chart showing per-category frame-time breakdown. Categories: Render, Tick, Network, GPU Wait, Other. Driven by native ring buffer frame history.
 public final class PieChartRenderer {
 
     private PieChartRenderer() {}
@@ -55,10 +45,7 @@ public final class PieChartRenderer {
 
     private static final long UPDATE_INTERVAL_MS = 250;
 
-    /**
-     * Draws the pie chart in the top-right of the screen.
-     * Estimates category proportions from the frame history distribution.
-     */
+    // Draws the pie chart in the top-right of the screen.
     public static void draw(DrawContext context, net.minecraft.client.font.TextRenderer textRenderer, int screenW) {
         // Refresh cached stats at most every 250ms
         long now = System.currentTimeMillis();
@@ -98,10 +85,7 @@ public final class PieChartRenderer {
         context.drawTextWithShadow(textRenderer, "Slow: %d/%d".formatted(cachedSlowFrames, cachedHistoryLen), lx, sy + 22, 0xFF999999);
     }
 
-    /**
-     * Refreshes cached stats from the native frame history ring buffer.
-     * Returns false if no history is available.
-     */
+    // Refreshes cached stats from the native frame history ring buffer.
     private static boolean refreshStats() {
         float[] history = NativeBridge.invokeGetFrameHistory();
         if (history == null || history.length == 0) {
@@ -147,8 +131,7 @@ public final class PieChartRenderer {
         return true;
     }
 
-    private static float drawSlice(DrawContext ctx, int cx, int cy,
-                                   float startAngle, float fraction, int color) {
+    private static float drawSlice(DrawContext ctx, int cx, int cy, float startAngle, float fraction, int color) {
         float endAngle = startAngle + fraction * 360f;
         int steps = Math.max(2, (int) (PIE_SEGMENTS * fraction));
         for (int i = 0; i < steps; i++) {
@@ -160,13 +143,12 @@ public final class PieChartRenderer {
             int x2 = cx + (int) (PIE_RADIUS * cosLut(a2deg));
             int y2 = cy + (int) (PIE_RADIUS * sinLut(a2deg));
             // Approximate triangle with two thin rects
-            ctx.fill(Math.min(x1, x2), Math.min(y1, y2),
-                     Math.max(x1, x2) + 1, Math.max(y1, y2) + 1, color);
+            ctx.fill(Math.min(x1, x2), Math.min(y1, y2), Math.max(x1, x2) + 1, Math.max(y1, y2) + 1, color);
         }
         return endAngle;
     }
 
-    /** Fast cosine from LUT with linear interpolation. */
+    // Fast cosine from LUT with linear interpolation.
     private static float cosLut(float degrees) {
         float d = ((degrees % 360f) + 360f) % 360f;
         int lo = (int) d;
@@ -175,7 +157,7 @@ public final class PieChartRenderer {
         return COS_LUT[lo] + frac * (COS_LUT[lo + 1] - COS_LUT[lo]);
     }
 
-    /** Fast sine from LUT with linear interpolation. */
+    // Fast sine from LUT with linear interpolation.
     private static float sinLut(float degrees) {
         float d = ((degrees % 360f) + 360f) % 360f;
         int lo = (int) d;

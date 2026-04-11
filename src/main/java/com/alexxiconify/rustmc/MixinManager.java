@@ -13,16 +13,16 @@ public class MixinManager implements IMixinConfigPlugin {
 
     private static final String PKG = "com.alexxiconify.rustmc.mixin.";
 
-    /** Lookup table: mixin class name → condition that must be true for the mixin to apply. */
+    // Lookup table: mixin class name → condition that must be true for the mixin to apply.
     private static final Map<String, BooleanSupplier> MIXIN_CONDITIONS;
 
-    /** Per-group cumulative mixin application time in nanoseconds. */
+    // Per-group cumulative mixin application time in nanoseconds.
     private static final Map<String, Long> groupTimings = new ConcurrentHashMap<>();
 
-    /** ThreadLocal to track preApply start time. */
+    // ThreadLocal to track preApply start time.
     private static final ThreadLocal<Long> applyStartNanos = new ThreadLocal<>();
 
-    /** Map-based mixin classification — avoids long if-chain for cognitive complexity. */
+    // Map-based mixin classification — avoids long if-chain for cognitive complexity.
     private static final Map<String, String> MIXIN_GROUP_PREFIXES = buildGroupPrefixes();
 
     private static Map<String, String> buildGroupPrefixes() {
@@ -59,27 +59,27 @@ public class MixinManager implements IMixinConfigPlugin {
 
     static {
         MIXIN_CONDITIONS = Map.ofEntries(
-            Map.entry(PKG + "CommandManagerMixin", () -> true),
-            Map.entry(PKG + "MatrixMixin", () -> ModBridge.isMathOwned()),
-            Map.entry(PKG + "LightingMixin", () -> !ModBridge.isLightingOwned()),
-            Map.entry(PKG + "MathHelperMixin", () -> ModBridge.isMathOwned()),
-            Map.entry(PKG + "SimplexNoiseSamplerMixin", () -> ModBridge.isMathOwned()),
-            Map.entry(PKG + "PathfindingMixin", () -> !ModBridge.isPathfindingOwned()),
-            Map.entry(PKG + "PacketDeflaterMixin", () -> ModBridge.isNetworkingOwned()),
-            Map.entry(PKG + "DecoderHandlerMixin", () -> ModBridge.isNetworkingOwned()),
-            Map.entry(PKG + "BlockStateMixin", () -> RustMC.CONFIG.isUseNativeCulling()),
-            Map.entry(PKG + "ChunkBuilderMixin", () -> RustMC.CONFIG.isEnableChunkBuilderExpand() && !ModBridge.SODIUM),
-            Map.entry(PKG + "compat.ClientRedstoneSkipMixin", () -> RustMC.CONFIG.isEnableClientRedstoneSkip()),
-            Map.entry(PKG + "compat.TickSyncCompatMixin", () -> RustMC.CONFIG.isEnableTickSyncCompat()),
-            Map.entry(PKG + "compat.BBECompatMixin", () -> RustMC.CONFIG.isEnableBBECompat()),
-            Map.entry(PKG + "compat.EntityRenderCompatMixin", () ->
+            Map.entry(PKG + "CommandManagerMixin", (BooleanSupplier) () -> true),
+            Map.entry(PKG + "MatrixMixin", (BooleanSupplier) () -> !ModBridge.isMathConflict()),
+            Map.entry(PKG + "LightingMixin", (BooleanSupplier) () -> !ModBridge.isLightingConflict()),
+            Map.entry(PKG + "MathHelperMixin", (BooleanSupplier) () -> !ModBridge.isMathConflict()),
+            Map.entry(PKG + "SimplexNoiseSamplerMixin", (BooleanSupplier) () -> !ModBridge.isMathConflict()),
+            Map.entry(PKG + "PathfindingMixin", (BooleanSupplier) () -> !ModBridge.isPathfindingOwned()),
+            Map.entry(PKG + "PacketDeflaterMixin", (BooleanSupplier) () -> !ModBridge.isNetworkingConflict()),
+            Map.entry(PKG + "DecoderHandlerMixin", (BooleanSupplier) () -> !ModBridge.isNetworkingConflict()),
+            Map.entry(PKG + "BlockStateMixin", RustMC.CONFIG::isUseNativeCulling),
+            Map.entry(PKG + "ChunkBuilderMixin", (BooleanSupplier) () -> RustMC.CONFIG.isEnableChunkBuilderExpand() && !ModBridge.SODIUM),
+            Map.entry(PKG + "compat.ClientRedstoneSkipMixin", RustMC.CONFIG::isEnableClientRedstoneSkip),
+            Map.entry(PKG + "compat.TickSyncCompatMixin", RustMC.CONFIG::isEnableTickSyncCompat),
+            Map.entry(PKG + "compat.BBECompatMixin", RustMC.CONFIG::isEnableBBECompat),
+            Map.entry(PKG + "compat.EntityRenderCompatMixin", (BooleanSupplier) () ->
                 RustMC.CONFIG.isEnableEMFCompat()
                 || RustMC.CONFIG.isEnableETFCompat()
                 || RustMC.CONFIG.isEnableEntityCullingCompat()
                 || RustMC.CONFIG.isEnableImmediatelyFastCompat()),
-            Map.entry(PKG + "ServerPingerMixin", () -> RustMC.CONFIG.isEnableDnsCache()),
-            Map.entry(PKG + "ServerAddressMixin", () -> RustMC.CONFIG.isEnableDnsCache()),
-            Map.entry(PKG + "screen.MultiplayerScreenMixin", () -> RustMC.CONFIG.isEnableDnsCache())
+            Map.entry(PKG + "ServerPingerMixin", RustMC.CONFIG::isEnableDnsCache),
+            Map.entry(PKG + "ServerAddressMixin", RustMC.CONFIG::isEnableDnsCache),
+            Map.entry(PKG + "screen.MultiplayerScreenMixin", RustMC.CONFIG::isEnableDnsCache)
         );
     }
 
@@ -121,7 +121,7 @@ public class MixinManager implements IMixinConfigPlugin {
         groupTimings.merge(group, elapsed, (a, b) -> a + b);
     }
 
-    /** Classifies a mixin into a human-readable blame group via map lookup. */
+    // Classifies a mixin into a human-readable blame group via map lookup.
     @SuppressWarnings({"java:S3776", "CognitiveComplexity"})
     private static String classifyMixin(String mixinClassName) {
         for (Map.Entry<String, String> entry : MIXIN_GROUP_PREFIXES.entrySet()) {
@@ -131,10 +131,7 @@ public class MixinManager implements IMixinConfigPlugin {
         return dot >= 0 ? mixinClassName.substring(dot + 1) : mixinClassName;
     }
 
-    /**
-     * Flushes per-group mixin timings into the BlameLog.
-     * Called once from mod init after all mixins are applied.
-     */
+    // Flushes per-group mixin timings into the BlameLog. Called once from mod init after all mixins are applied.
     public static void flushBlameTimings() {
         if (groupTimings.isEmpty()) return;
 
@@ -156,7 +153,7 @@ public class MixinManager implements IMixinConfigPlugin {
         }
     }
 
-    /** Returns per-group timing snapshot for the blame chart UI. */
+    // Returns per-group timing snapshot for the blame chart UI.
     public static Map<String, Long> getGroupTimings() {
         return Map.copyOf(groupTimings);
     }

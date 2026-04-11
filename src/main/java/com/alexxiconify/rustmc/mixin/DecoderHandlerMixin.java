@@ -21,13 +21,21 @@ public class DecoderHandlerMixin {
         int readable = buf.readableBytes();
         if (readable <= 0) return;
 
-        byte[] inputBytes = new byte[readable];
-        buf.getBytes(buf.readerIndex(), inputBytes);
+        int result;
+        if (buf.hasMemoryAddress()) {
+            // Zero-allocation path for direct buffers
+            result = NativeBridge.invokeProcessPacketDirect(buf.memoryAddress() + buf.readerIndex(), readable);
+        } else if (buf.hasArray()) {
+            // Zero-allocation path for heap buffers (via JNI pinning) Note: NativeBridge.invokeProcessPacket uses get_array_elements_critical
+            result = NativeBridge.invokeProcessPacket(buf.array(), readable);
+        } else {
+            // Fallback for complex buffer types
+            byte[] inputBytes = new byte[readable];
+            buf.getBytes(buf.readerIndex(), inputBytes);
+            result = NativeBridge.invokeProcessPacket(inputBytes, readable);
+        }
 
-        // Offload the raw packet to Rust
-        int result = NativeBridge.invokeProcessPacket(inputBytes, readable);
         if (result > 0) {
-            // Rust handled the packet completely natively (e.g. heartbeat responses, keepalives)
             buf.skipBytes(readable); 
             ci.cancel();
         }

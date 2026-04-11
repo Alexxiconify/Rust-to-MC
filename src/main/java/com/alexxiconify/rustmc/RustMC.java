@@ -29,8 +29,7 @@ public class RustMC implements ModInitializer {
         // Flush per-group mixin application timings into the blame chart
         MixinManager.flushBlameTimings();
 
-        // Run independent compat initializations in parallel on virtual threads
-        // These have no ordering dependencies on each other
+        // Run independent compat initializations in parallel on virtual threads These have no ordering dependencies on each other
         java.util.concurrent.CompletableFuture.runAsync(
             com.alexxiconify.rustmc.compat.ScalableLuxCompat::initialize,
             r -> Thread.ofVirtual().name("rustmc-compat-slx").start(r));
@@ -81,8 +80,7 @@ public class RustMC implements ModInitializer {
             LOGGER.warn("[Rust-MC] Native library not available – running in vanilla-fallback mode.");
         }
 
-        // Close Early Loading Bar if it's still open
-        // Note: blame log finalization happens in detectGameReady() when "Game took" log fires
+        // Close Early Loading Bar if it's still open Note: blame log finalization happens in detectGameReady() when "Game took" log fires
         if (FabricLoader.getInstance().getEnvironmentType() == net.fabricmc.api.EnvType.CLIENT) {
             net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STARTED.register(client ->
                 com.iafenvoy.elb.gui.PreLaunchWindow.remove());

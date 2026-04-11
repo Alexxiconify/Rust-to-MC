@@ -9,12 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
 
-/**
- * Replaces {@link SimplexNoiseSampler#sample(double, double)} with the Rust
- * Simplex implementation.  The Rust generator is seeded with the world seed via
- * {@code ServerWorldEvents.LOAD} in {@link RustMC#onInitialize()} before any
- * chunk is generated, so the noise matches the MC world seed.
- */
+// Replaces SimplexNoiseSampler sample with Rust implementation. Generator is seeded with world seed in RustMC onInitialize.
 @Mixin(SimplexNoiseSampler.class)
 public class SimplexNoiseSamplerMixin {
     @Inject(method = "sample(DD)D", at = @At("HEAD"), cancellable = true)
@@ -23,4 +18,4 @@ public class SimplexNoiseSamplerMixin {
             cir.setReturnValue(NativeBridge.noise2d(x, y));
         }
     }
-}
+}

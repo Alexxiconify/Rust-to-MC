@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class RenderUtilsMixin {
     private RenderUtilsMixin() {}
 
-    /** Returns viewDist² (with +32 block pad), or -1 if no camera entity. */
+    // Returns viewDist² (with +32 block pad), or -1 if no camera entity.
     @Unique
     private static double cullRadiusSq() {
         MinecraftClient mc = MinecraftClient.getInstance();
@@ -27,7 +27,7 @@ public class RenderUtilsMixin {
         return d * d;
     }
 
-    /** Checks if the center point is beyond cull distance. Returns true if it should be culled. */
+    // Checks if the center point is beyond cull distance. Returns true if it should be culled.
     @Unique
     private static boolean shouldCullCenter(double rSq, double cx, double cy, double cz) {
         Entity cam = MinecraftClient.getInstance().getCameraEntity();

@@ -25,4 +25,4 @@ public class CommandManagerMixin {
         int result = NativeBridge.executeCommand(bytes);
         if (result > 0) ci.cancel();
     }
-}
+}

@@ -15,7 +15,6 @@ sourceSets {
         java   { srcDirs rootProject.file('src/main/java') }
         resources {
             srcDirs rootProject.file('src/main/resources')
-            // Override fabric.mod.json with our version-specific one
             srcDirs 'src/main/resources'
         }
     }
@@ -36,16 +35,10 @@ dependencies {
     mappings "net.fabricmc:yarn:${rootProject.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${rootProject.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_version}"
-
     include implementation("org.joml:joml:1.10.8")
     include implementation("com.github.zafarkhaja:java-semver:0.10.2")
-
     modImplementation "dev.isxander:yet-another-config-lib:${rootProject.yacl_version}"
     modImplementation "com.terraformersmc:modmenu:${rootProject.modmenu_version}"
-
-    modImplementation files(rootProject.file("libs/xaerominimap-fabric-1.21.11-25.3.10.jar"))
-    modImplementation files(rootProject.file("libs/xaeroworldmap-fabric-1.21.11-1.40.11.jar"))
-    modImplementation files(rootProject.file("libs/XaeroPlus-2.30.9+fabric-1.21.11-WM1.40.11-MM25.3.10.jar"))
 }
 
 def modVersion = rootProject.version.toString()

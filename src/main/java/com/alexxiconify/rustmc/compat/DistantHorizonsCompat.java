@@ -2,12 +2,9 @@ package com.alexxiconify.rustmc.compat;
 
 import com.alexxiconify.rustmc.RustMC;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.MinecraftClient;
 
-/**
- * Reflection-based integration with Distant Horizons.
- * API methods like {@link #computeRustAmbientOcclusion} and {@link #computeRustAmbientOcclusionDirect}
- * are public API for DH vertex builders to offload AO to Rust's wgpu compute pipeline.
- */
+// Reflection-based integration with Distant Horizons. API methods like {@link #computeRustAmbientOcclusion} and {@link #computeRustAmbientOcclusionDirect} are public API for DH vertex builders to offload AO to Rust's wgpu compute pipeline.
 @SuppressWarnings("unused")
 public class DistantHorizonsCompat {
     private static final String DH_MOD_ID = "distanthorizons";
@@ -83,68 +80,8 @@ public class DistantHorizonsCompat {
         String name = method.getName();
         return switch (name) {
             case "getPriority" -> Integer.MAX_VALUE;
-            case "update" -> {
-                if (args != null && args.length == 3) {
-                    currentMinY = (int) args[0];
-                    currentMaxY = (int) args[1];
-                    Object mat = args[2];
-                    if (getValuesAsArrayMethod == null) {
-                        getValuesAsArrayMethod = mat.getClass().getMethod("getValuesAsArray");
-                    }
-                    float[] vpArray = (float[]) getValuesAsArrayMethod.invoke(mat);
-                    
-                    if (lastVpArray == null || !java.util.Arrays.equals(lastVpArray, vpArray)) {
-                        lastVpArray = vpArray != null ? vpArray.clone() : null;
-                        com.alexxiconify.rustmc.NativeBridge.updateRustFrustum(rustFrustumPtr, vpArray);
-
-                        // FOV+aspect-aware scale to prevent aggressive DH LOD clipping.
-                        net.minecraft.client.MinecraftClient mc2 = net.minecraft.client.MinecraftClient.getInstance();
-                        double fov = mc2.options.getFov().getValue();
-                        double aspect = mc2.getWindow().getFramebufferWidth()
-                            / Math.max(1.0, mc2.getWindow().getFramebufferHeight());
-                        // Ultrawide screens have narrower vertical FOV — boost scale slightly so
-                        // tall DH sections at the horizontal edges are not incorrectly culled.
-                        double aspectBoost = Math.max(1.0, aspect / (16.0 / 9.0));
-                        double fovScale = 1.15 * (fov / 70.0) * Math.sqrt(aspectBoost);
-                        fovScale = Math.clamp(fovScale, 0.8, 2.5);
-                        com.alexxiconify.rustmc.NativeBridge.setRustFrustumFovScale(rustFrustumPtr, fovScale);
-                    }
-                }
-                yield null;
-            }
-            case "intersects" -> {
-                if (args != null && args.length == 4) {
-                    int minX = (int) args[0];
-                    int minZ = (int) args[1];
-                    int maxX = (int) args[2];
-                    int maxZ = (int) args[3];
-                    // Native side-plane culling (hides vertical geometry below surface)
-                    // We treat currentMinY as a rough surface proxy if it's below sea level
-                    if (!com.alexxiconify.rustmc.NativeBridge.invokeDHCull(currentMinY, currentMaxY, 62.0)) {
-                        yield false; 
-                    }
-                    // Use native margin support instead of manual inflation for better performance
-                    // margin = 4.0 (base) + distance-based expansion
-                    double margin = 4.0;
-
-                    net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
-                    net.minecraft.entity.Entity cam = client.getCameraEntity();
-                    if (cam != null) {
-                        double camX = cam.getX();
-                        double camZ = cam.getZ();
-                        // Use minX/minZ directly for distance check to avoid 'aggressive' center-based culling
-                        double distSq = (minX - camX) * (minX - camX) + (minZ - camZ) * (minZ - camZ);
-                        margin += Math.sqrt(distSq) * 0.08; // Increased expansion factor
-                    }
-
-                    yield com.alexxiconify.rustmc.NativeBridge.testRustFrustum(
-                        rustFrustumPtr,
-                        Math.min(minX, maxX), currentMinY, Math.min(minZ, maxZ),
-                        Math.max(minX, maxX), currentMaxY, Math.max(minZ, maxZ),
-                        margin);
-                }
-                yield true; // default: visible
-            }
+            case "update" -> handleFrustumUpdate(args);
+            case "intersects" -> handleFrustumIntersects(args);
             case "equals" -> proxy == args[0];
             case "hashCode" -> System.identityHashCode(proxy);
             case "toString" -> "RustMC-DH-FrustumCuller";
@@ -152,11 +89,63 @@ public class DistantHorizonsCompat {
         };
     }
 
-    /**
-     * Public API hook for DH vertex builders or shaders to offload Ambient Occlusion
-     * calculations to the Rust wgpu Compute Shader pipeline.
-     * Expects vertices formatted as contiguous floats: [posX, posY, posZ, pad, normX, normY, normZ, pad].
-     */
+    private static Object handleFrustumUpdate(Object[] args) throws Exception {
+        if (args != null && args.length == 3) {
+            currentMinY = (int) args[0];
+            currentMaxY = (int) args[1];
+            Object mat = args[2];
+            if (getValuesAsArrayMethod == null) {
+                getValuesAsArrayMethod = mat.getClass().getMethod("getValuesAsArray");
+            }
+            float[] vpArray = (float[]) getValuesAsArrayMethod.invoke(mat);
+            if (lastVpArray == null || !java.util.Arrays.equals(lastVpArray, vpArray)) {
+                lastVpArray = vpArray != null ? vpArray.clone() : null;
+                MinecraftClient mc2 = MinecraftClient.getInstance();
+                var camEntity = mc2.getCameraEntity();
+                if (camEntity == null) return null;
+                double cx = camEntity.getX();
+                double cy = camEntity.getY();
+                double cz = camEntity.getZ();
+                com.alexxiconify.rustmc.NativeBridge.updateRustFrustum(rustFrustumPtr, vpArray, cx, cy, cz);
+                double fov = mc2.options.getFov().getValue();
+                double aspect = mc2.getWindow().getFramebufferWidth()
+                    / Math.max(1.0, mc2.getWindow().getFramebufferHeight());
+                double aspectBoost = Math.max(1.0, aspect / (16.0 / 9.0));
+                double fovScale = Math.clamp(1.15 * (fov / 70.0) * Math.sqrt(aspectBoost), 0.8, 2.5);
+                com.alexxiconify.rustmc.NativeBridge.setRustFrustumFovScale(rustFrustumPtr, fovScale);
+            }
+        }
+        return null;
+    }
+
+    private static Object handleFrustumIntersects(Object[] args) {
+        if (args != null && args.length == 4) {
+            int minX = (int) args[0];
+            int minZ = (int) args[1];
+            int maxX = (int) args[2];
+            int maxZ = (int) args[3];
+            if (!com.alexxiconify.rustmc.NativeBridge.invokeDHCull(currentMinY, currentMaxY, 62.0)) {
+                return false; 
+            }
+            double margin = 4.0;
+            net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
+            net.minecraft.entity.Entity cam = client.getCameraEntity();
+            if (cam != null) {
+                double camX = cam.getX();
+                double camZ = cam.getZ();
+                double distSq = (minX - camX) * (minX - camX) + (minZ - camZ) * (minZ - camZ);
+                margin += Math.sqrt(distSq) * 0.08;
+            }
+            return com.alexxiconify.rustmc.NativeBridge.testRustFrustum(
+                rustFrustumPtr,
+                Math.min(minX, maxX), currentMinY, Math.min(minZ, maxZ),
+                Math.max(minX, maxX), currentMaxY, Math.max(minZ, maxZ),
+                margin);
+        }
+        return true;
+    }
+
+    // Public API hook for DH vertex builders or shaders to offload Ambient Occlusion calculations to the Rust wgpu Compute Shader pipeline. Expects vertices formatted as contiguous floats: [posX, posY, posZ, pad, normX, normY, normZ, pad].
     public static float[] computeRustAmbientOcclusion(float[] vertexData) {
         if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID) || !com.alexxiconify.rustmc.NativeBridge.isReady()) {
             return new float[0];
@@ -176,13 +165,7 @@ public class DistantHorizonsCompat {
         return com.alexxiconify.rustmc.NativeBridge.invokeComputeAmbientOcclusionDirect(vertexData, vertexCount);
     }
 
-    // ── LOD Loading Optimization ────────────────────────────────────────────
-
-    /**
-     * Hints the DH API to use a higher thread count for LOD generation/loading.
-     * Called during init. DH's default thread count is conservative — on modern
-     * CPUs we can afford more threads for disk I/O and LOD meshing.
-     */
+    // ── LOD Loading Optimization ──────────────────────────────────────────── Hints the DH API to use a higher thread count for LOD generation/loading. Called during init. DH's default thread count is conservative — on modern CPUs we can afford more threads for disk I/O and LOD meshing.
     public static void optimizeLodThreading() {
         if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID)) return;
         try {
@@ -211,10 +194,7 @@ public class DistantHorizonsCompat {
         }
     }
 
-    /**
-     * Pre-warms DH's LOD file cache for the current world on a virtual thread.
-     * Called when connecting to a world/server to reduce initial LOD pop-in.
-     */
+    // Pre-warms DH's LOD file cache for the current world on a virtual thread. Called when connecting to a world/server to reduce initial LOD pop-in.
     public static void prefetchLodData() {
         if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID)) return;
         Thread.ofVirtual().name("rustmc-dh-prefetch").start(() -> {
@@ -231,11 +211,7 @@ public class DistantHorizonsCompat {
         });
     }
 
-    /**
-     * Offloads Distant Horizons "Ghost" lighting tasks to Rust.
-     * DH uses a separate light engine for LODs that can be run in parallel
-     * without touching vanilla world state.
-     */
+    // Offloads Distant Horizons lighting tasks to Rust. DH uses a separate light engine for LODs that can be run in parallel without touching vanilla world state.
     public static void optimizeLighting(long[] lightTasks) {
         if (lightTasks == null || lightTasks.length == 0) return;
         if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID) || !com.alexxiconify.rustmc.NativeBridge.isReady()) return;

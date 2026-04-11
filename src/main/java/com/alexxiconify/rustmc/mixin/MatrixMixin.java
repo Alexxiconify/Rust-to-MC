@@ -9,10 +9,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * Supplements the rendering engine by offloading JOML matrix multiplications to Rust SIMD.
- * This benefits both Vanilla and Sodium (which uses JOML internally).
- */
+// Supplements the rendering engine by offloading JOML matrix multiplications to Rust SIMD. This benefits both Vanilla and Sodium (which uses JOML internally).
+@SuppressWarnings({"java:S116", "java:S100"})
 @Mixin(value = Matrix4f.class, remap = false)
 public abstract class MatrixMixin {
 
@@ -25,7 +23,7 @@ public abstract class MatrixMixin {
 
     @Inject(method = "mul(Lorg/joml/Matrix4fc;Lorg/joml/Matrix4f;)Lorg/joml/Matrix4f;", at = @At("HEAD"), cancellable = true)
     private void rustmc$onMul(org.joml.Matrix4fc other, Matrix4f dest, CallbackInfoReturnable<Matrix4f> cir) {
-        if (NativeBridge.isReady() && !ModBridge.isMathOwned()) {
+        if (NativeBridge.isReady() && !ModBridge.isMathConflict()) {
             Matrix4f self = (Matrix4f) (Object) this;
             self.get(rustmc$leftBuf);
             other.get(rustmc$rightBuf);

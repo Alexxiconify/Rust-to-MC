@@ -30,8 +30,7 @@ public abstract class BoxMixin {
             double dirY = max.y - min.y;
             double dirZ = max.z - min.z;
 
-            // Optional: If Rust says no intersection, we return Optional.empty immediately and skip vanilla math.
-            // If Rust says yes, we fall back to vanilla to calculate the exact impact point.
+            // Optional: If Rust says no intersection, we return Optional.empty immediately and skip vanilla math. If Rust says yes, we fall back to vanilla to calculate the exact impact point.
             if (!NativeBridge.invokeRayIntersectsBox(min.x, min.y, min.z, dirX, dirY, dirZ, this.minX, this.minY, this.minZ, this.maxX, this.maxY, this.maxZ)) {
                 cir.setReturnValue(Optional.empty());
             }

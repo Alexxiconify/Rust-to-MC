@@ -8,22 +8,6 @@ To minimize Java's overhead in Minecraft's **client-side** hot-paths by leveragi
 
 ---
 
-## 📅 Short-Term Goals (1-2 Months)
-
-### 1. SIMD Frustum & Occlusion
-
-- **Status**: Implemented (Vanilla) / Optimized (LODs)
-- **Goal**: Rewrite the `isOutside` and `batchFrustumTest` in Rust using explicit SIMD instructions (SSE2/AVX2).
-- **Benefit**: Near-instant culling for thousands of particles and entities per frame.
-
-### 2. Native HUD Matrix Stack
-
-- **Status**: Supplemented via Matrix4f.mul
-- **Goal**: Create a native-backed `MatrixStack` chain calculation to offload complex HUD layout transformations.
-- **Benefit**: Complements ImmediatelyFast to reduce HUD rendering overhead to absolute minimum.
-
----
-
 ## 🛠 Medium-Term Goals (3-6 Months)
 
 ### 1. Native Chunk Meshing & Parsing
@@ -34,13 +18,13 @@ To minimize Java's overhead in Minecraft's **client-side** hot-paths by leveragi
 
 ### 2. Starlight-Native BFS Lighting
 
-- **Status**: Researching
+- **Status**: ⚡ In Progress (1D-packed BFS partially implemented)
 - **Goal**: Replace the current bit-packed placeholder in `rustPropagateLightBulk` with a high-speed Breadth-First Search (BFS) in Rust.
-- **Benefit**: Real-time lighting updates for mods like ScalableLux and Starlight, eliminating "lighting lag" during TNT explosions or terrain edits.
+- **Benefit**: Massive reduction in light-update stutters during world-gen or large-scale TNT blasts.
 
 ### 3. Native Packet Interception
 
-- **Status**: Hook Implemented (DecoderHandlerMixin)
+- **Status**: ⚡ In Progress (KeepAlive filtering implemented)
 - **Goal**: Offload repetitive packet handling (KeepAlives, Heartbeats) to Rust to save Java main thread time and reduce allocations.
 - **Benefit**: Smoother server play and reduced networking-related GC pressure.
 
@@ -49,7 +33,6 @@ To minimize Java's overhead in Minecraft's **client-side** hot-paths by leveragi
 ## 🔍 Feature Backlog (From Source TODOs)
 
 - **Fast JSON Bridge**: Replace GSON with `serde_json` for resource/language loading.
-- **ModMenu Statistics**: Expose native JNI/SIMD metrics directly in the UI.
 - **Native Packet Handler**: Offload NBT parsing and serialization for high-traffic network packets.
 - **Distant Horizons BFS**: Replace bit-packed LOD light task decrements with a true 3D BFS grid propagator.
 
@@ -59,7 +42,7 @@ To minimize Java's overhead in Minecraft's **client-side** hot-paths by leveragi
 
 ### 1. JNI Memory Pinning (Core)
 
-- **Critical JNI Pinning**: Enabled `get_array_elements_critical` for all high-frequency hot-paths including `tickParticles`, `rustMatrixMul`, and `rustTransformVertices`.
+- **Zero-Copy Memory Pinning**: Critical JNI pinning for all high-frequency hot-paths.
 - **Zero-Copy Map Processing**: Subverted `int[]` copies by using 1.21's `NativeImage` pointer directly in Rust.
 - **Zero-Copy Matrix Math**: Enabled triple-pinning for `rustMatrixMul` to eliminate float[] copies.
 - **Zero-Copy Lighting**: Removed `region` copies for `propagateLightBulk` (SIMD) and `propagateLightDH`.
@@ -68,11 +51,13 @@ To minimize Java's overhead in Minecraft's **client-side** hot-paths by leveragi
 
 ### 2. Rendering & Math Hot-Paths
 
-- **Native Matrix Math (SIMD)**: All `Matrix4f.mul` operations are now zero-copy and use a SIMD-friendly column-major pattern.
-- **SIMD Frustum Optimization**: Batch-processes 4 planes at once to maximize vector throughput and pipeline efficiency.
+- **SIMD Frustum (SSE2)**: Explicitly vectorized point/plane tests for near-instant culling.
+- **Native HUD Matrix Stack**: Chain multiplication for HUD/Model hierarchies; minimizes JNI roundtrips.
+- **Native Matrix Math (SIMD)**: All `Matrix4f.mul` operations are zero-copy and use a SIMD-friendly column-major pattern.
 - **Adaptive Particle Culling**: Intelligent throttle that relaxes when ImmediatelyFast is active and tightens when heavy entity mods (EMF/ETF) are present.
 - **Parallel Map Processing**: Added `rustProcessMapTexture` logic to parallelize map color calculations for Item Frames.
 - **Hardware Sqrt (SIMD)**: Replaced magic numbers with native `RSQRTSS` intrinsics for core math paths.
+- **Absolute World-Space Culling**: Fixed native frustum logic to correctly handle absolute world coordinates for Distant Horizons while preserving high precision using camera-relative internal math.
 - **Adaptive Frustum Culling**: Fixed 'aggressive' culling by incorporating `fov_scale` and normalizing AABB bounds in native code.
 
 ### 3. Infrastructure & Build
@@ -88,6 +73,13 @@ To minimize Java's overhead in Minecraft's **client-side** hot-paths by leveragi
 - **Persistent Lib Cache**: Drastically reduced bootstrap time by caching native binaries in the config folder.
 - **Zero-Alloc Inflation**: Implemented `rustInflateRaw` for high-throughput, allocation-free world decompression.
 
+### 4. Logic & Style
+
+- **Native PRNG (Xoshiro256++)**: High-speed native random number generator (Xoshiro256++) integrated via `RandomMixin` to offload `Xoroshiro128PlusPlusRandom` and `LocalRandom`.
+- **Caveman Documentation Protocol**: Stripped all non-essential grammar from `GEMINI.md` and converted all multi-line Javadoc comments to compact `//` comments across the entire codebase to maximize token efficiency and code density.
+- **Native Trig Pre-warming**: Optimized startup latency by pre-calculating and pre-warming the Sine/Cosine LUT on a background thread during `JNI_OnLoad`.
+- **ModMenu Statistics (JNI/SIMD Metrics)**: Implemented atomic native counters and `NativeStatsRenderer` HUD to expose JNI call volume, lighting updates, and frustum test counts directly in-game.
+
 ---
 
-### Last Updated: April 10, 2026*
+### Last Updated: April 11, 2026*

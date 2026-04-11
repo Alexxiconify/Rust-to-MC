@@ -17,7 +17,8 @@
     "DecoderHandlerMixin",
     "BlockStateMixin",
     "CrashReportSectionMixin",
-    "SchemasMixin"
+    "SchemasMixin",
+    "RandomMixin"
   ],
   "client": [
     "FrustumMixin",

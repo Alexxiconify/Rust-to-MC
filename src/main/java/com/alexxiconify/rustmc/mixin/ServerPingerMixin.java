@@ -10,11 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Optimizes server list ping times by pre-resolving DNS via the Rust cached resolver.
- * Each server gets its own virtual thread for maximum parallelism — all DNS lookups
- * happen concurrently instead of sequentially.
- */
+// Optimizes server list ping times by pre-resolving DNS via the Rust cached resolver. Each server gets its own virtual thread for maximum parallelism — all DNS lookups happen concurrently instead of sequentially.
 @Mixin(MultiplayerServerListPinger.class)
 public class ServerPingerMixin {
 

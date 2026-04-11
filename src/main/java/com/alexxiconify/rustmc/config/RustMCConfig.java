@@ -1,9 +1,6 @@
 package com.alexxiconify.rustmc.config;
 
-/**
- * Configuration POJO for Rust-MC. All fields are serialized/deserialized by Gson,
- * and getters/setters are referenced by ModMenu (YACL) via method references.
- */
+// Configuration POJO for Rust-MC. All fields are serialized/deserialized by Gson, and getters/setters are referenced by ModMenu (YACL) via method references.
 public class RustMCConfig {
     // Math optimizations
     private boolean useNativeSine     = true;
@@ -14,6 +11,7 @@ public class RustMCConfig {
     private boolean useNativeFloor    = true;
     private boolean useNativeNoise    = true;
     private boolean useNativeF3       = true;
+    private boolean useNativeRandom   = true;
 
     // World / system features
     private boolean useNativeLighting    = true;
@@ -36,6 +34,7 @@ public class RustMCConfig {
     private boolean enableClientRedstoneSkip   = true;
     private boolean enableDebugHudGraph        = false;
     private boolean enablePieChart             = false;
+    private boolean enableNativeMetricsHud    = false;
 
     // DNS / Server List
     private boolean enableDnsCache             = true;
@@ -70,6 +69,7 @@ public class RustMCConfig {
         this.useNativeFloor = o.useNativeFloor;
         this.useNativeNoise = o.useNativeNoise;
         this.useNativeF3 = o.useNativeF3;
+        this.useNativeRandom = o.useNativeRandom;
         this.useNativeLighting = o.useNativeLighting;
         this.useNativeCompression = o.useNativeCompression;
         this.useNativePathfinding = o.useNativePathfinding;
@@ -88,6 +88,7 @@ public class RustMCConfig {
         this.enableClientRedstoneSkip = o.enableClientRedstoneSkip;
         this.enableDebugHudGraph = o.enableDebugHudGraph;
         this.enablePieChart = o.enablePieChart;
+        this.enableNativeMetricsHud = o.enableNativeMetricsHud;
         this.enableDnsCache = o.enableDnsCache;
         this.bridgeSodium = o.bridgeSodium;
         this.bridgeStarlight = o.bridgeStarlight;
@@ -115,6 +116,7 @@ public class RustMCConfig {
     public boolean isUseNativeFloor()       { return useNativeFloor; }
     public boolean isUseNativeNoise()       { return useNativeNoise; }
     public boolean isUseNativeF3()          { return useNativeF3; }
+    public boolean isEnableNativeRandom()   { return useNativeRandom; }
     public boolean isUseNativeLighting()    { return useNativeLighting; }
     public boolean isUseNativeCompression() { return useNativeCompression; }
     public boolean isUseNativePathfinding() { return useNativePathfinding; }
@@ -133,6 +135,7 @@ public class RustMCConfig {
     public boolean isEnableClientRedstoneSkip()   { return enableClientRedstoneSkip; }
     public boolean isEnableDebugHudGraph()        { return enableDebugHudGraph; }
     public boolean isEnablePieChart()             { return enablePieChart; }
+    public boolean isEnableNativeMetricsHud()    { return enableNativeMetricsHud; }
     public boolean isEnableDnsCache()             { return enableDnsCache; }
     public boolean isBridgeSodium()         { return bridgeSodium; }
     public boolean isBridgeStarlight()      { return bridgeStarlight; }
@@ -158,6 +161,7 @@ public class RustMCConfig {
     public void setUseNativeAtan2(boolean v)       { useNativeAtan2 = v; }
     public void setUseNativeFloor(boolean v)       { useNativeFloor = v; }
     public void setUseNativeNoise(boolean v)       { useNativeNoise = v; }
+    public void setEnableNativeRandom(boolean v)   { useNativeRandom = v; }
     public void setUseNativeLighting(boolean v)    { useNativeLighting = v; }
     public void setUseNativeCompression(boolean v) { useNativeCompression = v; }
     public void setUseNativePathfinding(boolean v) { useNativePathfinding = v; }
@@ -176,6 +180,7 @@ public class RustMCConfig {
     public void setEnableClientRedstoneSkip(boolean v)   { enableClientRedstoneSkip = v; }
     public void setEnableDebugHudGraph(boolean v)        { enableDebugHudGraph = v; }
     public void setEnablePieChart(boolean v)             { enablePieChart = v; }
+    public void setEnableNativeMetricsHud(boolean v)    { enableNativeMetricsHud = v; }
     public void setEnableDnsCache(boolean v)             { enableDnsCache = v; }
     public void setBridgeSodium(boolean v)         { bridgeSodium = v; }
     public void setBridgeStarlight(boolean v)      { bridgeStarlight = v; }
