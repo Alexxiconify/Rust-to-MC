@@ -100,9 +100,4 @@ subprojects {
         dependsOn ':moveRustBinaries'
     }
 }
-tasks.register('buildAll') {
-    group = 'build'
-    description = 'Builds jars for both 1.21.11 and 26.1.1'
-    dependsOn ':versions:mc1_21_11:build'
-    // dependsOn ':versions:mc26_1_1:build'
-}
+// Standard build tasks from the 'base' plugin will aggregate subproject results.

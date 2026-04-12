@@ -108,13 +108,13 @@ public class DistantHorizonsCompat {
                 double cx = camEntity.getX();
                 double cy = camEntity.getY();
                 double cz = camEntity.getZ();
-                com.alexxiconify.rustmc.NativeBridge.updateRustFrustum(rustFrustumPtr, vpArray, cx, cy, cz);
                 double fov = mc2.options.getFov().getValue();
                 double aspect = mc2.getWindow().getFramebufferWidth()
                     / Math.max(1.0, mc2.getWindow().getFramebufferHeight());
                 double aspectBoost = Math.max(1.0, aspect / (16.0 / 9.0));
                 double fovScale = Math.clamp(1.15 * (fov / 70.0) * Math.sqrt(aspectBoost), 0.8, 2.5);
-                com.alexxiconify.rustmc.NativeBridge.setRustFrustumFovScale(rustFrustumPtr, fovScale);
+                
+                com.alexxiconify.rustmc.NativeBridge.updateRustFrustum(rustFrustumPtr, vpArray, fovScale, cx, cy, cz);
             }
         }
         return null;
@@ -227,12 +227,9 @@ public class DistantHorizonsCompat {
         com.alexxiconify.rustmc.NativeBridge.propagateLightDH(lightTasks, lightTasks.length);
     }
 
-    /**
-     * Offloads LOD generation to GPU if WGPU is ready. 
-     * Best for high-detail LODs (detail <= 2).
-     */
-    public static float[] generateGpuLod(int[] blocks, int chunkX, int chunkZ, int detail) {
-        if (!com.alexxiconify.rustmc.NativeBridge.isReady() || detail > 2) return new float[0];
+    // Offloads LOD generation to GPU if WGPU is ready. Best for high-detail LODs (detail <= 2).
+    public static int[] generateGpuLod(int[] blocks, int chunkX, int chunkZ, int detail) {
+        if (!com.alexxiconify.rustmc.NativeBridge.isReady() || detail > 2) return new int[0];
         return com.alexxiconify.rustmc.NativeBridge.generateLodMeshGpu(blocks, chunkX, chunkZ, detail);
     }
 }

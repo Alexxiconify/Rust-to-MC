@@ -14,6 +14,7 @@ Performance-focused Minecraft mod that offloads hot-paths to native Rust via JNI
 - **SIMD Point Test (SSE2 fallback)**: 6 real planes tested in `f64`.
 - **Adaptive FOV Scale**: `fov_scale` baked into margin; normalizes AABB bounds in native code to prevent aggressive culling.
 - **Shared Global Frustum**: Persistent native context synced once per frame; no per-call frustum recreation.
+- **Hierarchical Occlusion Culling**: Software-based depth/occlusion manager. Prevents rendering LODs or blocks hidden behind closer occluders. Fused with frustum culling for zero extra JNI overhead.
 
 ### Lighting
 
@@ -69,30 +70,11 @@ Performance-focused Minecraft mod that offloads hot-paths to native Rust via JNI
 - **Zero Warnings**: All major Clippy and Java IDE warnings resolved.
 - **Fast JSON (`rustLoadJson`)**: `serde_json` parses + minifies JSON in Rust; returned as Java String. Replaces GSON for resource/language file parsing; no GC allocation on hot language-load path.
 
----
+### ✅ Completed Optimizations (April 12)
 
-## 🚧 In Progress
-
-### Native Chunk Meshing & Parsing
-
-- **Status**: Stub — `rustProcessChunkData` parses root compound tag header only.
-- **Goal**: Full section-level block-state decoder (palette + packed-long data) via direct ByteBuffer pointer; then vertex buffer construction bypassing Java NBT.
-- **Next**: Hook `ClientChunkMap` or `ChunkSerializer` to pass raw section bytes via `long ptr`; implement palette decoder in Rust.
-
----
-
-## 🔮 Upcoming Optimizations
-
-### High Priority
-
-### Medium Priority
-
-1. **NBT Serialization Offload** — `rustNbtDecodeInt` extended to decode full compound trees for high-traffic network packets.
-2. **Distant Horizons 3D BFS** — true 3D LOD light propagation grid for DH (currently only 1D `long[]` decrement).
-
----
-
-### Last Updated: April 12, 2026
+1. **GPU LOD Quantization (VRAM)** — Quantize `LodVertex` (32 bytes -> 8 bytes). 75% VRAM reduction for Distant Horizons.
+2. **Batch Entity Frustum Tests** — Parallelized bulk AABB testing via JNI. Eliminates per-entity JNI overhead for 200+ entities.
+3. **Rust Occlusion Culling** — Initial frustum-aware occlusion buffer implementation.
 
 **Distant Horizons & Performance Overhaul:**
 
@@ -103,3 +85,22 @@ Performance-focused Minecraft mod that offloads hot-paths to native Rust via JNI
 - **Fused JNI Culling**: Halved JNI overhead by combining subterranean and frustum checks into one native call.
 - **Aggressive DH Threading**: Optimized thread pools and builder priority via reflection for peak server-sourced LOD throughput.
 - **SIMD Refines**: Fixed borrow-checker and syntax lints across the native bridge.
+
+---
+
+## 🚧 In Progress
+
+### Native Chunk Meshing & Parsing
+
+- **Status**: Stub — `rustProcessChunkData` parses root compound tag header only.
+- **Goal**: Full section-level block-state decoder (palette + packed-long data) via direct ByteBuffer pointer; then vertex buffer construction bypassing Java NBT.
+- **Next**: Hook `ClientChunkMap` or `ChunkSerializer` to pass raw section bytes via `long ptr`; implement palette decoder in Rust.
+
+## 🔮 Upcoming Optimizations
+
+1. **SIMD Particle Tick Offload** — Move x/y/z and velocity simulation for particles to Rust Rayon loops. Eliminates per-particle Java `tick()` overhead.
+
+### Medium Priority
+
+1. **NBT Serialization Offload** — `rustNbtDecodeInt` extended to decode full compound trees for high-traffic network packets.
+2. **Distant Horizons 3D BFS** — true 3D LOD light propagation grid for DH (currently only 1D `long[]` decrement).

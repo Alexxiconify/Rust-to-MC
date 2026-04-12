@@ -92,20 +92,28 @@ public class NativeBridge {
     }
     // Frustum state management
     private static native long rustFrustumCreate();
-    private static native void rustFrustumUpdate(long ptr, float[] vpMatrix, double camX, double camY, double camZ);
+    private static native void rustFrustumUpdate(long ptr, float[] vpMatrix, double fovScale, double camX, double camY, double camZ);
+    private static native void rustOcclusionSubmit(double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
     private static native boolean rustIsOutsideFrustum(long ptr, double x, double y, double z, double radius);
     private static native int rustCullEntities(long ptr, double[] positions, int count, boolean[] results, float margin);
+    private static native int[] rustGenerateLodMeshGpu(int[] blocks, int chunkX, int chunkZ, int detail);
     private static native void rustFrustumDestroy(long ptr);
     
     private static long activeFrustum = 0;
 
     // Updates the persistent Vanilla frustum in Rust's global context. This avoids creating new frustum objects every frame.
-    public static void updateVanillaFrustum(float[] vpMatrix, double camX, double camY, double camZ) {
+    public static void updateVanillaFrustum(float[] vpMatrix, double fovScale, double camX, double camY, double camZ) {
         if (!libLoaded || vpMatrix == null || vpMatrix.length < 16) return;
-        try { rustFrustumUpdate(0, vpMatrix, camX, camY, camZ); }
+        try { rustFrustumUpdate(0, vpMatrix, fovScale, camX, camY, camZ); }
         catch (UnsatisfiedLinkError ignored) {
             // Optional native method; ignore if not linked
         }
+    }
+
+    public static void submitOccluder(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        if (!libLoaded) return;
+        try { rustOcclusionSubmit(minX, minY, minZ, maxX, maxY, maxZ); }
+        catch (UnsatisfiedLinkError ignored) { /* optional */ }
     }
 
     // Optimizes entity/particle culling by offloading frustum intersection checks to Rust. Uses the persistent global frustum updated via 'updateVanillaFrustum'.
@@ -245,7 +253,6 @@ public class NativeBridge {
     private static native void rustDnsCacheImport(String json);
     private static native int rustInflateRaw(byte[] input, int inputOffset, int inputLen, byte[] output, int outputOffset, int outputMaxLen);
     private static native long[] rustGetMetrics(boolean reset);
-    private static native float[] rustGenerateLodMeshGpu(int[] blocks, int chunkX, int chunkZ, int detail);
 
     // --- Wrapper Methods ---
 
@@ -479,9 +486,9 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError e) { return 0; }
     }
 
-    public static void updateRustFrustum(long ptr, float[] vpMatrix, double camX, double camY, double camZ) {
+    public static void updateRustFrustum(long ptr, float[] vpMatrix, double fovScale, double camX, double camY, double camZ) {
         if (!libLoaded || ptr == 0 || vpMatrix == null || vpMatrix.length < 16) return;
-        try { rustFrustumUpdate(ptr, vpMatrix, camX, camY, camZ); }
+        try { rustFrustumUpdate(ptr, vpMatrix, fovScale, camX, camY, camZ); }
         catch (UnsatisfiedLinkError ignored) { /* Optional native method */ }
     }
 
@@ -673,12 +680,12 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError e) { return new long[0]; }
     }
 
-    public static float[] generateLodMeshGpu(int[] blocks, int chunkX, int chunkZ, int detail) {
-        if (!libLoaded || blocks == null) return new float[0];
+    public static int[] generateLodMeshGpu(int[] blocks, int chunkX, int chunkZ, int detail) {
+        if (!libLoaded || blocks == null) return new int[0];
         try {
             return rustGenerateLodMeshGpu(blocks, chunkX, chunkZ, detail);
         } catch (UnsatisfiedLinkError e) {
-            return new float[0];
+            return new int[0];
         }
     }
 }

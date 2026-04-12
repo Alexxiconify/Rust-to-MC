@@ -33,10 +33,14 @@ public class FrustumMixin {
     @Inject(method = "setPosition", at = @At("RETURN"))
     private void rustmc$onSetPosition(double cameraX, double cameraY, double cameraZ, CallbackInfo ci) {
         if (NativeBridge.isReady() && RustMC.CONFIG.isUseNativeCulling()) {
-            NativeBridge.updateVanillaFrustum(rustmc$matrixBuf, cameraX, cameraY, cameraZ);
-            
             MinecraftClient client = MinecraftClient.getInstance();
+            double fovScale = 1.0;
             if (client != null) {
+                double fov = client.options.getFov().getValue();
+                double aspect = client.getWindow().getFramebufferWidth() / Math.max(1.0, client.getWindow().getFramebufferHeight());
+                double aspectBoost = Math.max(1.0, aspect / (16.0 / 9.0));
+                fovScale = Math.clamp(1.15 * (fov / 70.0) * Math.sqrt(aspectBoost), 0.8, 2.5);
+
                 var world = client.world;
                 if (world != null) {
                     BlockPos bpos = BlockPos.ofFloored(cameraX, cameraY, cameraZ);
@@ -44,6 +48,7 @@ public class FrustumMixin {
                     NativeBridge.updateCaveStatus(inCave);
                 }
             }
+            NativeBridge.updateVanillaFrustum(rustmc$matrixBuf, fovScale, cameraX, cameraY, cameraZ);
         }
     }
 }
