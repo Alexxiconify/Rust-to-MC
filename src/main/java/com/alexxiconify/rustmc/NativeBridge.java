@@ -223,6 +223,7 @@ public class NativeBridge {
     }
 
     private static native boolean rustDHCull(double minY, double maxY, double surfaceY);
+    private static native boolean rustDHCullFused(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double surfaceY);
     private static native void rustSetCaveStatus(boolean inCave);
     private static native float rustGetAvgFps();
     private static native float rustClamp(float value, float min, float max);
@@ -244,6 +245,7 @@ public class NativeBridge {
     private static native void rustDnsCacheImport(String json);
     private static native int rustInflateRaw(byte[] input, int inputOffset, int inputLen, byte[] output, int outputOffset, int outputMaxLen);
     private static native long[] rustGetMetrics(boolean reset);
+    private static native float[] rustGenerateLodMeshGpu(int[] blocks, int chunkX, int chunkZ, int detail);
 
     // --- Wrapper Methods ---
 
@@ -533,6 +535,12 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError e) { return true; }
     }
 
+    public static boolean invokeDHCullFused(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double surfaceY) {
+        if (!libLoaded) return true;
+        try { return rustDHCullFused(ptr, minX, minY, minZ, maxX, maxY, maxZ, surfaceY); }
+        catch (UnsatisfiedLinkError e) { return true; }
+    }
+
     public static void updateCaveStatus(boolean inCave) {
         if (!libLoaded) return;
         try { rustSetCaveStatus(inCave); }
@@ -663,5 +671,14 @@ public class NativeBridge {
         if (!libLoaded) return new long[0];
         try { return rustGetMetrics(reset); }
         catch (UnsatisfiedLinkError e) { return new long[0]; }
+    }
+
+    public static float[] generateLodMeshGpu(int[] blocks, int chunkX, int chunkZ, int detail) {
+        if (!libLoaded || blocks == null) return new float[0];
+        try {
+            return rustGenerateLodMeshGpu(blocks, chunkX, chunkZ, detail);
+        } catch (UnsatisfiedLinkError e) {
+            return new float[0];
+        }
     }
 }

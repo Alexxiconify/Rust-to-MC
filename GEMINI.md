@@ -2,7 +2,7 @@
 
 1. **Code**: Bug-proof. Clean comments.
 2. **Docs**: Pro MD. Normal writing.
-3. **Chat**: Caveman speak and thoughts. Facts only. No fluff.
+3. **Chat**: Caveman speak and thinking. Facts only. No fluff.
 4. **Thought**: Caveman logic. Zero waste.
 5. **Env**: Win11/PS7. No linux: grep, rm, sed.
 6. **Tool**: API > Shell.

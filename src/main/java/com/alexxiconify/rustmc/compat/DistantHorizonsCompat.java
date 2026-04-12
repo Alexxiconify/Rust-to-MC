@@ -12,12 +12,14 @@ public class DistantHorizonsCompat {
 
     private DistantHorizonsCompat() {}
 
+    private static final String OVERRIDES = "overrides";
+
     public static void disableFade() {
         if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID)) return;
         try {
             Class<?> apiClass = Class.forName(DH_API_CLASS);
             Object dhApi = apiClass.getField("Inst").get(null);
-            Object overrides = dhApi.getClass().getMethod("overrides").invoke(dhApi);
+            Object overrides = dhApi.getClass().getMethod(OVERRIDES).invoke(dhApi);
             overrides.getClass().getMethod("setFadeNearbyLods", boolean.class).invoke(overrides, false);
             RustMC.LOGGER.info("[Rust-MC] Disabled Distant Horizons chunk fade via API.");
         } catch (Exception e) {
@@ -39,7 +41,7 @@ public class DistantHorizonsCompat {
             if (rustFrustumPtr == 0) return;
 
             Class<?> apiClass = Class.forName(DH_API_CLASS);
-            Object overridesInjector = apiClass.getField("overrides").get(null);
+            Object overridesInjector = apiClass.getField(OVERRIDES).get(null);
 
             java.lang.reflect.Method bindMethod = findBindMethod(overridesInjector);
 
@@ -76,7 +78,7 @@ public class DistantHorizonsCompat {
     private static float[] lastVpArray = null;
 
     @SuppressWarnings("java:S112") // Reflection methods throw many checked exception types
-    private static Object handleFrustumProxy(Object proxy, java.lang.reflect.Method method, Object[] args) throws Exception {
+    private static Object handleFrustumProxy(Object proxy, java.lang.reflect.Method method, Object[] args) throws ReflectiveOperationException {
         String name = method.getName();
         return switch (name) {
             case "getPriority" -> Integer.MAX_VALUE;
@@ -89,7 +91,7 @@ public class DistantHorizonsCompat {
         };
     }
 
-    private static Object handleFrustumUpdate(Object[] args) throws Exception {
+    private static Object handleFrustumUpdate(Object[] args) throws ReflectiveOperationException {
         if (args != null && args.length == 3) {
             currentMinY = (int) args[0];
             currentMaxY = (int) args[1];
@@ -119,38 +121,25 @@ public class DistantHorizonsCompat {
     }
 
     private static Object handleFrustumIntersects(Object[] args) {
-        if (args != null && args.length == 4) {
-            int minX = (int) args[0];
-            int minZ = (int) args[1];
-            int maxX = (int) args[2];
-            int maxZ = (int) args[3];
-            if (!com.alexxiconify.rustmc.NativeBridge.invokeDHCull(currentMinY, currentMaxY, 62.0)) {
-                return false; 
-            }
-            net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
-            net.minecraft.entity.Entity cam = client.getCameraEntity();
-            if (cam != null) {
-                double camX = cam.getX();
-                double camY = cam.getY();
-                double camZ = cam.getZ();
-                
-                double dx = Math.max(minX - camX, Math.max(0, camX - maxX));
-                double dy = Math.max(currentMinY - camY, Math.max(0, camY - currentMaxY));
-                double dz = Math.max(minZ - camZ, Math.max(0, camZ - maxZ));
-                
-                return Math.sqrt(dx * dx + dy * dy + dz * dz) < 32768.0;
-            }
-            return true;
-        }
-        return true;
-    }
+        if (args == null || args.length < 4 || !com.alexxiconify.rustmc.NativeBridge.isReady()) return true;
+        int minX = (int) args[0];
+        int minZ = (int) args[1];
+        int maxX = (int) args[2];
+        int maxZ = (int) args[3];
 
-    // Public API hook for DH vertex builders or shaders to offload Ambient Occlusion calculations to the Rust wgpu Compute Shader pipeline. Expects vertices formatted as contiguous floats: [posX, posY, posZ, pad, normX, normY, normZ, pad].
+        // Fused call: Handles both vertical subterranean culling and frustum culling in one JNI step.
+        return com.alexxiconify.rustmc.NativeBridge.invokeDHCullFused(
+            rustFrustumPtr,
+            minX, currentMinY, minZ,
+            maxX, currentMaxY, maxZ,
+            62.0 // Surface Y for cave/subterranean check
+        );
+    }
     public static float[] computeRustAmbientOcclusion(float[] vertexData) {
         if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID) || !com.alexxiconify.rustmc.NativeBridge.isReady()) {
             return new float[0];
         }
-        int vertexCount = vertexData.length / 8; // 8 floats per vertex struct in WGSL
+        int vertexCount = vertexData.length / 8;
         if (vertexCount == 0) return new float[0];
 
         return com.alexxiconify.rustmc.NativeBridge.invokeComputeAmbientOcclusion(vertexData, vertexCount);
@@ -165,7 +154,8 @@ public class DistantHorizonsCompat {
         return com.alexxiconify.rustmc.NativeBridge.invokeComputeAmbientOcclusionDirect(vertexData, vertexCount);
     }
 
-    // ── LOD Loading Optimization ──────────────────────────────────────────── Hints the DH API to use a higher thread count for LOD generation/loading. Called during init. DH's default thread count is conservative — on modern CPUs we can afford more threads for disk I/O and LOD meshing.
+    // ── LOD Threading Optimization ────────────────────────────────────────────
+    // Maximizes DH LOD builder, world-gen, and file-save threads so server-sourced
     public static void optimizeLodThreading() {
         if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID)) return;
         try {
@@ -175,22 +165,40 @@ public class DistantHorizonsCompat {
             Object threading = configs.getClass().getMethod("threading").invoke(configs);
 
             int cores = Runtime.getRuntime().availableProcessors();
-            int lodThreads = Math.max(2, cores / 2);
-            setLodBuilderThreads(threading, lodThreads);
+            int lodThreads = Math.max(2, cores - 1);
+            setDhThreadingConfig(threading, "setNumberOfLodBuilderThreads", lodThreads, "LOD builder");
+            setDhThreadingConfig(threading, "setNumberOfWorldGenerationThreads", Math.max(1, cores / 2), "world-gen");
+            // Boost file saving — higher values help with server-sourced LOD bursts.
+            int saveThreads = Math.max(2, cores / 2);
+            setDhThreadingConfig(threading, "setNumberOfFileSaveThreads", saveThreads, "file-save");
+            // Additional generation priority boost via overrides
+            Object overrides = dhApi.getClass().getMethod(OVERRIDES).invoke(dhApi);
+            setDhGenerationPriority(overrides);
         } catch (Exception e) {
             RustMC.LOGGER.debug("[Rust-MC] Could not optimize DH LOD threading ({})", e.getMessage());
         }
     }
 
-    private static void setLodBuilderThreads(Object threading, int lodThreads) {
+    private static void setDhGenerationPriority(Object overrides) {
         try {
-            java.lang.reflect.Method setThreadCount = threading.getClass().getMethod("setNumberOfLodBuilderThreads", int.class);
-            setThreadCount.invoke(threading, lodThreads);
-            RustMC.LOGGER.info("[Rust-MC] Set DH LOD builder threads to {}", lodThreads);
-        } catch (NoSuchMethodException e) {
-            RustMC.LOGGER.debug("[Rust-MC] DH API doesn't expose thread count setter.");
+            // DH internal settings (methods may vary by version, using reflection safely)
+            overrides.getClass().getMethod("setLodBuilderPriority", int.class).invoke(overrides, 0); // 0 = High priority
+            RustMC.LOGGER.info("[Rust-MC] DH LOD builder priority set to HIGH.");
+        } catch (NoSuchMethodException ignored) {
+            // DH version mismatch
         } catch (Exception e) {
-            RustMC.LOGGER.debug("[Rust-MC] Could not set DH LOD threads: {}", e.getMessage());
+            RustMC.LOGGER.debug("[Rust-MC] Failed to set DH priority: {}", e.getMessage());
+        }
+    }
+
+    private static void setDhThreadingConfig(Object threading, String method, int count, String label) {
+        try {
+            threading.getClass().getMethod(method, int.class).invoke(threading, count);
+            RustMC.LOGGER.info("[Rust-MC] DH {} threads = {}", label, count);
+        } catch (NoSuchMethodException ignored) {
+            // DH version may not expose this setter — skip silently.
+        } catch (Exception e) {
+            RustMC.LOGGER.debug("[Rust-MC] Could not set DH {} threads: {}", label, e.getMessage());
         }
     }
 
@@ -217,5 +225,14 @@ public class DistantHorizonsCompat {
         if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID) || !com.alexxiconify.rustmc.NativeBridge.isReady()) return;
 
         com.alexxiconify.rustmc.NativeBridge.propagateLightDH(lightTasks, lightTasks.length);
+    }
+
+    /**
+     * Offloads LOD generation to GPU if WGPU is ready. 
+     * Best for high-detail LODs (detail <= 2).
+     */
+    public static float[] generateGpuLod(int[] blocks, int chunkX, int chunkZ, int detail) {
+        if (!com.alexxiconify.rustmc.NativeBridge.isReady() || detail > 2) return new float[0];
+        return com.alexxiconify.rustmc.NativeBridge.generateLodMeshGpu(blocks, chunkX, chunkZ, detail);
     }
 }

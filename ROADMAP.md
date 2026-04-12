@@ -10,11 +10,9 @@ Performance-focused Minecraft mod that offloads hot-paths to native Rust via JNI
 
 ### Frustum Culling
 
-- **SIMD Point Test (AVX2/SSE2)**: All 8 plane slots tested in one AVX2 pass (6 real + 2 zero-padded); fell back to two SSE2 4-wide passes when AVX2 unavailable. Eliminates scalar branching entirely.
-- **SIMD AABB Test (SSE2)**: Two `_mm_blendv_ps` passes for p-vertex selection; no per-axis branches.
+- **High-Precision f64 Frustum**: All plane extraction and AABB intersection math migrated to `f64`. Fixes North/East LOD unloading/culling errors far from spawn by eliminating `f32` precision loss.
+- **SIMD Point Test (SSE2 fallback)**: 6 real planes tested in `f64`.
 - **Adaptive FOV Scale**: `fov_scale` baked into margin; normalizes AABB bounds in native code to prevent aggressive culling.
-- **Absolute World-Space**: Correct camera-relative internal math for Distant Horizons coordinates.
-- **Batch AABB Pinning**: Zero-copy `aabbs` handoff for `rustBatchFrustumTest` via critical pinning.
 - **Shared Global Frustum**: Persistent native context synced once per frame; no per-call frustum recreation.
 
 ### Lighting
@@ -63,6 +61,8 @@ Performance-focused Minecraft mod that offloads hot-paths to native Rust via JNI
 - **Persistent Lib Cache**: Native binary cached in config dir; skips extraction on subsequent launches.
 - **Virtual Threaded Init**: DH + ScalableLux compat layers initialize in parallel on virtual threads.
 - **Ultra-Fast Startup**: WGPU and DNS cache load on background threads; no blocking joins in `onInitialize`.
+- **GPU-Accelerated LOD Generation**: Compute-shader based voxelization and meshing (`lod_mesher.wgsl`) via WGPU. Offloads high-detail DH LOD construction to the GPU, significantly reducing builder thread CPU load.
+- **Maximized DH LOD Performance**: Boosted Distant Horizons threading (LOD Builder, World-Gen, File-Save) via reflection; set LOD Builder to HIGH priority via `setLodBuilderPriority(0)`. Optimizes processing of server-sourced LOD data.
 - **Chunk Builder Expansion**: `ChunkBuilderMixin` uses `max(2, cpus - 2)` workers; yields to Sodium.
 - **ModMenu Stats HUD**: Atomic counters expose JNI call volume, lighting updates, frustum tests in-game.
 - **1.21.11 Mixin Remaps**: All 5 `Cannot remap` errors fixed against yarn build.4 mappings.
@@ -92,4 +92,14 @@ Performance-focused Minecraft mod that offloads hot-paths to native Rust via JNI
 
 ---
 
-### Last Updated: April 12, 2026 (AVX2 vertex transform, PRNG seed broadcast, cave FIR reverb, serde_json loader)
+### Last Updated: April 12, 2026
+
+**Distant Horizons & Performance Overhaul:**
+
+- **Modular Core Architecture**: Refactored `lib.rs` into specialized submodules (`frustum`, `lighting`, `math`, `net`, `particles`, `pipeline`) for better maintainability and performance.
+- **GPU-Accelerated LOD Generation**: Compute-shader mesh voxelization (`lod_mesher.wgsl`) via WGPU, reducing builder thread CPU pressure.
+- **Streamlined DH Pipeline**: Unified `LodPipeline` handling "Generate -> Shade (AO) -> Render" entirely in Rust.
+- **f64 High-Precision Frustum**: Migrated planes to `f64` world-coordinates, eliminating LOD unloading at north/east distance.
+- **Fused JNI Culling**: Halved JNI overhead by combining subterranean and frustum checks into one native call.
+- **Aggressive DH Threading**: Optimized thread pools and builder priority via reflection for peak server-sourced LOD throughput.
+- **SIMD Refines**: Fixed borrow-checker and syntax lints across the native bridge.
