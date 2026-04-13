@@ -2,7 +2,7 @@ plugins {
     id 'fabric-loom' version '1.15.0-alpha.25' apply false
     id 'base'
 }
-
+ 
 version = '1.0.3'
 group = 'com.alexxiconify.rustmc'
 // ─── Rust native library build (High-Performance & Cache-Compliant) ────────
