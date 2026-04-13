@@ -12,6 +12,7 @@ public class MinecraftClientMixin {
     @Unique private long lastFrameTime = System.nanoTime();
     @Inject(method = "render(Z)V", at = @At("HEAD"))
     private void onRenderHead(boolean tick, CallbackInfo ci) {
+        NativeBridge.rollFrustumFrameCounters();
         long now = System.nanoTime();
         long delta = now - lastFrameTime;
         lastFrameTime = now;
