@@ -1,5 +1,4 @@
 package com.alexxiconify.rustmc.mixin;
-import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
 import net.minecraft.world.chunk.light.LightingProvider;
@@ -48,25 +47,18 @@ public class LightingMixin {
     }
     @Unique
     private static boolean isRustLightingActive() {
-        return NativeBridge.isReady() && ModBridge.isLightingOwned ( )
-                && RustMC.CONFIG.isUseNativeLighting();
+        // Client-only: process received lighting data from server
+        return NativeBridge.isReady() && RustMC.CONFIG.isUseNativeLighting();
     }
     @Unique
     private static synchronized void ensureRustThread() {
         if (rustLightThreadRunning) return;
         rustLightThreadRunning = true;
-        Thread.ofVirtual().name("rustmc-light-propagation").start(() -> {
-            try {
-                while (!Thread.currentThread().isInterrupted()) {
-                    Thread.sleep(10);
-                    if (isRustLightingActive()) {
-                        drainAndDispatch();
-                    }
+        Thread.ofPlatform().name("rustmc-light-propagation").daemon(true).start(() -> {
+            while (rustLightThreadRunning) {
+                if (isRustLightingActive()) {
+                    drainAndDispatch();
                 }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } finally {
-                rustLightThreadRunning = false;
             }
         });
     }

@@ -16,8 +16,8 @@ public class MinecraftClientMixin {
         long now = System.nanoTime();
         long delta = now - lastFrameTime;
         lastFrameTime = now;
-        // Always record frame times when native is ready and in-world. Ring buffer append is ~5ns native — cheaper than branch miss from config checks.
-        if (delta > 0 && NativeBridge.isReady() && this.world != null) {
+        // Record frame times when native is ready and in-world (only check what matters)
+        if (delta > 0 && this.world != null && NativeBridge.isReady()) {
             NativeBridge.invokeAddFrameTime(delta);
         }
     }

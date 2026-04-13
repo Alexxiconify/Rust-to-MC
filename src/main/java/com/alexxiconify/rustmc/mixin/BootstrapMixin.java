@@ -6,12 +6,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.concurrent.atomic.AtomicBoolean;
- //  Pre-warms Bootstrap.initialize() on a virtual thread so the 4-5 s
+ //  Pre-warms Bootstrap.initialize() on a platform daemon thread so the 4-5 s
  //  Datafixer registry build overlaps with mixin loading rather than
  //  blocking the main thread at game start.
- //  <p>
  //  Bootstrap.initialize() is idempotent (guards with a static boolean),
- //  so if our virtual thread finishes first the main-thread call is instant.
+ //  so if our platform thread finishes first the main-thread call is instant.
 @Mixin(Bootstrap.class)
 public class BootstrapMixin {
     @SuppressWarnings("unused")
@@ -23,7 +22,7 @@ public class BootstrapMixin {
     @Inject(method = "initialize", at = @At("HEAD"))
     private static void prewarm(CallbackInfo ci) {
         if (prewarmStarted.compareAndSet(false, true)) {
-            Thread.ofVirtual().name("rustmc-bootstrap-prewarm").start(Bootstrap::initialize);
+            Thread.ofPlatform().name("rustmc-bootstrap-prewarm").daemon(true).start(Bootstrap::initialize);
         }
     }
 }

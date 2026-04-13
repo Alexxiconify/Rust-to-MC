@@ -20,21 +20,19 @@ public class FrustumMixin {
     private final Matrix4f rustmc$combined = new Matrix4f();
     @Inject(method = "init", at = @At("RETURN"))
     private void rustmc$onInit(Matrix4f viewMatrix, Matrix4f projectionMatrix, CallbackInfo ci) {
-        if (NativeBridge.isReady() && RustMC.CONFIG.isUseNativeCulling()) {
-            rustmc$combined.set(projectionMatrix).mul(viewMatrix);
-            rustmc$combined.get(rustmc$matrixBuf);
-            NativeBridge.updateVanillaFrustum(rustmc$matrixBuf);
-            // Cave detection for DH culling
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null) {
-                var world = client.world;
-                var cameraEntity = client.getCameraEntity();
-                if (world != null && cameraEntity != null) {
-                    BlockPos pos = cameraEntity.getBlockPos();
-                    boolean inCave = world.getLightLevel(LightType.SKY, pos) == 0 && pos.getY() < 50;
-                    NativeBridge.updateCaveStatus(inCave);
-                }
-            }
+        if (!NativeBridge.isReady() || !RustMC.CONFIG.isUseNativeCulling()) return;
+        rustmc$combined.set(projectionMatrix).mul(viewMatrix);
+        rustmc$combined.get(rustmc$matrixBuf);
+        NativeBridge.updateVanillaFrustum(rustmc$matrixBuf);
+        // Cave detection for DH culling
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) return;
+        var world = client.world;
+        var cameraEntity = client.getCameraEntity();
+        if (world != null && cameraEntity != null) {
+            BlockPos pos = cameraEntity.getBlockPos();
+            boolean inCave = world.getLightLevel(LightType.SKY, pos) == 0 && pos.getY() < 50;
+            NativeBridge.updateCaveStatus(inCave);
         }
     }
 }

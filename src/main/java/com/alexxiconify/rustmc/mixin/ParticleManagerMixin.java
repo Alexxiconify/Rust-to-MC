@@ -10,7 +10,6 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-//
  //  Distance-culls particles before they are created to reduce GPU and CPU overhead.
  //  Uses a tighter cutoff when heavy entity mods (EMF/ETF) are active to free up
  //  rendering headroom. When ImmediatelyFast is batching draws, we use a more
@@ -25,9 +24,9 @@ public class ParticleManagerMixin {
         if (!com.alexxiconify.rustmc.RustMC.CONFIG.isEnableParticleCulling()) return;
         PlayerEntity player = MinecraftClient.getInstance().player;
         if (player == null) return;
+        // Early exit on distance check before expensive cutoff calculation
         double baseDistance = MinecraftClient.getInstance().options.getClampedViewDistance() / 8.0;
-        // Adaptive culling based on render budget + mod state + IF multiplier
-        double cutoff = getCutoff ( baseDistance );
+        double cutoff = getCutoff(baseDistance);
         if (player.squaredDistanceTo(x, y, z) > cutoff * cutoff) {
             cir.setReturnValue(null);
         }

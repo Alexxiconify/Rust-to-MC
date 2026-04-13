@@ -13,6 +13,9 @@ Scope: active work only. Completed optimization history lives in [`docs/complete
 ## Current Baseline (April 2026)
 
 - Primary target: **Minecraft 1.21.11** (active Gradle module `:versions:mc1_21_11`).
+- Java side: **Client-only** with 10 optimized mixins focused on frustum, lighting, particles, and rendering.
+- Mixin count reduced from 30+ to 20 active (7 pure server-side mixins removed for vanilla server compatibility).
+- Thread usage optimized: virtual threads replaced with platform daemon threads for lower overhead.
 - Java side emphasizes compatibility gating via `MixinManager` and `ModBridge`.
 - Rust side provides frustum, particle, audio, compression, and utility paths with fallback wrappers in `NativeBridge`.
 - Distant Horizons culling path remains Rust-driven with fused/fallback behavior.
@@ -83,4 +86,4 @@ Every optimization should satisfy at least one of these before it is considered 
 
 ---
 
-Last Updated: April 12, 2026
+Last Updated: April 13, 2026
