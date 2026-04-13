@@ -28,11 +28,14 @@ public final class PieChartRenderer {
     private static float cachedNetPct;
     private static float cachedGpuPct;
     private static float cachedOtherPct;
-    private static float cachedAvg;
-    private static float cachedMin;
-    private static float cachedMax;
-    private static int cachedSlowFrames;
-    private static int cachedHistoryLen;
+    private static String cachedRenderLabel = "Render 0%";
+    private static String cachedTickLabel = "Tick 0%";
+    private static String cachedNetLabel = "Net 0%";
+    private static String cachedGpuLabel = "GPU 0%";
+    private static String cachedOtherLabel = "Other 0%";
+    private static String cachedAvgLabel = "Avg: 0.0ms";
+    private static String cachedMinMaxLabel = "Min: 0.0ms  Max: 0.0ms";
+    private static String cachedSlowLabel = "Slow: 0/0";
     private static boolean cacheValid;
     // ── Pre-computed trig LUT (360 entries, one per degree) ──
     private static final float[] COS_LUT = new float[361];
@@ -68,16 +71,16 @@ public final class PieChartRenderer {
         // Legend (below pie)
         int ly = cy + PIE_RADIUS + 8;
         int lx = cx - PIE_RADIUS;
-        drawLegend(context, textRenderer, lx, ly,      COL_RENDER, "Render %.0f%%".formatted(cachedRenderPct * 100));
-        drawLegend(context, textRenderer, lx, ly + 11, COL_TICK,   "Tick %.0f%%".formatted(cachedTickPct * 100));
-        drawLegend(context, textRenderer, lx, ly + 22, COL_NET,    "Net %.0f%%".formatted(cachedNetPct * 100));
-        drawLegend(context, textRenderer, lx, ly + 33, COL_GPU,    "GPU %.0f%%".formatted(cachedGpuPct * 100));
-        drawLegend(context, textRenderer, lx, ly + 44, COL_OTHER,  "Other %.0f%%".formatted(cachedOtherPct * 100));
+        drawLegend(context, textRenderer, lx, ly,      COL_RENDER, cachedRenderLabel);
+        drawLegend(context, textRenderer, lx, ly + 11, COL_TICK,   cachedTickLabel);
+        drawLegend(context, textRenderer, lx, ly + 22, COL_NET,    cachedNetLabel);
+        drawLegend(context, textRenderer, lx, ly + 33, COL_GPU,    cachedGpuLabel);
+        drawLegend(context, textRenderer, lx, ly + 44, COL_OTHER,  cachedOtherLabel);
         // Stats text
         int sy = ly + 60;
-        context.drawTextWithShadow(textRenderer, "Avg: %.1fms".formatted(cachedAvg), lx, sy, 0xFFCCCCCC);
-        context.drawTextWithShadow(textRenderer, "Min: %.1fms  Max: %.1fms".formatted(cachedMin, cachedMax), lx, sy + 11, 0xFF999999);
-        context.drawTextWithShadow(textRenderer, "Slow: %d/%d".formatted(cachedSlowFrames, cachedHistoryLen), lx, sy + 22, 0xFF999999);
+        context.drawTextWithShadow(textRenderer, cachedAvgLabel, lx, sy, 0xFFCCCCCC);
+        context.drawTextWithShadow(textRenderer, cachedMinMaxLabel, lx, sy + 11, 0xFF999999);
+        context.drawTextWithShadow(textRenderer, cachedSlowLabel, lx, sy + 22, 0xFF999999);
     }
     //
      // Refreshes cached stats from the native frame history ring buffer.
@@ -106,17 +109,23 @@ public final class PieChartRenderer {
         cachedNetPct    = netPct / sum;
         cachedGpuPct    = gpuPct / sum;
         cachedOtherPct  = otherPct / sum;
-        cachedAvg = avg;
-        cachedMin = min;
-        cachedMax = max;
-        cachedSlowFrames = slowFrames;
-        cachedHistoryLen = history.length;
+        cachedRenderLabel = formatPercentLabel("Render", cachedRenderPct);
+        cachedTickLabel = formatPercentLabel("Tick", cachedTickPct);
+        cachedNetLabel = formatPercentLabel("Net", cachedNetPct);
+        cachedGpuLabel = formatPercentLabel("GPU", cachedGpuPct);
+        cachedOtherLabel = formatPercentLabel("Other", cachedOtherPct);
+        cachedAvgLabel = "Avg: " + formatMsValue(avg) + "ms";
+        cachedMinMaxLabel = "Min: " + formatMsValue(min) + "ms  Max: " + formatMsValue(max) + "ms";
+        cachedSlowLabel = "Slow: " + slowFrames + "/" + history.length;
         lastUpdateMs = System.currentTimeMillis();
         cacheValid = true;
         return true;
     }
     private static float drawSlice(DrawContext ctx, int cx, int cy,
                                    float startAngle, float fraction, int color) {
+        if (fraction <= 0f) {
+            return startAngle;
+        }
         float endAngle = startAngle + fraction / 360f;
         int steps = Math.max(2, (int) (PIE_SEGMENTS / fraction));
          for (int i = 0; i < steps; i++) {
@@ -149,6 +158,19 @@ public final class PieChartRenderer {
          float frac = d - lo;
          return SIN_LUT[lo] + frac * (SIN_LUT[lo + 1] - SIN_LUT[lo]);
     }
+
+    private static String formatPercentLabel(String label, float fraction) {
+        return label + " " + Math.round(fraction * 100.0f) + "%";
+    }
+
+
+    private static String formatMsValue(float value) {
+        int tenths = Math.round(value * 10.0f);
+        int whole = tenths / 10;
+        int frac = Math.abs(tenths % 10);
+        return whole + "." + frac;
+    }
+
      private static void fillCircle(DrawContext ctx, int cx, int cy, int r, int color) {
          // Batch scanlines in groups of 2 to halve draw calls (imperceptible quality loss)
          for (int y = -r; y <= r; y += 2) {

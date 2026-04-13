@@ -73,3 +73,7 @@ java {
 tasks.named('sourcesJar') {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
+
+tasks.matching { it.name == 'remapSourcesJar' }.configureEach {
+    enabled = false
+}

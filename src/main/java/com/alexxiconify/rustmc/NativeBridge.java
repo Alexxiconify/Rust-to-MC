@@ -126,6 +126,7 @@ public class NativeBridge {
     private static native long rustFrustumCreate();
     private static native void rustFrustumUpdate(long ptr, float[] vpMatrix);
     private static native void rustFrustumUpdate(long ptr, float[] vpMatrix, double fovScale, double camX, double camY, double camZ);
+    private static native void rustUpdateFrustumAndCave(long ptr, float[] vpMatrix, double fovScale, double camX, double camY, double camZ, boolean inCave);
     private static native boolean rustIsOutsideFrustum(long ptr, double x, double y, double z, double radius);
     private static native int rustCullEntities(long ptr, double[] positions, int count, boolean[] results, float margin);
     private static native int[] rustGenerateLodMeshGpu(int[] blocks, int chunkX, int chunkZ, int detail);
@@ -149,6 +150,24 @@ public class NativeBridge {
         } catch (UnsatisfiedLinkError e) {
             try { rustFrustumUpdate(0, vpMatrix); }
             catch (UnsatisfiedLinkError ignored) { }
+        }
+    }
+    public static void updateVanillaFrustumAndCave(float[] vpMatrix, boolean inCave) {
+        if (!libLoaded || vpMatrix == null || vpMatrix.length < 16) return;
+        ClientFrustumContext ctx = getClientFrustumContext();
+        if (ctx != null) {
+            try {
+                rustUpdateFrustumAndCave(0, vpMatrix, ctx.fovScale(), ctx.camX(), ctx.camY(), ctx.camZ(), inCave);
+                return;
+            } catch (UnsatisfiedLinkError ignored) {
+                // Fall through to separate native calls.
+            }
+        }
+        try {
+            updateVanillaFrustum(vpMatrix);
+            updateCaveStatus(inCave);
+        } catch (UnsatisfiedLinkError e) {
+            updateVanillaFrustum(vpMatrix);
         }
     }
     // Optimizes entity/particle culling by offloading frustum intersection checks to Rust.
@@ -555,21 +574,28 @@ public class NativeBridge {
         return batchFrustumTest(ptr, aabbs, count, 0.0);
     }
     public static byte[] batchFrustumTest(long ptr, double[] aabbs, int count, double margin) {
-        if (!libLoaded || ptr == 0 || aabbs == null || count <= 0) {
-            byte[] all = new byte[count];
+        if (aabbs == null || count <= 0) {
+            return new byte[0];
+        }
+        int safeCount = Math.min(count, aabbs.length / 6);
+        if (safeCount <= 0) {
+            return new byte[0];
+        }
+        if (!libLoaded || ptr == 0) {
+            byte[] all = new byte[safeCount];
             java.util.Arrays.fill(all, (byte) 1);
-            addBatchFrustumResults(count, 0);
+            addBatchFrustumResults(safeCount, 0);
             return all;
         }
         try {
-            byte[] out = rustBatchFrustumTest(ptr, aabbs, count, margin);
-            recordBatchFrustumResult(out, count);
+            byte[] out = rustBatchFrustumTest(ptr, aabbs, safeCount, margin);
+            recordBatchFrustumResult(out, safeCount);
             return out;
         }
         catch (UnsatisfiedLinkError e) {
-            byte[] all = new byte[count];
+            byte[] all = new byte[safeCount];
             java.util.Arrays.fill(all, (byte) 1);
-            addBatchFrustumResults(count, 0);
+            addBatchFrustumResults(safeCount, 0);
             return all;
         }
     }

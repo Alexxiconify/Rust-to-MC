@@ -1,6 +1,7 @@
 package com.alexxiconify.rustmc.mixin.screen;
 import com.alexxiconify.rustmc.RustMC;
 import com.alexxiconify.rustmc.util.RamBarRenderer;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.SplashOverlay;
@@ -24,11 +25,46 @@ public abstract class SplashOverlayMixin {
     @Shadow @Final private MinecraftClient client;
     @Shadow @Final private ResourceReload reload;
     @Unique private static long splashStartMs = 0;
+    @Unique private static final long TEXT_UPDATE_INTERVAL_MS = 100L;
+    @Unique private static long lastTextUpdateMs = -1L;
+    @Unique private static int cachedProgressPct = -1;
+    @Unique private static String cachedProgressText = "0%";
+    @Unique private static String cachedStageText = "Initializing...";
+    @Unique private static String cachedElapsedText = "0.0s";
+    @Unique private static String cachedModLine = "Rust-MC  •  0 mods";
+    @Unique private static boolean cachedModLineReady;
     @Unique
     private static void initStartTime() {
         if (splashStartMs == 0) {
             splashStartMs = System.currentTimeMillis();
         }
+        if (!cachedModLineReady) {
+            cachedModLine = "Rust-MC  •  " + FabricLoader.getInstance().getAllMods().size() + " mods";
+            cachedModLineReady = true;
+        }
+    }
+    @Unique
+    private static void refreshTextCache(float progress) {
+        long now = System.currentTimeMillis();
+        int pct = Math.clamp((int) (progress * 100.0f), 0, 100);
+        if (pct == cachedProgressPct && now - lastTextUpdateMs < TEXT_UPDATE_INTERVAL_MS) {
+            return;
+        }
+        cachedProgressPct = pct;
+        cachedProgressText = pct + "%";
+        if (pct >= 95) cachedStageText = "Finishing up...";
+        else if (pct >= 60) cachedStageText = "Loading resources...";
+        else if (pct >= 20) cachedStageText = "Building resource graph...";
+        else cachedStageText = "Initializing...";
+        cachedElapsedText = formatElapsedSeconds(Math.max(0L, now - splashStartMs));
+        lastTextUpdateMs = now;
+    }
+    @Unique
+    private static String formatElapsedSeconds(long elapsedMs) {
+        long elapsedTenths = (elapsedMs + 50L) / 100L;
+        long wholeSeconds = elapsedTenths / 10L;
+        long tenths = elapsedTenths % 10L;
+        return wholeSeconds + "." + tenths + "s";
     }
     @Inject(at = @At("HEAD"), method = "render")
     public void renderHead(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
@@ -51,7 +87,7 @@ public abstract class SplashOverlayMixin {
             progress = this.reload.getProgress();
         } catch (Exception ignored) { // Reload might not be started yet.
         }
-        int pct = (int)(progress * 100);
+        refreshTextCache(progress);
         // Progress bar (center of screen)
         int barW = Math.min(300, w - 40);
         int barH = 6;
@@ -69,26 +105,15 @@ public abstract class SplashOverlayMixin {
             context.fill(bx, by, bx + fillW, by + barH, fillColor);
         }
         // Progress text — centered above bar
-        String progressText = pct + "%";
-        context.drawCenteredTextWithShadow(this.client.textRenderer, progressText, w / 2, by - 12, 0xFFDDDDEE);
-        // Stage label
-        String stage;
-        if (pct >= 95) stage = "Finishing up...";
-        else if (pct >= 60) stage = "Loading resources...";
-        else if (pct >= 20) stage = "Building resource graph...";
-        else stage = "Initializing...";
-        context.drawCenteredTextWithShadow(this.client.textRenderer, stage, w / 2, by + barH + 4, 0xFF46BEFF);
-        // Elapsed time
-        long elapsedMs = System.currentTimeMillis() - splashStartMs;
-        String elapsed = String.format("%.1fs", elapsedMs / 1000.0);
-        context.drawCenteredTextWithShadow(this.client.textRenderer, elapsed, w / 2, by + barH + 16, 0xFF787890);
+        context.drawCenteredTextWithShadow(this.client.textRenderer, cachedProgressText, w / 2, by - 12, 0xFFDDDDEE);
+        context.drawCenteredTextWithShadow(this.client.textRenderer, cachedStageText, w / 2, by + barH + 4, 0xFF46BEFF);
+        context.drawCenteredTextWithShadow(this.client.textRenderer, cachedElapsedText, w / 2, by + barH + 16, 0xFF787890);
         // ── Compact RAM bar at very bottom ──
         RamBarRenderer.drawRamBar(context, this.client.textRenderer, w, h, 0xFF1A1A1A);
         // Mod count line
-        int modCount = net.fabricmc.loader.api.FabricLoader.getInstance().getAllMods().size();
         int ramBarY = h - 22;
         context.drawCenteredTextWithShadow(this.client.textRenderer,
-                "Rust-MC  •  " + modCount + " mods", w / 2, ramBarY - 9,
+                cachedModLine, w / 2, ramBarY - 9,
                 RustMC.CONFIG.getLoadingBarSubtextColor());
     }
 }

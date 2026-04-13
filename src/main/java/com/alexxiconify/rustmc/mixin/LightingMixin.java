@@ -44,7 +44,7 @@ public class LightingMixin {
             }
         }
         if (idx > 0) {
-            NativeBridge.propagateLightBulk(flatBuffer, idx / 4);
+            NativeBridge.propagateLightBulk(flatBuffer, idx);
             return true;
         }
         return false;
@@ -59,14 +59,24 @@ public class LightingMixin {
         if (!rustLightThreadStarted.compareAndSet(false, true)) return;
         rustLightThreadRunning = true;
         Thread.ofPlatform().name("rustmc-light-propagation").daemon(true).start(() -> {
-            while (rustLightThreadRunning) {
-                if (isRustLightingActive()) {
-                    if (!drainAndDispatch()) {
-                        sleepQuietly(1L);
+            try {
+                while (rustLightThreadRunning) {
+                    try {
+                        if (isRustLightingActive()) {
+                            if (!drainAndDispatch()) {
+                                sleepQuietly(1L);
+                            }
+                        } else {
+                            sleepQuietly(8L);
+                        }
+                    } catch (Exception e) {
+                        RustMC.LOGGER.warn("[Rust-MC] Lighting worker stopped after error: {}", e.getMessage());
+                        rustLightThreadRunning = false;
                     }
-                } else {
-                    sleepQuietly(8L);
                 }
+            } finally {
+                rustLightThreadRunning = false;
+                rustLightThreadStarted.set(false);
             }
         });
     }

@@ -80,10 +80,9 @@ public class ScalableLuxCompat {
             if (fPendingQueue != null) {
                 Object queue = fPendingQueue.get(null);
                 if (queue instanceof Collection<?> col && !col.isEmpty()) {
-                    // Extract update count and pass to specialized Rust path
-                    // We generate a dummy array of the same size to trigger the context-aware
-                    // propagation in Rust, which will effectively 'subvert' the original method.
-                    int result = NativeBridge.propagateLightBulk(new int[col.size()], col.size());
+                    // Extract update count and pass to specialized Rust path we generate a dummy array of the same size to trigger the context-aware propagation in Rust, which will effectively 'subvert' the original method.
+                    int packedSize = col.size() * 4;
+                    int result = NativeBridge.propagateLightBulk(new int[packedSize], packedSize);
                     if (result >= 0) {
                         RustMC.LOGGER.debug("[Rust-MC] Offloaded {} ScalableLux tasks to Rust cores.", col.size());
                     }

@@ -16,6 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class DebugHudMixin {
     // ── Cached sparkline data ──
     @Unique private static NativeBridge.FrameHistorySnapshot cachedSnapshot;
+    @Unique private static String cachedStatsText = "0.0ms avg | 0.0 min | 0.0 max";
     @Unique private static long lastHistoryUpdateMs;
     @Unique private static final long HISTORY_UPDATE_INTERVAL_MS = 100; // 10 Hz refresh
     @Inject(method = "render", at = @At("TAIL"), require = 0)
@@ -42,9 +43,11 @@ public class DebugHudMixin {
         float[] history = snapshot.history();
         if (history == null || history.length == 0) {
             cachedSnapshot = null;
+            cachedStatsText = "0.0ms avg | 0.0 min | 0.0 max";
             return;
         }
         cachedSnapshot = snapshot;
+        cachedStatsText = "%.1fms avg | %.1f min | %.1f max".formatted(snapshot.avgMs(), snapshot.minMs(), snapshot.maxMs());
         lastHistoryUpdateMs = now;
     }
     @Unique
@@ -87,9 +90,7 @@ public class DebugHudMixin {
             context.drawTextWithShadow(mc.textRenderer, "30", x0 + graphW + 2, target30Y - 4, 0xFFCCAA00);
             // Stats below graph — use cached values
             int statsY = y0 + graphH + 3;
-            context.drawTextWithShadow(mc.textRenderer,
-                    "%.1fms avg | %.1f min | %.1f max".formatted(cachedSnapshot.avgMs(), cachedSnapshot.minMs(), cachedSnapshot.maxMs()),
-                    x0, statsY, 0xFFAAAAAA);
+            context.drawTextWithShadow(mc.textRenderer, cachedStatsText, x0, statsY, 0xFFAAAAAA);
             // Color legend
             int legendY = statsY + 11;
             context.fill(x0, legendY + 1, x0 + 6, legendY + 7, 0xFF00CC44);

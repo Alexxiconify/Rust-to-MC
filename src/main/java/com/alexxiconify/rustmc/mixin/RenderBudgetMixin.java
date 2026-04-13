@@ -27,15 +27,22 @@ class RenderBudgetMixin {
     @Unique
     private static void updateBudget() {
         MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.world == null) return;
+        if (mc.world == null) {
+            RenderState.renderBudgetTier = 0;
+            return;
+        }
         float rustAvg = NativeBridge.invokeGetAvgFps();
         int fps = rustAvg > 0 ? (int) rustAvg : mc.getCurrentFps();
+        int newTier;
         if (fps < 60) {
-            RenderState.renderBudgetTier = 1;
+            newTier = 1;
         } else if (fps > 90) {
-            RenderState.renderBudgetTier = 2;
+            newTier = 2;
         } else {
-            RenderState.renderBudgetTier = 0;
+            newTier = 0;
+        }
+        if (RenderState.renderBudgetTier != newTier) {
+            RenderState.renderBudgetTier = newTier;
         }
     }
 }

@@ -95,11 +95,20 @@ Goal: reduce locks, allocations, and crossings in hot render loops.
 - `MultiplayerScreenMixin` now uses a daemon DNS prewarm thread.
 - `LightingMixin` now backs off when idle instead of spinning hard.
 - `rust_mc_core/src/lighting.rs` now avoids Rayon writeback overhead in the small vanilla batch path.
+- `SplashOverlayMixin`, `DebugHudMixin`, and `PieChartRenderer` now cache loading/F3 text between refreshes.
+- `rust_mc_core/src/frustum.rs` now reuses existing frustum state in place during JNI updates.
+- `rust_mc_core/src/lighting.rs` now skips Rayon on small lighting batches for lower scheduler overhead.
+- `LightingMixin` now sends packed light counts correctly and restarts cleanly after worker errors.
+- `FrustumMixin` now refreshes DH cave state even when native culling is disabled.
+- `NativeBridge.batchFrustumTest()` now clamps unsafe counts before JNI work.
+- `rust_mc_core/src/frustum.rs` now reuses its plane buffer in place instead of rebuilding it on each JNI refresh.
+- `RamBarRenderer` now caches RAM label text between refreshes.
+- `RenderUtilsMixin` now uses correct box center math and one camera lookup per cull path.
+- `FrustumMixin` now batches frustum refresh + cave status into one JNI call when native culling is active.
 
 Next step: profile the remaining real bottleneck before any deeper lock rewrite.
 
 - **LightingMixin**: Measure `QUEUE_LOCK` contention first; then replace only the hot queue path with a lower-contention structure or staged double-buffering.
-- **FrustumMixin**: Reuse matrix and plane buffers across frames; avoid transient copies unless JNI requires them.
 - **Screen Mixins**: Batch drawable updates instead of per-frame rebuilds; reduce string and temp-object allocations in progress rendering.
 - **NativeBridge**: Keep JNI batching only where it still wins over vanilla Java or local snapshots.
 
