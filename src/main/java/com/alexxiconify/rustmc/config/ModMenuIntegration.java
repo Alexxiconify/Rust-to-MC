@@ -47,8 +47,7 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(Option.<Boolean>createBuilder()
                 .name(Text.literal("Native Core"))
                 .description(OptionDescription.of(Text.literal(
-                    "Shows whether the Rust native library loaded correctly.\n" +
-                    "If FAILED, all optimizations fall back to vanilla Java.")))
+                    "Shows whether the Rust native library loaded correctly. If FAILED, all optimizations fall back to vanilla Java.")))
                 .binding(true, NativeBridge::isReady, val -> {})
                 .controller(opt -> BooleanControllerBuilder.create(opt)
                     .formatValue(val -> Text.literal(NativeBridge.isReady() ? "§aREADY" : "§cFAILED")))
@@ -85,12 +84,6 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildBooleanOption("Fast Cosine",
                 "Replaces MathHelper.cos() with a LUT.",
                 cfg::isUseNativeCos, v -> cfg.setUseNativeCos(v != null && v)))
-            .option(buildBooleanOption("Native Sqrt",
-                "Replaces MathHelper.sqrt() cast path.",
-                cfg::isUseNativeSqrt, v -> cfg.setUseNativeSqrt(v != null && v)))
-            .option(buildBooleanOption("Fast Inv-Sqrt",
-                "Replaces MathHelper.fastInvSqrt() with Quake III algorithm.",
-                cfg::isUseNativeInvSqrt, v -> cfg.setUseNativeInvSqrt(v != null && v)))
             .option(buildBooleanOption("Native Atan2",
                 "Replaces MathHelper.atan2().", cfg::isUseNativeAtan2, v -> cfg.setUseNativeAtan2(v != null && v)))
             .option(buildBooleanOption("Native Floor",
@@ -111,8 +104,8 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildBooleanOption("Native Lighting (Experimental)",
                 "Hooks lighting engine for Rust-parallel updates. Automatically bypasses conflicts.",
                 cfg::isUseNativeLighting, v -> cfg.setUseNativeLighting(v != null && v)))
-            .option(buildBooleanOption("Lock Culling to Player Body (Debug)",
-                "If ON, culling follows your physical body. If OFF (Default), culling follows your camera (lens).\nUseful for debugging frustum leaks with Freecam.",
+            .option(buildBooleanOption("Frustum Culling Origin (Player vs Camera)",
+                "If ON, frustum checks originate from the player's physical body. \nIf OFF (Default), frustum checks originate from the camera view.\nUseful for debugging culling issues with Freecam.",
                 cfg::isLockCullingToPlayer, v -> cfg.setLockCullingToPlayer(v != null && v)))
             .option(buildBooleanOption("DNS Cache (Server Pings)",
                 "Caches DNS lookups for 5 minutes via Rust to speed up server list pings.",

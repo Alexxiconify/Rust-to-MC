@@ -20,18 +20,19 @@ tasks.register('rustBuild', Exec) {
     inputs.files(fileTree(rustSrcDir) {
         include '**/*.rs'
         include '**/*.wgsl'
-    }).withPropertyName('rustSources')
+    }).withPropertyName('rustSources').withPathSensitivity(PathSensitivity.RELATIVE)
     
-    inputs.file(cargoToml).withPropertyName('cargoConfig')
+    inputs.file(cargoToml).withPropertyName('cargoConfig').withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.property('rustFlags', '-C target-cpu=native')
-    inputs.property('incremental', '0')
+    inputs.property('incremental', '1')
 
     def libName = System.mapLibraryName('rust_mc_core')
     def outputBin = rustOutputDir.file(libName).asFile
     outputs.file(outputBin).withPropertyName('nativeBinary')
+    outputs.cacheIf { true }
 
     environment 'RUSTFLAGS', '-C target-cpu=native'
-    environment 'CARGO_INCREMENTAL', '0'
+    environment 'CARGO_INCREMENTAL', '1'
     
     // Ensure we don't try to build if locked
     doFirst {

@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-// Pre-warms Bootstrap.initialize() on a virtual thread so the 4-5 s Datafixer registry build overlaps with mixin loading rather than blocking the main thread at game start. <p> Bootstrap.initialize() is idempotent (guards with a static boolean), so if our virtual thread finishes first the main-thread call is instant.
+// Pre-warms Bootstrap.initialize() on a virtual thread so the 4-5s overlaps with mixin loading rather than blocking the main thread. Bootstrap.initialize() is idempotent (guards with a static boolean), so if our virtual thread finishes first the main-thread call is instant.
 @Mixin(Bootstrap.class)
 public class BootstrapMixin {
 
