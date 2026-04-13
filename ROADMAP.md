@@ -6,16 +6,51 @@ This document outlines the future plans and feature goals for **Rust to MC**, a 
 
 To minimize Java's overhead in Minecraft's **client-side** hot-paths by leveraging Rust's safety, speed, and SIMD capabilities via the Foreign Function & Memory (FFM) API and JNI.
 
+To minimize Java's overhead in Minecraft's **client-side** hot-paths by leveraging Rust's safety, speed, and SIMD capabilities via the Foreign Function & Memory (FFM) API and JNI.
+
+## Rollback Notes (v1.0.3-a3)
+
+- **Rollback target**: `v1.0.3-a3` (`12e8073`)
+- **Rolled back from**: `main` at `9cd2790`
+- **Commits removed from working branch**: 13 commits (`v1.0.3-a3..9cd2790`)
+- **Backup branch saved**: `backup/pre-rollback-v1.0.3-a3-20260412-210316`
+
+### What changed after v1.0.3-a3 (for clean reimplementation)
+
+- **Total delta**: 83 files changed, 2438 insertions, 1519 deletions
+- **New tooling/docs added**: `.agents/skills/*`, `CLAUDE.md`, `skills-lock.json`, `docs/future-compat-mods.md`
+- **Build/config touched**: `build.gradle`, `settings.gradle`, `gradle/wrapper/gradle-wrapper.properties`, `versions/*/build.gradle`, `rust_mc_core` submodule pointer
+- **Core bridge/runtime heavily modified**: `NativeBridge`, `ModBridge`, `RustMC`, `PreLaunchHandler`, `MixinManager`, and multiple compat classes
+- **Mixins significantly changed**: broad edits across rendering/network/pathfinding mixins, one deletion (`CommandManagerMixin`), one addition (`RandomMixin`)
+- **UI/config paths changed**: `ModMenuIntegration`, `RustMCConfig`, and render overlays/util classes (`BlameLog`, `RenderState`, etc.)
+- **Native binary changed**: `src/main/resources/rust_mc_core.dll` (size and contents changed)
+
+### Reimplementation order (recommended)
+
+1. Re-apply **build system + wrapper + submodule pointer** changes first.
+2. Re-apply **NativeBridge/ModBridge/RustMC lifecycle** changes and validate startup.
+3. Re-apply **config + ModMenu/UI overlays** changes.
+4. Re-apply **mixin changes in small batches**, testing after each group.
+5. Re-apply **native DLL update last**, then run full in-game sanity checks.
+
+### Saved diff artifacts
+
+- `docs/rollback/commits_since_v1.0.3-a3.txt`
+- `docs/rollback/name_status_since_v1.0.3-a3.txt`
+- `docs/rollback/diff_stat_since_v1.0.3-a3.txt`
+- `docs/rollback/full_diff_since_v1.0.3-a3.patch`
+- `docs/rollback/working_tree_uncommitted.patch`
+
 ---
 
 ## 📅 Short-Term Goals (1-2 Months)
 
 ### 1. SIMD Frustum & Occlusion
-
+- **Benefit**: Real-time lighting updates for mods like ScalableLux and Starlight, eliminating "lighting lag" during TNT explosions or terrain edits.
 - **Status**: Implemented (Vanilla) / Optimized (LODs)
 - **Goal**: Rewrite the `isOutside` and `batchFrustumTest` in Rust using explicit SIMD instructions (SSE2/AVX2).
 - **Benefit**: Near-instant culling for thousands of particles and entities per frame.
-
+### 3. Native Packet Interception
 ### 2. Native HUD Matrix Stack
 
 - **Status**: Supplemented via Matrix4f.mul
@@ -23,29 +58,29 @@ To minimize Java's overhead in Minecraft's **client-side** hot-paths by leveragi
 - **Benefit**: Complements ImmediatelyFast to reduce HUD rendering overhead to absolute minimum.
 
 ---
-
+- **Native Packet Handler**: Offload NBT parsing and serialization for high-traffic network packets.
 ## 🛠 Medium-Term Goals (3-6 Months)
 
 ### 1. Native Chunk Meshing & Parsing
-
+## ✅ Completed & Optimized
 - **Status**: Planning
 - **Goal**: Offload vertex buffer construction and use a native chunk decoder (PumpkinMC style) to bypass Java-side NBT parsing.
 - **Benefit**: Drastically reduced "World Load" times and zero GC pressure during high-speed flight.
-
+### 1. JNI Memory Pinning (Core)
 ### 2. Starlight-Native BFS Lighting
-
+- **Adaptive Particle Culling**: Intelligent throttle that relaxes when ImmediatelyFast is active and tightens when heavy entity mods (EMF/ETF) are present.
 - **Status**: Researching
 - **Goal**: Replace the current bit-packed placeholder in `rustPropagateLightBulk` with a high-speed Breadth-First Search (BFS) in Rust.
 - **Benefit**: Real-time lighting updates for mods like ScalableLux and Starlight, eliminating "lighting lag" during TNT explosions or terrain edits.
-
+- **Fast Build Pipeline**: Migrated to **Thin LTO**, parallel codegen, and robust change detection; disabled incremental release builds to prevent cache corruption.
 ### 3. Native Packet Interception
-
+- **SIMD Audio Suite**: Native volume scaling and stereo panning implemented using Rayon for high-frequency sound buffer manipulation.
 - **Status**: Hook Implemented (DecoderHandlerMixin)
 - **Goal**: Offload repetitive packet handling (KeepAlives, Heartbeats) to Rust to save Java main thread time and reduce allocations.
 - **Benefit**: Smoother server play and reduced networking-related GC pressure.
-
 ---
 
+### Last Updated: April 10, 2026*
 ## 🔍 Feature Backlog (From Source TODOs)
 
 - **Fast JSON Bridge**: Replace GSON with `serde_json` for resource/language loading.
@@ -90,4 +125,4 @@ To minimize Java's overhead in Minecraft's **client-side** hot-paths by leveragi
 
 ---
 
-### Last Updated: April 10, 2026*
+### Last Updated: April 12, 2026*
