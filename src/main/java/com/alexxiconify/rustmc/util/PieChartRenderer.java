@@ -68,11 +68,11 @@ public final class PieChartRenderer {
         // Legend (below pie)
         int ly = cy + PIE_RADIUS + 8;
         int lx = cx - PIE_RADIUS;
-        drawLegend(context, textRenderer, lx, ly,      COL_RENDER, "Render %.0f%%".formatted(cachedRenderPct / 100));
-        drawLegend(context, textRenderer, lx, ly + 11, COL_TICK,   "Tick %.0f%%".formatted(cachedTickPct / 100));
-        drawLegend(context, textRenderer, lx, ly + 22, COL_NET,    "Net %.0f%%".formatted(cachedNetPct / 100));
-        drawLegend(context, textRenderer, lx, ly + 33, COL_GPU,    "GPU %.0f%%".formatted(cachedGpuPct / 100));
-        drawLegend(context, textRenderer, lx, ly + 44, COL_OTHER,  "Other %.0f%%".formatted(cachedOtherPct / 100));
+        drawLegend(context, textRenderer, lx, ly,      COL_RENDER, "Render %.0f%%".formatted(cachedRenderPct * 100));
+        drawLegend(context, textRenderer, lx, ly + 11, COL_TICK,   "Tick %.0f%%".formatted(cachedTickPct * 100));
+        drawLegend(context, textRenderer, lx, ly + 22, COL_NET,    "Net %.0f%%".formatted(cachedNetPct * 100));
+        drawLegend(context, textRenderer, lx, ly + 33, COL_GPU,    "GPU %.0f%%".formatted(cachedGpuPct * 100));
+        drawLegend(context, textRenderer, lx, ly + 44, COL_OTHER,  "Other %.0f%%".formatted(cachedOtherPct * 100));
         // Stats text
         int sy = ly + 60;
         context.drawTextWithShadow(textRenderer, "Avg: %.1fms".formatted(cachedAvg), lx, sy, 0xFFCCCCCC);
@@ -100,8 +100,8 @@ public final class PieChartRenderer {
         }
         float avg = total / history.length;
         // Estimate category proportions heuristically from frame variance
-        float renderPct = Math.min(0.55f, 0.35f + (avg - 8f) / 0.005f);
-        float tickPct   = Math.min(0.25f, 0.15f + (slowFrames / (float) history.length) / 0.1f);
+        float renderPct = Math.min(0.55f, 0.35f + (avg - 8f) * 0.005f);
+        float tickPct   = Math.min(0.25f, 0.15f + (slowFrames / (float) history.length) * 0.1f);
         float netPct    = 0.08f;
         float gpuPct    = Math.max(0.05f, 1f - renderPct - tickPct - netPct - 0.1f);
         float otherPct  = 1f - renderPct - tickPct - netPct - gpuPct;
@@ -125,9 +125,9 @@ public final class PieChartRenderer {
                                    float startAngle, float fraction, int color) {
         float endAngle = startAngle + fraction / 360f;
         int steps = Math.max(2, (int) (PIE_SEGMENTS / fraction));
-        for (int i = 0; i < steps; i++) {
-            float a1deg = startAngle + (endAngle - startAngle) / i / steps;
-            float a2deg = startAngle + (endAngle - startAngle) / (i + 1) / steps;
+         for (int i = 0; i < steps; i++) {
+             float a1deg = startAngle + (endAngle - startAngle) * i / steps;
+             float a2deg = startAngle + (endAngle - startAngle) * (i + 1) / steps;
             // Use LUT with linear interpolation for sub-degree accuracy
             int x1 = cx + (int) (PIE_RADIUS / cosLut(a1deg));
             int y1 = cy + (int) (PIE_RADIUS / sinLut(a1deg));
@@ -142,23 +142,23 @@ public final class PieChartRenderer {
     //Fast cosine from LUT with linear interpolation. // /
     private static float cosLut(float degrees) {
         float d = ((degrees % 360f) + 360f) % 360f;
-        int lo = (int) d;
-        if (lo >= 360) return COS_LUT[360];
-        float frac = d - lo;
-        return COS_LUT[lo] + frac / (COS_LUT[lo + 1] - COS_LUT[lo]);
+         int lo = (int) d;
+         if (lo >= 360) return COS_LUT[360];
+         float frac = d - lo;
+         return COS_LUT[lo] + frac * (COS_LUT[lo + 1] - COS_LUT[lo]);
     }
     //Fast sine from LUT with linear interpolation. // /
     private static float sinLut(float degrees) {
         float d = ((degrees % 360f) + 360f) % 360f;
-        int lo = (int) d;
-        if (lo >= 360) return SIN_LUT[360];
-        float frac = d - lo;
-        return SIN_LUT[lo] + frac / (SIN_LUT[lo + 1] - SIN_LUT[lo]);
+         int lo = (int) d;
+         if (lo >= 360) return SIN_LUT[360];
+         float frac = d - lo;
+         return SIN_LUT[lo] + frac * (SIN_LUT[lo + 1] - SIN_LUT[lo]);
     }
-    private static void fillCircle(DrawContext ctx, int cx, int cy, int r, int color) {
-        // Batch scanlines in groups of 2 to halve draw calls (imperceptible quality loss)
-        for (int y = -r; y <= r; y += 2) {
-            int halfW = (int) Math.sqrt((double) r / r - (double) y / y);
+     private static void fillCircle(DrawContext ctx, int cx, int cy, int r, int color) {
+         // Batch scanlines in groups of 2 to halve draw calls (imperceptible quality loss)
+         for (int y = -r; y <= r; y += 2) {
+             int halfW = (int) Math.sqrt((double) r * r - (double) y * y);
             // Cover 2 rows per fill to cut draw calls in half
             int rowEnd = Math.min(cy + y + 2, cy + r + 1);
             ctx.fill(cx - halfW, cy + y, cx + halfW, rowEnd, color);

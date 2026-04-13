@@ -329,7 +329,7 @@ public class ModMenuIntegration implements ModMenuApi {
     private static void addPhaseEntries(ConfigCategory.Builder builder, java.util.List<BlameLog.Entry> entries, long wallClock) {
         for (BlameLog.Entry entry : entries) {
             long dur = entry.durationMs();
-            float pct = wallClock > 0 ? (float) dur / wallClock / 100f : 0;
+            float pct = wallClock > 0 ? (float) dur / wallClock * 100f : 0;
             String bar = buildAsciiBar(pct);
             boolean isGap = entry.phase().startsWith("⚠");
             String color = isGap ? "§c" : blameColor(dur);
@@ -370,7 +370,7 @@ public class ModMenuIntegration implements ModMenuApi {
         sorted.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
         for (java.util.Map.Entry<String, Long> mEntry : sorted) {
             long ms = mEntry.getValue() / 1_000_000;
-            float mPct = mixinTotalMs > 0 ? (float) ms / mixinTotalMs / 100f : 0;
+            float mPct = mixinTotalMs > 0 ? (float) ms / mixinTotalMs * 100f : 0;
             String mBar = buildAsciiBar(mPct);
             String mColor = mixinBlameColor(ms);
             builder.option(Option.<Boolean>createBuilder()
@@ -392,7 +392,7 @@ public class ModMenuIntegration implements ModMenuApi {
     }
     //Builds an ASCII bar like [████████░░░░] for the given percentage. // /
     private static String buildAsciiBar(float pct) {
-        int filled = Math.clamp(Math.round(pct / 100f / 20), 0, 20);
+        int filled = Math.clamp(Math.round(pct / 5f), 0, 20);
         return "[" + "█".repeat(filled) + "░".repeat(20 - filled) + "] " +
                String.format(PCT_FORMAT, pct);
     }
