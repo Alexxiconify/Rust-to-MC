@@ -6,8 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.alexxiconify.rustmc.config.RustMCConfig;
 import com.alexxiconify.rustmc.util.BlameLog;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+
 import net.fabricmc.loader.api.FabricLoader;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,12 +16,8 @@ public class RustMC implements ModInitializer {
     public static final String MOD_ID = "rust-mc";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static final RustMCConfig CONFIG = new RustMCConfig();
-    // Default GSON skips transient fields — used for saving config.json to disk
-    private static final Gson GSON = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().setPrettyPrinting().create();
-    // Special GSON that includes transient fields — used for syncing full state to Rust DLL
-    private static final Gson SYNC_GSON = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().excludeFieldsWithModifiers(java.lang.reflect.Modifier.STATIC).setPrettyPrinting().create();
     public static final Path CONFIG_DIR = FabricLoader.getInstance().getConfigDir().resolve(MOD_ID);
-    private static final Path CONFIG_PATH = CONFIG_DIR.resolve("config.json");
+    private static final Path CONFIG_PATH = CONFIG_DIR.resolve("config.properties");
 
     @Override
     public void onInitialize() {
@@ -43,9 +38,6 @@ public class RustMC implements ModInitializer {
             r -> new Thread(null, r, "rustmc-compat-slx").start());
 
         java.util.concurrent.CompletableFuture.runAsync(() -> {
-            if (CONFIG.isDisableDhFade()) {
-                com.alexxiconify.rustmc.compat.DistantHorizonsCompat.disableFade();
-            }
             if (!NativeBridge.isReady()) return;
             com.alexxiconify.rustmc.compat.DistantHorizonsCompat.registerFrustumCuller();
             com.alexxiconify.rustmc.compat.DistantHorizonsCompat.optimizeLodThreading();
@@ -108,34 +100,23 @@ public class RustMC implements ModInitializer {
         }
         
         if (!Files.exists(CONFIG_PATH)) {
-            // Check for legacy config file
+            // Check for legacy json config file
             Path legacyPath = FabricLoader.getInstance().getConfigDir().resolve("rust-mc.json");
-            if (Files.exists(legacyPath)) {
-                try {
-                    Files.move(legacyPath, CONFIG_PATH);
-                    LOGGER.info("[Rust-MC] Migrated legacy config to {}", CONFIG_PATH);
-                } catch (IOException e) {
-                    LOGGER.error("[Rust-MC] Failed to migrate legacy config", e);
-                }
-            } else {
-                saveConfig();
-                configLoaded = true;
-                return;
-            }
-        }
-        try {
-            String rawJson = Files.readString(CONFIG_PATH);
-            RustMCConfig loaded = GSON.fromJson(rawJson, RustMCConfig.class);
-            if (loaded != null) {
-                CONFIG.copyFrom(loaded);
+            Path legacyPath2 = CONFIG_DIR.resolve("config.json");
+            if (Files.exists(legacyPath) || Files.exists(legacyPath2)) {
+                LOGGER.info("[Rust-MC] Legacy json config detected, migrating to .properties is not supported, overriding");
             }
             saveConfig();
-            NativeBridge.configUpdate(GSON.toJson(CONFIG));
-            LOGGER.debug("[Rust-MC] Config loaded & normalised from {}", CONFIG_PATH);
-        } catch (IOException e) {
-            LOGGER.error("[Rust-MC] Failed to read config file", e);
+            configLoaded = true;
+            return;
+        }
+
+        try {
+            CONFIG.load(CONFIG_PATH);
+            NativeBridge.configUpdate(CONFIG.toJson());
+            LOGGER.debug("[Rust-MC] Config loaded from {}", CONFIG_PATH);
         } catch (Exception e) {
-            LOGGER.error("[Rust-MC] Failed to parse config (malformed JSON?), resetting to defaults", e);
+            LOGGER.error("[Rust-MC] Failed to parse config, resetting to defaults", e);
             saveConfig();
         }
         configLoaded = true;
@@ -143,13 +124,10 @@ public class RustMC implements ModInitializer {
 
     public static void saveConfig() {
         try {
-            if (!Files.exists(CONFIG_DIR)) {
-                Files.createDirectories(CONFIG_DIR);
-            }
-            Files.writeString(CONFIG_PATH, GSON.toJson(CONFIG));
-            NativeBridge.configUpdate(SYNC_GSON.toJson(CONFIG));
+            CONFIG.save(CONFIG_PATH);
+            NativeBridge.configUpdate(CONFIG.toJson());
             com.iafenvoy.elb.config.ElbConfig.getInstance().save();
-        } catch (IOException e) {
+        } catch (Exception e) {
             LOGGER.error("[Rust-MC] Failed to save config", e);
         }
     }

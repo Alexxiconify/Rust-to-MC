@@ -9,7 +9,6 @@
     "BootstrapMixin",
     "MathHelperMixin",
     "MatrixMixin",
-    "CommandManagerMixin",
     "PacketDeflaterMixin",
     "SimplexNoiseSamplerMixin",
     "LightingMixin",

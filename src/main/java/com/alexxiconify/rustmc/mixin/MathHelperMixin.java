@@ -34,20 +34,7 @@ public class MathHelperMixin {
         return (float) Math.cos(value);
     }
 
-    @Overwrite
-    public static double fastInverseSqrt(double x) {
-        if (!ModBridge.isMathConflict() && RustMC.CONFIG.isUseNativeInvSqrt()) {
-            return com.alexxiconify.rustmc.NativeBridge.invSqrt((float) x);
-        }
-        return 1.0 / Math.sqrt(x);
-    }
 
-    @Overwrite
-    public static float sqrt(float f) {
-        if (!ModBridge.isMathConflict() && RustMC.CONFIG.isUseNativeSqrt())
-            return com.alexxiconify.rustmc.NativeBridge.invokeSqrt(f);
-        return (float) Math.sqrt(f);
-    }
 
     @Overwrite
     public static double atan2(double y, double x) {
@@ -98,8 +85,5 @@ public class MathHelperMixin {
         return Math.max(Math.abs(a), Math.abs(b));
     }
 
-    @Overwrite
-    public static float wrapDegrees(float value) {
-        return com.alexxiconify.rustmc.NativeBridge.invokeWrapDegrees(value);
-    }
+
 }

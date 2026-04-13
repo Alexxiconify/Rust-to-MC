@@ -71,15 +71,12 @@ Performance-focused Minecraft mod that offloads hot-paths to native Rust via JNI
 - **Zero Warnings**: All major Clippy and Java IDE warnings resolved.
 - **Fast JSON (`rustLoadJson`)**: `serde_json` parses + minifies JSON in Rust; returned as Java String. Replaces GSON for resource/language file parsing; no GC allocation on hot language-load path.
 
-### ✅ Completed Optimizations (April 13)
-
 1. **SIMD Particle Tick Offload** — Parallelized physics (gravity/drag/motion) for environmental particles via Rust Rayon.
-
-### ✅ Completed Optimizations (April 12)
-
-1. **GPU LOD Quantization (VRAM)** — Quantize `LodVertex` (32 bytes -> 8 bytes). 75% VRAM reduction for Distant Horizons.
-2. **Batch Entity Frustum Tests** — Parallelized bulk AABB testing via JNI. Eliminates per-entity JNI overhead for 200+ entities.
-3. **Rust Occlusion Culling** — Initial frustum-aware occlusion buffer implementation.
+2. **JNI Scalar Avoidance** — Replaced scalar `sqrt`, `wrapDegrees`, and `fastInverseSqrt` JNI roundtrips with Java hardware intrinsified equivalents (`Math.sqrt`), avoiding ~15ns JNI boundaries and greatly accelerating scalar math.
+3. **Rust Execution Optimization** — Elevated Cargo's `opt-level` from `z` (size) to `3` (speed) inside `Cargo.toml`, deploying full `-O3` loop vectorization globally. Also injected `lto = "fat"` allowing whole-program Cross-Crate optimization.
+4. **GPU LOD Quantization (VRAM)** — Quantize `LodVertex` (32 bytes -> 8 bytes). 75% VRAM reduction for Distant Horizons.
+5. **Batch Entity Frustum Tests** — Parallelized bulk AABB testing via JNI. Eliminates per-entity JNI overhead for 200+ entities.
+6. **Rust Occlusion Culling** — Initial frustum-aware occlusion buffer implementation.
 
 **Distant Horizons & Performance Overhaul:**
 
@@ -87,6 +84,7 @@ Performance-focused Minecraft mod that offloads hot-paths to native Rust via JNI
 - **GPU-Accelerated LOD Generation**: Compute-shader mesh voxelization (`lod_mesher.wgsl`) via WGPU, reducing builder thread CPU pressure.
 - **Streamlined DH Pipeline**: Unified `LodPipeline` handling "Generate -> Shade (AO) -> Render" entirely in Rust.
 - **f64 High-Precision Frustum**: Migrated planes to `f64` world-coordinates, eliminating LOD unloading at north/east distance.
+- **Occlusion Bypass Fallback**: Integrated reflection fallback intercepting occlusion/intersect methods preventing fallback bugs from breaking DH components.
 - **Fused JNI Culling**: Halved JNI overhead by combining subterranean and frustum checks into one native call.
 - **Aggressive DH Threading**: Optimized thread pools and builder priority via reflection for peak server-sourced LOD throughput.
 - **SIMD Refines**: Fixed borrow-checker and syntax lints across the native bridge.

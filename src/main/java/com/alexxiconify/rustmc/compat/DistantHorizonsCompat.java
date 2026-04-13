@@ -13,20 +13,6 @@ public class DistantHorizonsCompat {
     private DistantHorizonsCompat() {}
 
     private static final String OVERRIDES = "overrides";
-
-    public static void disableFade() {
-        if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID)) return;
-        try {
-            Class<?> apiClass = Class.forName(DH_API_CLASS);
-            Object dhApi = apiClass.getField("Inst").get(null);
-            Object overrides = dhApi.getClass().getMethod(OVERRIDES).invoke(dhApi);
-            overrides.getClass().getMethod("setFadeNearbyLods", boolean.class).invoke(overrides, false);
-            RustMC.LOGGER.info("[Rust-MC] Disabled Distant Horizons chunk fade via API.");
-        } catch (Exception e) {
-            RustMC.LOGGER.debug("[Rust-MC] Could not disable DH fade ({}), skipping.", e.getMessage());
-        }
-    }
-
     private static long rustFrustumPtr = 0;
     private static int currentMinY = -64;
     private static int currentMaxY = 320;
@@ -87,7 +73,14 @@ public class DistantHorizonsCompat {
             case "equals" -> proxy == args[0];
             case "hashCode" -> System.identityHashCode(proxy);
             case "toString" -> "RustMC-DH-FrustumCuller";
-            default -> null;
+            default -> {
+                if (method.getReturnType() == boolean.class) {
+                    if (name.toLowerCase().contains("occlud")) yield false;
+                    if (name.toLowerCase().contains("visible") || name.toLowerCase().contains("intersect")) yield true;
+                    yield false;
+                }
+                yield null;
+            }
         };
     }
 

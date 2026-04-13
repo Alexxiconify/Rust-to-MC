@@ -1,80 +1,144 @@
 package com.alexxiconify.rustmc.config;
 
-// Configuration POJO for Rust-MC. All fields are serialized/deserialized by Gson, and getters/setters are referenced by ModMenu (YACL) via method references.
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Properties;
+
+// Configuration POJO for Rust-MC.
+@SuppressWarnings({"java:S3068", "java:S3011", "java:S108", "java:S3776", "java:S112"})
 public class RustMCConfig {
     // Math optimizations
-    @com.google.gson.annotations.Expose private boolean useNativeSine     = true;
-    @com.google.gson.annotations.Expose private boolean useNativeCos      = true;
-    @com.google.gson.annotations.Expose private boolean useNativeSqrt     = true;
-    @com.google.gson.annotations.Expose private boolean useNativeInvSqrt  = true;
-    @com.google.gson.annotations.Expose private boolean useNativeAtan2    = true;
-    @com.google.gson.annotations.Expose private boolean useNativeFloor    = true;
-    @com.google.gson.annotations.Expose private boolean useNativeNoise    = true;
-    @com.google.gson.annotations.Expose private boolean useNativeF3       = true;
-    @com.google.gson.annotations.Expose private boolean useNativeRandom   = true;
-
+    private boolean useNativeSine     = true;
+    private boolean useNativeCos      = true;
+    private boolean useNativeAtan2    = true;
+    private boolean useNativeFloor    = true;
+    private boolean useNativeNoise    = true;
+    private boolean useNativeF3       = true;
+    private boolean useNativeRandom   = true;
     // World / system features
-    @com.google.gson.annotations.Expose private boolean useNativeLighting    = true;
-    @com.google.gson.annotations.Expose private boolean useNativeCompression = true;
-    @com.google.gson.annotations.Expose private boolean useFastLoadingScreen = false;
-    @com.google.gson.annotations.Expose private boolean useNativeCommands    = false;
-
+    private boolean useNativeLighting    = true;
+    private boolean useNativeCompression = true;
+    private boolean useFastLoadingScreen = true;
     // Mod compat toggles
-    @com.google.gson.annotations.Expose private boolean enableParticleCulling      = true;
-    @com.google.gson.annotations.Expose private boolean enableChunkBuilderExpand   = true;
-    @com.google.gson.annotations.Expose private boolean enableTickSyncCompat       = true;
-    @com.google.gson.annotations.Expose private boolean enableBBECompat            = true;
-    @com.google.gson.annotations.Expose private boolean enableEMFCompat            = true;
-    @com.google.gson.annotations.Expose private boolean enableETFCompat            = true;
-    @com.google.gson.annotations.Expose private boolean enableAppleSkinCompat      = true;
-    @com.google.gson.annotations.Expose private boolean enableEntityCullingCompat  = true;
-    @com.google.gson.annotations.Expose private boolean enableImmediatelyFastCompat = true;
-    @com.google.gson.annotations.Expose private boolean enableClientRedstoneSkip   = true;
-    @com.google.gson.annotations.Expose private boolean enableDebugHudGraph        = false;
-    @com.google.gson.annotations.Expose private boolean enablePieChart             = false;
-    @com.google.gson.annotations.Expose private boolean enableNativeMetricsHud    = false;
-
+    private boolean enableParticleCulling      = true;
+    private boolean enableChunkBuilderExpand   = true;
+    private boolean enableTickSyncCompat       = true;
+    private boolean enableBBECompat            = true;
+    private boolean enableEMFCompat            = true;
+    private boolean enableETFCompat            = true;
+    private boolean enableAppleSkinCompat      = true;
+    private boolean enableEntityCullingCompat  = true;
+    private boolean enableImmediatelyFastCompat = true;
+    private boolean enableClientRedstoneSkip   = true;
+    private boolean enableDebugHudGraph        = false;
+    private boolean enablePieChart             = false;
+    private boolean enableNativeMetricsHud    = false;
     // DNS / Server List
-    @com.google.gson.annotations.Expose private boolean enableDnsCache             = true;
-
+    private boolean enableDnsCache             = true;
     // Mod bridges
-    @com.google.gson.annotations.Expose private boolean bridgeSodium    = true;
-    @com.google.gson.annotations.Expose private boolean bridgeStarlight = true;
-    @com.google.gson.annotations.Expose private boolean bridgeC2ME      = true;
-    @com.google.gson.annotations.Expose private boolean bridgeIris      = true;
-    @com.google.gson.annotations.Expose private boolean bridgeLithium   = true;
-    @com.google.gson.annotations.Expose private boolean disableDhFade   = true;
-
+    private boolean bridgeSodium    = true;
+    private boolean bridgeStarlight = true;
+    private boolean bridgeC2ME      = true;
+    private boolean bridgeIris      = true;
+    private boolean bridgeLithium   = true;
     // Loading screen colors
-    @com.google.gson.annotations.Expose private int loadingBarBgColor      = 0xFF1A1A1A;
-    @com.google.gson.annotations.Expose private int loadingBarLowColor     = 0xFF22AA44;
-    @com.google.gson.annotations.Expose private int loadingBarMidColor     = 0xFFCCAA00;
-    @com.google.gson.annotations.Expose private int loadingBarHighColor    = 0xFFCC2222;
-    @com.google.gson.annotations.Expose private int loadingBarTextColor    = 0xDDFFFFFF;
-    @com.google.gson.annotations.Expose private int loadingBarSubtextColor = 0x9900FFFF;
-
+    private int loadingBarBgColor      = 0xFF1A1A1A;
+    private int loadingBarLowColor     = 0xFF22AA44;
+    private int loadingBarMidColor     = 0xFFCCAA00;
+    private int loadingBarHighColor    = 0xFFCC2222;
+    private int loadingBarTextColor    = 0xDDFFFFFF;
+    private int loadingBarSubtextColor = 0x9900FFFF;
     // Developer
-    @com.google.gson.annotations.Expose private boolean silenceLogs = true;
-    @com.google.gson.annotations.Expose(serialize = false, deserialize = false)
+    private boolean silenceLogs = true;
     private boolean nativeReady = false;
-    @com.google.gson.annotations.Expose private boolean experimentalCoexistEnabled = true;
-    @com.google.gson.annotations.Expose private boolean lockCullingToPlayer = false;
+    private boolean experimentalCoexistEnabled = true;
+    private boolean lockCullingToPlayer = false;
+    // --- Runtime Mod Detection State ---
+    private boolean modSodiumLoaded = false;
+    private boolean modLithiumLoaded = false;
+    private boolean modIrisLoaded = false;
+    private boolean modStarlightLoaded = false;
+    private boolean modC2MELoaded = false;
+    private boolean modDistantHorizonsLoaded = false;
+    private boolean modImmediatelyFastLoaded = false;
+    private boolean modEntityCullingLoaded = false;
 
-    // --- Runtime Mod Detection State (not saved to disk) ---
-    @com.google.gson.annotations.Expose(serialize = false, deserialize = false) private boolean modSodiumLoaded = false;
-    @com.google.gson.annotations.Expose(serialize = false, deserialize = false) private boolean modLithiumLoaded = false;
-    @com.google.gson.annotations.Expose(serialize = false, deserialize = false) private boolean modIrisLoaded = false;
-    @com.google.gson.annotations.Expose(serialize = false, deserialize = false) private boolean modStarlightLoaded = false;
-    @com.google.gson.annotations.Expose(serialize = false, deserialize = false) private boolean modC2MELoaded = false;
-    @com.google.gson.annotations.Expose(serialize = false, deserialize = false) private boolean modDistantHorizonsLoaded = false;
-    @com.google.gson.annotations.Expose(serialize = false, deserialize = false) private boolean modImmediatelyFastLoaded = false;
-    @com.google.gson.annotations.Expose(serialize = false, deserialize = false) private boolean modEntityCullingLoaded = false;
+    @SuppressWarnings({"java:S3011", "java:S3776"})
+    public void load(Path path) {
+        Properties props = new Properties();
+        if (Files.exists(path)) {
+            try (InputStream in = Files.newInputStream(path)) {
+                props.load(in);
+            } catch (Exception e) { e.printStackTrace(); }
+        }
+        for (Field field : this.getClass().getDeclaredFields()) {
+            if (Modifier.isStatic(field.getModifiers()) || field.getName().startsWith("mod") || field.getName().equals("nativeReady")) continue;
+            field.setAccessible(true);
+            String val = props.getProperty(field.getName());
+            if (val != null) {
+                try {
+                    if (field.getType() == boolean.class) {
+                        field.set(this, Boolean.parseBoolean(val));
+                    } else if (field.getType() == int.class) {
+                        field.set(this, Integer.decode(val));
+                    }
+                } catch (Exception e) { e.printStackTrace(); }
+            }
+        }
+    }
+
+    @SuppressWarnings("java:S3011")
+    public void save(Path path) {
+        Properties props = new Properties();
+        for (Field field : this.getClass().getDeclaredFields()) {
+            if (Modifier.isStatic(field.getModifiers()) || field.getName().startsWith("mod") || field.getName().equals("nativeReady")) continue;
+            field.setAccessible(true);
+            try {
+                if (field.getType() == boolean.class) {
+                    props.setProperty(field.getName(), String.valueOf(field.get(this)));
+                } else if (field.getType() == int.class) {
+                    props.setProperty(field.getName(), "0x" + Integer.toHexString((Integer)field.get(this)).toUpperCase());
+                }
+            } catch (Exception e) { e.printStackTrace(); }
+        }
+        try {
+            if (!Files.exists(path.getParent())) {
+                Files.createDirectories(path.getParent());
+            }
+            try (OutputStream out = Files.newOutputStream(path)) {
+                props.store(out, "RustMC Configuration");
+            }
+        } catch (Exception e) { /* ignore */ }
+    }
+
+    @SuppressWarnings({"java:S3011", "java:S3776"})
+    public String toJson() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\n");
+        boolean first = true;
+        for (Field field : this.getClass().getDeclaredFields()) {
+            if (Modifier.isStatic(field.getModifiers())) continue;
+            field.setAccessible(true);
+            try {
+                if (!first) sb.append(",\n");
+                first = false;
+                sb.append("  \"").append(field.getName()).append("\": ");
+                if (field.getType() == boolean.class || field.getType() == int.class) {
+                    sb.append(field.get(this));
+                }
+            } catch (Exception e) { e.printStackTrace(); }
+        }
+        sb.append("\n}");
+        return sb.toString();
+    }
 
     public void copyFrom(RustMCConfig o) {
         this.useNativeSine = o.useNativeSine;
         this.useNativeCos = o.useNativeCos;
-        this.useNativeSqrt = o.useNativeSqrt;
-        this.useNativeInvSqrt = o.useNativeInvSqrt;
         this.useNativeAtan2 = o.useNativeAtan2;
         this.useNativeFloor = o.useNativeFloor;
         this.useNativeNoise = o.useNativeNoise;
@@ -83,7 +147,6 @@ public class RustMCConfig {
         this.useNativeLighting = o.useNativeLighting;
         this.useNativeCompression = o.useNativeCompression;
         this.useFastLoadingScreen = o.useFastLoadingScreen;
-        this.useNativeCommands = o.useNativeCommands;
         this.enableParticleCulling = o.enableParticleCulling;
         this.enableChunkBuilderExpand = o.enableChunkBuilderExpand;
         this.enableTickSyncCompat = o.enableTickSyncCompat;
@@ -103,7 +166,7 @@ public class RustMCConfig {
         this.bridgeC2ME = o.bridgeC2ME;
         this.bridgeIris = o.bridgeIris;
         this.bridgeLithium = o.bridgeLithium;
-        this.disableDhFade = o.disableDhFade;
+
         this.loadingBarBgColor = o.loadingBarBgColor;
         this.loadingBarLowColor = o.loadingBarLowColor;
         this.loadingBarMidColor = o.loadingBarMidColor;
@@ -119,8 +182,7 @@ public class RustMCConfig {
     // Getters
     public boolean isUseNativeSine()        { return useNativeSine; }
     public boolean isUseNativeCos()         { return useNativeCos; }
-    public boolean isUseNativeSqrt()        { return useNativeSqrt; }
-    public boolean isUseNativeInvSqrt()     { return useNativeInvSqrt; }
+
     public boolean isUseNativeAtan2()       { return useNativeAtan2; }
     public boolean isUseNativeFloor()       { return useNativeFloor; }
     public boolean isUseNativeNoise()       { return useNativeNoise; }
@@ -129,7 +191,7 @@ public class RustMCConfig {
     public boolean isUseNativeLighting()    { return useNativeLighting; }
     public boolean isUseNativeCompression() { return useNativeCompression; }
     public boolean isUseFastLoadingScreen() { return useFastLoadingScreen; }
-    public boolean isUseNativeCommands()    { return useNativeCommands; }
+
     public boolean isEnableParticleCulling()      { return enableParticleCulling; }
     public boolean isEnableChunkBuilderExpand()   { return enableChunkBuilderExpand; }
     public boolean isEnableTickSyncCompat()       { return enableTickSyncCompat; }
@@ -149,7 +211,7 @@ public class RustMCConfig {
     public boolean isBridgeC2ME()           { return bridgeC2ME; }
     public boolean isBridgeIris()           { return bridgeIris; }
     public boolean isBridgeLithium()        { return bridgeLithium; }
-    public boolean isDisableDhFade()        { return disableDhFade; }
+
     public int getLoadingBarBgColor()       { return loadingBarBgColor; }
     public int getLoadingBarLowColor()      { return loadingBarLowColor; }
     public int getLoadingBarMidColor()      { return loadingBarMidColor; }
@@ -173,8 +235,7 @@ public class RustMCConfig {
     // Setters
     public void setUseNativeSine(boolean v)        { useNativeSine = v; }
     public void setUseNativeCos(boolean v)         { useNativeCos = v; }
-    public void setUseNativeSqrt(boolean v)        { useNativeSqrt = v; }
-    public void setUseNativeInvSqrt(boolean v)     { useNativeInvSqrt = v; }
+
     public void setUseNativeAtan2(boolean v)       { useNativeAtan2 = v; }
     public void setUseNativeFloor(boolean v)       { useNativeFloor = v; }
     public void setUseNativeNoise(boolean v)       { useNativeNoise = v; }
@@ -182,7 +243,7 @@ public class RustMCConfig {
     public void setUseNativeLighting(boolean v)    { useNativeLighting = v; }
     public void setUseNativeCompression(boolean v) { useNativeCompression = v; }
     public void setUseFastLoadingScreen(boolean v) { useFastLoadingScreen = v; }
-    public void setUseNativeCommands(boolean v)    { useNativeCommands = v; }
+
     public void setEnableParticleCulling(boolean v)      { enableParticleCulling = v; }
     public void setEnableChunkBuilderExpand(boolean v)   { enableChunkBuilderExpand = v; }
     public void setEnableTickSyncCompat(boolean v)       { enableTickSyncCompat = v; }
@@ -202,7 +263,7 @@ public class RustMCConfig {
     public void setBridgeC2ME(boolean v)           { bridgeC2ME = v; }
     public void setBridgeIris(boolean v)           { bridgeIris = v; }
     public void setBridgeLithium(boolean v)        { bridgeLithium = v; }
-    public void setDisableDhFade(boolean v)        { disableDhFade = v; }
+
     public void setLoadingBarBgColor(int v)        { loadingBarBgColor = v; }
     public void setLoadingBarLowColor(int v)       { loadingBarLowColor = v; }
     public void setLoadingBarMidColor(int v)       { loadingBarMidColor = v; }
