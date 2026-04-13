@@ -62,6 +62,101 @@ Goal: expand native offload only where profiling shows real payoff.
 - Expand decoder/packet offload where allocation pressure is measurable.
 - Continue DH/LOD mesh and data transform improvements only when world-load and flight scenarios stay stable.
 
+### 5) Mixin Performance Micro-Optimizations (Next)
+
+Goal: reduce per-frame CPU overhead in hot-path mixins.
+
+- **ResourceReloadMixin**: Analyze ForkJoinPool work-stealing tuning for `asyncMode=true` FIFO scheduling.
+- **DebugHudMixin**: Profile string allocation and text rendering in debug overlay; reduce GC pressure.
+- **ChunkBuilderMixin**: Validate mesh generation overhead and explore vertex buffer pooling.
+- **Screen Mixins** (SplashOverlay, Window, LevelLoading): Reduce per-frame state lookups and drawable rebuilds.
+- **ParticleManagerMixin**: Profile distance calculation against squared distance fast-path; cache RenderState lookups.
+- **MinecraftClientMixin**: Validate frame-time ring buffer contention; explore lock-free variant.
+- **Compat Mixins**: Ensure no redundant mod detection on every frame; cache modding environment state.
+
+### 6) Config Surface Simplification (Next)
+
+Goal: reduce configuration noise while preserving all active toggles.
+
+- Audit `RustMCConfig` for unused/duplicated toggles (e.g., enableParticleCulling vs renderBudgetTight).
+- Merge compat flags into a single mod-detection pass in `ModBridge` at startup.
+- Remove config entries for features that have no Rust implementation (e.g., old random number generation stubs).
+- Document each remaining config toggle with its JNI path and fallback behavior.
+
+### 7) Rendering Pipeline Cache Locality (Next)
+
+Goal: improve CPU cache efficiency in hot render loops.
+
+- Profile matrix buffer allocations in `MatrixMixin` for NUMA effects on multi-socket systems.
+- Validate JOML matrix data layout (row-major vs column-major) against Rust SIMD expectation.
+- Explore persistent buffer reuse in `FrustumMixin` to avoid per-frame allocations.
+- Profile render-state lookups in `ParticleManagerMixin` and `RenderBudgetMixin` for cache thrashing.
+
+### 8) Debug Visibility for Profiling (Next)
+
+Goal: add internal observability hooks for performance validation.
+
+- Expose frustum check counters and culling ratios via a debug HUD overlay.
+- Add optional JNI call timing instrumentation (frame-time contribution per path).
+- Log mixin exception fallbacks so silent degradation is visible in debug builds.
+- Capture particle cull decisions and RenderState transitions for offline analysis.
+
+### 9) Allocation Pressure Reduction (Future)
+
+Goal: minimize GC overhead in hot render loops.
+
+- **FrustumMixin**: Reuse matrix buffer arrays to avoid per-frame allocation.
+- **ParticleManagerMixin**: Cache RenderState flags in instance variables instead of static lookups.
+- **LightingMixin**: Profile PENDING_POS/PENDING_VAL ring buffer churn; consider pre-allocated double-buffering.
+- **Screen Mixins**: Batch drawable updates instead of per-frame rebuilds; reduce string allocations in progress rendering.
+- **MinecraftClientMixin**: Profile long[] array allocation in frame-time history; use circular index without allocation.
+
+### 10) Compat Layer Optimization (Future)
+
+Goal: reduce mod-detection cost and improve ModBridge efficiency.
+
+- Cache ModBridge detection results at startup instead of repeated checks.
+- Eliminate redundant calls to `isMathOwned()`, `isLightingOwned()`, `isSodium()`, etc. per mixin.
+- Create a single `ModBridgeCache` that updates once per world-load instead of per-frame.
+- Validate that fallback paths don't regress when mods are disabled.
+
+### 11) Screen & HUD Layer Optimization (Future)
+
+Goal: optimize splash screen, loading screen, and debug overlays.
+
+- **SplashOverlayMixin**: Profile gradient rendering and text measurement; validate GPU utilization during loads.
+- **LevelLoadingScreenMixin**: Reduce per-frame resource reload progress polling.
+- **WindowMixin**: Cache window size calculations; avoid reshape overhead on every frame.
+- **DebugHudMixin**: Batch text rendering; profile memory format conversions for overlay data.
+- **RenderBudgetMixin**: Implement lazy evaluation of FPS calculations; avoid redundant metric collection.
+
+### 12) Chunk & Mesh Rendering Pipeline (Future)
+
+Goal: optimize chunk building and vertex buffer management.
+
+- **ChunkBuilderMixin**: Profile vertex data layout efficiency (interleaved vs separate buffers).
+- Explore persistent memory-mapped chunks to reduce per-load allocation.
+- Validate that chunk sort order doesn't regress under heavy mod loading.
+- Profile vertex transformation cost in EMF/ETF scenarios; evaluate caching or lazy evaluation.
+
+### 13) JNI Call Site Optimization (Future)
+
+Goal: reduce JNI crossing overhead in high-frequency paths.
+
+- Batch multiple Rust operations per JNI call where possible (e.g., frustum + cave check).
+- Profile JNI method lookup cost vs direct native invocation.
+- Consider JNI function pointers cache if repeated crossings dominate frame time.
+- Validate that exception handling in fallback paths doesn't trigger costly class lookups.
+
+### 14) Lock-Free Synchronization (Future)
+
+Goal: replace synchronized blocks with lock-free alternatives in high-contention paths.
+
+- **MinecraftClientMixin**: Evaluate AtomicLong for frame-time history instead of lock-based ring buffer.
+- **LightingMixin**: Profile QUEUE_LOCK contention; consider ConcurrentLinkedQueue for work-stealing.
+- **FrustumMixin**: Validate that matrix buffer reads are single-threaded or cache-friendly.
+- Profile lock contention under heavy particle spawning or chunk loading.
+
 ## Validation Gates
 
 Every optimization should satisfy at least one of these before it is considered ready:
