@@ -1,6 +1,8 @@
 # Rust to MC Roadmap
 
-This roadmap tracks the current plan for **Rust to MC**: move high-cost client hot-path work from Java to Rust while preserving gameplay correctness, mod compatibility, and stable frame pacing.
+This roadmap tracks the active plan for **Rust to MC**: move high-cost client hot-path work from Java to Rust while preserving gameplay correctness, mod compatibility, and stable frame pacing.
+
+Scope: active work only. Completed optimization history lives in [`docs/completed-changes.md`](docs/completed-changes.md).
 
 ## Core Vision
 
@@ -15,64 +17,57 @@ This roadmap tracks the current plan for **Rust to MC**: move high-cost client h
 - Rust side provides frustum, particle, audio, compression, and utility paths with fallback wrappers in `NativeBridge`.
 - Distant Horizons culling path remains Rust-driven with fused/fallback behavior.
 
-## Rollback Reference (v1.0.3-a3)
+## Completed Changes
 
-- Rollback target: `v1.0.3-a3` (`12e8073`)
-- Rolled back from: `main` at `9cd2790`
-- Commits removed in rollback: 13 (`v1.0.3-a3..9cd2790`)
-- Backup branch: `backup/pre-rollback-v1.0.3-a3-20260412-210316`
+Completed optimization and stabilization work is documented in [`docs/completed-changes.md`](docs/completed-changes.md).
 
-### Saved Diff Artifacts
-
-- `docs/rollback/commits_since_v1.0.3-a3.txt`
-- `docs/rollback/name_status_since_v1.0.3-a3.txt`
-- `docs/rollback/diff_stat_since_v1.0.3-a3.txt`
-- `docs/rollback/full_diff_since_v1.0.3-a3.patch`
-- `docs/rollback/working_tree_uncommitted.patch`
-
-## Recovery and Reimplementation Track
-
-1. Keep startup and compatibility stable (`NativeBridge`, `ModBridge`, `RustMC`, mixin gating).
-2. Reintroduce DH/full rendering pipeline changes in small, testable batches.
-3. Restore and simplify YACL config surface (remove defunct options, keep active toggles only).
-4. Continue removing Java/Rust paths that regress performance or correctness.
-
-## Short-Term Goals (Next 2-6 Weeks)
+## Active Optimization Priorities
 
 ### 1) Frustum and DH Culling Reliability
 
+Goal: keep culling correct, fast, and debuggable.
+
 - Keep DH section visibility decisions in Rust.
-- Validate fused culling behavior against fallback path and edge camera/FOV cases.
-- Add benchmark captures for section count, rejected count, and frame time impact.
+- Validate fused culling behavior against the fallback path and edge camera/FOV cases.
+- Add a debug toggle for culling visibility so testing can confirm what is being rejected.
+- Capture section count, rejected count, and frame-time impact for each change.
 
 ### 2) JNI Hot-Path Hygiene
 
+Goal: keep native offload only where it clearly wins.
+
 - Keep wrappers safe and explicit on fallback behavior.
-- Minimize JNI overhead where it wins; avoid JNI where vanilla/Java is faster.
+- Minimize JNI overhead where it helps; avoid JNI where vanilla Java is faster.
 - Document per-path strategy (copy vs pinned) for maintainability.
+- Profile before/after every JNI change so regressions are easy to catch.
 
 ### 3) Config and Compat Cleanup
+
+Goal: simplify the runtime surface without losing functionality.
 
 - Keep `EntityRenderCompatMixin` as the single BBE/EMF/ETF/IF compat hook.
 - Remove dead placeholder/accessor files when no longer referenced.
 - Trim noisy inspections and stale suppressions without changing behavior.
+- Prefer one clear toggle per optimization instead of overlapping config paths.
 
-## Medium-Term Goals (1-3 Months)
+### 4) Native Lighting, Packet, and Chunk Workloads
 
-### 1) Native Lighting Pipeline Upgrade
+Goal: expand native offload only where profiling shows real payoff.
 
-- Replace placeholder/bit-packed propagation with a robust BFS-based Rust lighting propagation path.
+- Replace placeholder/bit-packed lighting propagation with a robust BFS-based Rust path.
 - Validate against ScalableLux/Starlight ownership rules to avoid contention.
-
-### 2) Native Packet and Data Workloads
-
 - Expand decoder/packet offload where allocation pressure is measurable.
-- Add profiling checkpoints before/after each offload to avoid regressions.
+- Continue DH/LOD mesh and data transform improvements only when world-load and flight scenarios stay stable.
 
-### 3) Native Chunk/LOD Work
+## Validation Gates
 
-- Continue DH/LOD workload offload improvements (culling and mesh/data transforms).
-- Keep world-load and flight scenarios as primary performance validation workloads.
+Every optimization should satisfy at least one of these before it is considered ready:
+
+- No visible correctness regression in frustum or LOD culling.
+- Lower or unchanged frame time in the target scene.
+- Lower CPU cost or allocation pressure on the measured hot path.
+- No new crash, fallback breakage, or mod-compat regression.
+- Clear benchmark or debug evidence that the change is doing useful work.
 
 ## Non-Goals / Guardrails
 
@@ -82,16 +77,9 @@ This roadmap tracks the current plan for **Rust to MC**: move high-cost client h
 
 ## Backlog
 
-- Fast JSON bridge (`serde_json`) for selected resource paths.
-- ModMenu native stats surface (JNI calls, frustum checks, cache hits).
+- Fast JSON bridge (`serde_json`) for selected resource paths, only if profiling shows repeated data-transform cost.
+- ModMenu native stats surface (JNI calls, frustum checks, cache hits) if it helps diagnose culling or hot-path regressions.
 - Additional benchmark scenes for heavy particles, DH, and networking spikes.
-
-## Recent Updates (April 2026)
-
-- Cleaned/standardized comment style and removed stale mixin hooks that no longer remap.
-- Fixed Gradle resource source-set ordering to avoid duplicate/override ambiguity.
-- Simplified compat routing by replacing placeholder BBE mixin usage with `EntityRenderCompatMixin` flow.
-- Updated Rust particle JNI path to avoid invalid dual mutable borrows of `JNIEnv`.
 
 ---
 

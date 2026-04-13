@@ -21,6 +21,11 @@ public class NativeBridge {
     private static final AtomicBoolean noiseSeeded = new AtomicBoolean(false);
     // ── Debug Counters ──
     public static final java.util.concurrent.atomic.AtomicInteger frustumChecksThisFrame = new java.util.concurrent.atomic.AtomicInteger(0);
+    public static final java.util.concurrent.atomic.AtomicInteger frustumVisibleThisFrame = new java.util.concurrent.atomic.AtomicInteger(0);
+    public static final java.util.concurrent.atomic.AtomicInteger frustumCulledThisFrame = new java.util.concurrent.atomic.AtomicInteger(0);
+    private static final java.util.concurrent.atomic.AtomicInteger frustumChecksLastFrame = new java.util.concurrent.atomic.AtomicInteger(0);
+    private static final java.util.concurrent.atomic.AtomicInteger frustumVisibleLastFrame = new java.util.concurrent.atomic.AtomicInteger(0);
+    private static final java.util.concurrent.atomic.AtomicInteger frustumCulledLastFrame = new java.util.concurrent.atomic.AtomicInteger(0);
     public static boolean isReady() { return libLoaded; }
     static {
         try {
@@ -112,21 +117,24 @@ public class NativeBridge {
     // Optimizes entity/particle culling by offloading frustum intersection checks to Rust.
     // Uses the persistent global frustum updated via 'updateVanillaFrustum'.
     public static boolean isOutsideFrustum(double x, double y, double z, double radius) {
-        frustumChecksThisFrame.incrementAndGet();
         if (!libLoaded) return false;
         try {
-            return rustIsOutsideFrustum(0, x, y, z, radius);
+            boolean outside = rustIsOutsideFrustum(0, x, y, z, radius);
+            recordFrustumResult(!outside);
+            return outside;
         } catch (UnsatisfiedLinkError e) {
             return false;
         }
     }
     public static int cullEntities(double[] positions, boolean[] results) {
         if (positions == null || results == null) return 0;
-        frustumChecksThisFrame.addAndGet(positions.length / 3);
         if (!libLoaded) return 0;
         try {
             float margin = com.alexxiconify.rustmc.compat.ImmediatelyFastCompat.getCullingDistanceMultiplier();
-            return rustCullEntities(0, positions, positions.length / 3, results, margin);
+            int count = positions.length / 3;
+            int visible = rustCullEntities(0, positions, count, results, margin);
+            addBatchFrustumResults(visible, count - visible);
+            return visible;
         } catch (UnsatisfiedLinkError e) {
             return 0;
         }
@@ -199,13 +207,16 @@ public class NativeBridge {
     //
      // Conservative frustum test with margin (useful for DH chunks/LODs).
     public static boolean frustumTest(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin) {
-        frustumChecksThisFrame.incrementAndGet();
         if (!libLoaded) return true;
         try {
-            return rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
+              boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
+              recordFrustumResult(visible);
+              return visible;
         } catch (UnsatisfiedLinkError e) {
             try {
-                return rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ);
+                  boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ);
+                  recordFrustumResult(visible);
+                  return visible;
             } catch (UnsatisfiedLinkError ignored) {
                 return true;
             }
@@ -215,9 +226,15 @@ public class NativeBridge {
      // Batch frustum test with margin.
     public static byte[] batchFrustumTest(long ptr, double[] aabbs, double margin) {
         if (aabbs == null) return new byte[0];
-        frustumChecksThisFrame.addAndGet(aabbs.length / 6);
+        int count = aabbs.length / 6;
         if (!libLoaded) return new byte[0];
-        return rustBatchFrustumTest(ptr, aabbs, aabbs.length / 6, margin);
+        try {
+            byte[] out = rustBatchFrustumTest(ptr, aabbs, count, margin);
+            recordBatchFrustumResult(out, count);
+            return out;
+        } catch (UnsatisfiedLinkError e) {
+            return new byte[0];
+        }
     }
     private static native boolean rustDHCull(double minY, double maxY, double surfaceY);
     private static native boolean rustDHCullFused(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double surfaceY);
@@ -436,13 +453,16 @@ public class NativeBridge {
         return testRustFrustum(ptr, minX, minY, minZ, maxX, maxY, maxZ, 0.0);
     }
     public static boolean testRustFrustum(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin) {
-        frustumChecksThisFrame.incrementAndGet();
         if (!libLoaded || ptr == 0) return true; // Default to visible if Rust is not available or ptr is 0
         try {
-            return rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
+            boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
+            recordFrustumResult(visible);
+            return visible;
         } catch (UnsatisfiedLinkError e) {
             try {
-                return rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ);
+                boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ);
+                recordFrustumResult(visible);
+                return visible;
             } catch (UnsatisfiedLinkError ignored) {
                 return true;
             }
@@ -494,18 +514,68 @@ public class NativeBridge {
         return batchFrustumTest(ptr, aabbs, count, 0.0);
     }
     public static byte[] batchFrustumTest(long ptr, double[] aabbs, int count, double margin) {
-        frustumChecksThisFrame.addAndGet(count);
         if (!libLoaded || ptr == 0 || aabbs == null || count <= 0) {
             byte[] all = new byte[count];
             java.util.Arrays.fill(all, (byte) 1);
+            addBatchFrustumResults(count, 0);
             return all;
         }
-        try { return rustBatchFrustumTest(ptr, aabbs, count, margin); }
+        try {
+            byte[] out = rustBatchFrustumTest(ptr, aabbs, count, margin);
+            recordBatchFrustumResult(out, count);
+            return out;
+        }
         catch (UnsatisfiedLinkError e) {
             byte[] all = new byte[count];
             java.util.Arrays.fill(all, (byte) 1);
+            addBatchFrustumResults(count, 0);
             return all;
         }
+    }
+
+    private static void recordFrustumResult(boolean visible) {
+        frustumChecksThisFrame.incrementAndGet();
+        if (visible) {
+            frustumVisibleThisFrame.incrementAndGet();
+        } else {
+            frustumCulledThisFrame.incrementAndGet();
+        }
+    }
+
+    private static void addBatchFrustumResults(int visible, int culled) {
+        int safeVisible = Math.max(0, visible);
+        int safeCulled = Math.max(0, culled);
+        frustumChecksThisFrame.addAndGet(safeVisible + safeCulled);
+        frustumVisibleThisFrame.addAndGet(safeVisible);
+        frustumCulledThisFrame.addAndGet(safeCulled);
+    }
+
+    private static void recordBatchFrustumResult(byte[] out, int expectedCount) {
+        if (expectedCount <= 0) return;
+        if (out == null || out.length == 0) {
+            addBatchFrustumResults(expectedCount, 0);
+            return;
+        }
+        int len = Math.min(expectedCount, out.length);
+        int visible = 0;
+        for (int i = 0; i < len; i++) {
+            if (out[i] != 0) visible++;
+        }
+        addBatchFrustumResults(visible, len - visible);
+    }
+
+    public static void rollFrustumFrameCounters() {
+        frustumChecksLastFrame.set(frustumChecksThisFrame.getAndSet(0));
+        frustumVisibleLastFrame.set(frustumVisibleThisFrame.getAndSet(0));
+        frustumCulledLastFrame.set(frustumCulledThisFrame.getAndSet(0));
+    }
+
+    public static int[] getLastFrustumFrameCounters() {
+        return new int[] {
+            frustumChecksLastFrame.get(),
+            frustumVisibleLastFrame.get(),
+            frustumCulledLastFrame.get()
+        };
     }
     public static boolean invokeDHCull(double minY, double maxY, double surfaceY) {
         if (!libLoaded) return true;

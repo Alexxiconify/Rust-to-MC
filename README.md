@@ -30,4 +30,6 @@ The mod includes a `MixinManager` that automatically disables specific optimizat
 
 ## 🗺️ Future Plans
 
-See our [ROADMAP.md](ROADMAP.md) for detailed future optimization goals and feature plans.
+See our [ROADMAP.md](ROADMAP.md) for active optimization goals and planned work.
+
+For finished work and historical notes, see [docs/completed-changes.md](docs/completed-changes.md).
