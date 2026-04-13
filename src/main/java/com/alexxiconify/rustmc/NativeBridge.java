@@ -495,18 +495,28 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError e) { return 0; }
     }
     public static void updateRustFrustum(long ptr, float[] vpMatrix) {
-        if (!libLoaded || ptr == 0 || vpMatrix == null || vpMatrix.length < 16) return;
+        updateRustFrustumTracked(ptr, vpMatrix);
+    }
+
+    // Returns true only when a native frustum update call was successfully invoked.
+    public static boolean updateRustFrustumTracked(long ptr, float[] vpMatrix) {
+        if (!libLoaded || ptr == 0 || vpMatrix == null || vpMatrix.length < 16) return false;
         ClientFrustumContext ctx = getClientFrustumContext();
         if (ctx != null) {
             try {
                 rustFrustumUpdate(ptr, vpMatrix, ctx.fovScale(), ctx.camX(), ctx.camY(), ctx.camZ());
-                return;
+                return true;
             } catch (UnsatisfiedLinkError ignored) {
                 // Fallback to newer signature below.
             }
         }
-        try { rustFrustumUpdate(ptr, vpMatrix); }
-        catch (UnsatisfiedLinkError ignored) { }
+        try {
+            rustFrustumUpdate(ptr, vpMatrix);
+            return true;
+        }
+        catch (UnsatisfiedLinkError ignored) {
+            return false;
+        }
     }
     public static void setRustFrustumFovScale(long ptr, double fovScale) {
         if (!libLoaded || ptr == 0) return;

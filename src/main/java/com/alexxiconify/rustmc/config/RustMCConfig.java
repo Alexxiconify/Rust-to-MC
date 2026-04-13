@@ -110,6 +110,7 @@ public class RustMCConfig {
     public int getConfigVersion()           { return configVersion; }
     public boolean isUseNativeSine()        { return useNativeSine; }
     public boolean isUseNativeCos()         { return useNativeCos; }
+    public boolean isUseNativeSqrt()        { return useNativeSqrt; }
 
     public boolean isUseNativeInvSqrt()     { return useNativeInvSqrt; }
     public boolean isUseNativeAtan2()       { return useNativeAtan2; }
@@ -158,11 +159,13 @@ public class RustMCConfig {
     public void setConfigVersion(int v)          { configVersion = v; }
     public void setUseNativeSine(boolean v)        { useNativeSine = v; }
     public void setUseNativeCos(boolean v)         { useNativeCos = v; }
+    public void setUseNativeSqrt(boolean v)        { useNativeSqrt = v; }
 
     public void setUseNativeInvSqrt(boolean v)     { useNativeInvSqrt = v; }
     public void setUseNativeAtan2(boolean v)       { useNativeAtan2 = v; }
     public void setUseNativeFloor(boolean v)       { useNativeFloor = v; }
     public void setUseNativeNoise(boolean v)       { useNativeNoise = v; }
+    public void setUseNativeF3(boolean v)          { useNativeF3 = v; }
     public void setUseNativeLighting(boolean v)    { useNativeLighting = v; }
     public void setUseNativeCompression(boolean v) { useNativeCompression = v; }
     public void setUseNativePathfinding(boolean v) { useNativePathfinding = v; }

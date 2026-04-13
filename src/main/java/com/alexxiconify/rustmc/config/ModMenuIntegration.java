@@ -143,9 +143,24 @@ public class ModMenuIntegration implements ModMenuApi {
     private void addMathAndNoiseOptions(ConfigCategory.Builder builder, RustMCConfig cfg) {
         builder
             .option(buildSectionHeader("Math and Noise", "Active math/noise hooks."))
+            .option(buildBooleanOption("Native Sine", "Use Rust sine math implementation.",
+                cfg::isUseNativeSine, v -> cfg.setUseNativeSine(v != null && v)))
+            .option(buildBooleanOption("Native Cosine", "Use Rust cosine math implementation.",
+                cfg::isUseNativeCos, v -> cfg.setUseNativeCos(v != null && v)))
+            .option(buildBooleanOption("Native Square Root", "Use Rust sqrt implementation.",
+                cfg::isUseNativeSqrt, v -> cfg.setUseNativeSqrt(v != null && v)))
+            .option(buildBooleanOption("Native Fast InvSqrt", "Use Rust fast inverse square root.",
+                cfg::isUseNativeInvSqrt, v -> cfg.setUseNativeInvSqrt(v != null && v)))
+            .option(buildBooleanOption("Native Atan2", "Use Rust atan2 implementation.",
+                cfg::isUseNativeAtan2, v -> cfg.setUseNativeAtan2(v != null && v)))
+            .option(buildBooleanOption("Native Floor", "Use Rust floor implementation.",
+                cfg::isUseNativeFloor, v -> cfg.setUseNativeFloor(v != null && v)))
             .option(buildBooleanOption("Native Noise (World Gen)",
                 "Replaces SimplexNoiseSampler with Rust Simplex, seeded by world seed.\nDisabled automatically when C2ME Bridge is ON.",
-                cfg::isUseNativeNoise, v -> cfg.setUseNativeNoise(v != null && v)));
+                cfg::isUseNativeNoise, v -> cfg.setUseNativeNoise(v != null && v)))
+            .option(buildBooleanOption("Native F3 Hooks",
+                "Enable Rust-backed F3/debug calculations where available.",
+                cfg::isUseNativeF3, v -> cfg.setUseNativeF3(v != null && v)));
     }
 
     private void addNativeFeatureOptions(ConfigCategory.Builder builder, RustMCConfig cfg) {
@@ -167,8 +182,14 @@ public class ModMenuIntegration implements ModMenuApi {
                 "Passes server commands to Rust before Brigadier. Currently a no-op — leave OFF.",
                 cfg::isUseNativeCommands, v -> cfg.setUseNativeCommands(v != null && v)))
             .option(buildBooleanOption("Native Metrics HUD",
-                "Shows native performance metrics. Toggle with F3 + R.",
+                "Shows native performance metrics. Toggle with the Rust-MC keybind.",
                 cfg::isEnableNativeMetricsHud, v -> cfg.setEnableNativeMetricsHud(v != null && v)))
+            .option(buildBooleanOption("Debug HUD Frame Graph",
+                "Shows frame-time graph overlay for quick pacing checks.",
+                cfg::isEnableDebugHudGraph, v -> cfg.setEnableDebugHudGraph(v != null && v)))
+            .option(buildBooleanOption("Timing Info Overlay",
+                "Shows text-only render/load timing summary overlay.",
+                cfg::isEnablePieChart, v -> cfg.setEnablePieChart(v != null && v)))
             .option(buildBooleanOption("DNS Cache (Server Pings)",
                 "Caches DNS lookups for 5 minutes via Rust to speed up server list pings.\nCached entries: " + NativeBridge.dnsCacheSize(),
                 cfg::isEnableDnsCache, v -> cfg.setEnableDnsCache(v != null && v)));
@@ -186,6 +207,9 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildBooleanOption("TickSync Compatibility",
                 "Tick-smoothing integration. Yields to TickSync mod when installed.",
                 cfg::isEnableTickSyncCompat, v -> cfg.setEnableTickSyncCompat(v != null && v)))
+            .option(buildBooleanOption("BetterBlockEntities Compatibility",
+                "Compatibility hook for BetterBlockEntities rendering behavior.",
+                cfg::isEnableBBECompat, v -> cfg.setEnableBBECompat(v != null && v)))
             .option(buildBooleanOption("EMF/ETF Compatibility",
                 "Entity Model/Texture Features compatibility.",
                 cfg::isEnableEMFCompat, v -> cfg.setEnableEMFCompat(v != null && v)))

@@ -31,6 +31,8 @@ public class DistantHorizonsCompat {
         try {
             rustFrustumPtr = com.alexxiconify.rustmc.NativeBridge.createRustFrustum();
             if (rustFrustumPtr == 0) return;
+            lastVpArray = null;
+            hasLastCameraState = false;
             frustumInitialized = false;
             Class<?> apiClass = Class.forName(DH_API_CLASS);
             Object overridesInjector = apiClass.getField("overrides").get(null);
@@ -97,10 +99,9 @@ public class DistantHorizonsCompat {
             getValuesAsArrayMethod = mat.getClass().getMethod("getValuesAsArray");
         }
         float[] vpArray = (float[]) getValuesAsArrayMethod.invoke(mat);
-        if (shouldRefreshFrustum(vpArray)) {
+        if (!frustumInitialized || shouldRefreshFrustum(vpArray)) {
             lastVpArray = vpArray != null ? vpArray.clone() : null;
-            com.alexxiconify.rustmc.NativeBridge.updateRustFrustum(rustFrustumPtr, vpArray);
-            frustumInitialized = rustFrustumPtr != 0 && vpArray != null && vpArray.length >= 16;
+            frustumInitialized = com.alexxiconify.rustmc.NativeBridge.updateRustFrustumTracked(rustFrustumPtr, vpArray);
         }
         return null;
     }

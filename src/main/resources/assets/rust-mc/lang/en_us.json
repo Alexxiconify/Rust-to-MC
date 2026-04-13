@@ -1,6 +1,11 @@
 {
+  "key.categories.rust-mc": "Rust-to-MC",
   "key.categories.rust-mc:keybinds": "Rust-to-MC",
+  "key.category.rust-mc.keybinds": "Rust-to-MC",
+  "key.categories.rust-mc.keybinds": "Rust-to-MC",
+  "key.categories.rustmc.keybinds": "Rust-to-MC",
   "key.rustmc.toggle_frame_graph": "Toggle Frame Graph",
+  "key.rustmc.toggle_dh_culling_log": "Toggle DH Culling Debug Log",
   "key.rustmc.toggle_ram_bar": "Toggle RAM Bar Overlay",
-  "key.rustmc.toggle_pie_chart": "Toggle Performance Pie Chart"
+  "key.rustmc.toggle_pie_chart": "Toggle Timing Info Overlay"
 }
