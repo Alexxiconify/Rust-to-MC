@@ -111,9 +111,9 @@ Goal: reduce locks, allocations, and crossings in hot render loops.
 - `SplashOverlayMixin` now caches screen dimensions across head/tail passes.
 - `NativeBridge` now uses a lean fallback path for batched frustum+cave updates.
 
-Next step: profile the remaining real bottleneck before any deeper lock rewrite.
+Next step: profile the remaining real bottleneck first, then finish hot-path overhead reduction without a deeper lock rewrite unless profiling proves it helps.
 
-- **LightingMixin**: Measure `QUEUE_LOCK` contention first; then replace only the hot queue path with a lower-contention structure or staged double-buffering.
+- **LightingMixin**: Measure `QUEUE_LOCK` contention first; then replace only the hot queue path with a lower-contention structure or staged double-buffering if profiling still shows it wins.
 - **NativeBridge**: Keep JNI batching only where it still wins over vanilla Java or local snapshots.
 
 ### 8) Screen & HUD Layer Optimization (Future)

@@ -1,6 +1,6 @@
 # Output Style Guide
 
-Purpose: cut token cost. Keep meaning.
+Purpose: cut token cost. Keep meaning. Do by default in all outputs.
 
 ## Default Output
 

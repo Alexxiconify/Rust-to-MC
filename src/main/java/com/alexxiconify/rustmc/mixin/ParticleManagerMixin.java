@@ -47,7 +47,7 @@ public class ParticleManagerMixin {
         } else {
             cutoff = baseDistance;
         }
-        // Apply IF multiplier: IF makes draws cheaper via batching, so extend cutoff
+        // Apply IF multiplier: 'IF' makes draws cheaper via batching, so extend cutoff
         cutoff *= com.alexxiconify.rustmc.compat.ImmediatelyFastCompat.getCullingDistanceMultiplier();
         // Extra headroom when FPS is healthy
         if (budgetTier == 2) {
