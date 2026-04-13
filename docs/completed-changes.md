@@ -24,6 +24,7 @@ This document records optimization and stability work that has already been comp
 - `LightingMixin` now snapshots queue entries under the lock and packs them after release.
 - `LightingMixin` now calls the explicit vanilla-context lighting bulk wrapper to skip per-drain mod detection.
 - `NativeBridge` now exposes a context-aware `propagateLightBulk(int[] data, int len, int context)` wrapper and clamps batch length before JNI work.
+- `NativeBridge.batchFrustumTest()` now uses one shared all-visible Java fallback helper instead of duplicating array-fill logic.
 - `ScalableLuxCompat` now reuses a scratch buffer instead of allocating a fresh dummy array for every offload.
 - `rust_mc_core/src/lighting.rs` now hoists repeated index math out of the vanilla propagation loop.
 

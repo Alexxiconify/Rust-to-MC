@@ -85,13 +85,13 @@ Goal: add internal observability hooks for performance validation.
 - Capture particle cull decisions and `RenderState` transitions for offline analysis.
 - Keep diagnostics opt-in and cheap when disabled.
 
-### 7) Hot-Path Overhead Reduction (IN PROGRESS)
+### 7) Hot-Path Overhead Reduction (COMPLETE)
 
-- Completed work from this pass lives in [`docs/completed-changes.md`](docs/completed-changes.md) under `Lighting & JNI Hot-Path Trim`.
+Completed work from this pass lives in [`docs/completed-changes.md`](docs/completed-changes.md) under `Lighting & JNI Hot-Path Trim`.
 
 Remaining work:
 
-- **NativeBridge**: Keep JNI batching only where it still wins over vanilla Java or local snapshots.
+- None right now. Next live optimization focus is section 8.
 
 ### 8) Screen & HUD Layer Optimization (Future)
 

@@ -578,6 +578,12 @@ public class NativeBridge {
     public static byte[] batchFrustumTest(long ptr, double[] aabbs, int count) {
         return batchFrustumTest(ptr, aabbs, count, 0.0);
     }
+    private static byte[] allVisibleBatchFrustumResult(int count) {
+        byte[] all = new byte[count];
+        java.util.Arrays.fill(all, (byte) 1);
+        addBatchFrustumResults(count, 0);
+        return all;
+    }
     public static byte[] batchFrustumTest(long ptr, double[] aabbs, int count, double margin) {
         if (aabbs == null || count <= 0) {
             return new byte[0];
@@ -587,10 +593,7 @@ public class NativeBridge {
             return new byte[0];
         }
         if (!libLoaded || ptr == 0) {
-            byte[] all = new byte[safeCount];
-            java.util.Arrays.fill(all, (byte) 1);
-            addBatchFrustumResults(safeCount, 0);
-            return all;
+            return allVisibleBatchFrustumResult(safeCount);
         }
         try {
             byte[] out = rustBatchFrustumTest(ptr, aabbs, safeCount, margin);
@@ -598,10 +601,7 @@ public class NativeBridge {
             return out;
         }
         catch (UnsatisfiedLinkError e) {
-            byte[] all = new byte[safeCount];
-            java.util.Arrays.fill(all, (byte) 1);
-            addBatchFrustumResults(safeCount, 0);
-            return all;
+            return allVisibleBatchFrustumResult(safeCount);
         }
     }
 
