@@ -12,13 +12,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(LightingProvider.class)
 public class LightingMixin {
     @Unique
-    private static final long[] PENDING_POS = new long[8192];
+    private static final int QUEUE_CAPACITY = 8192;
     @Unique
-    private static final int[] PENDING_VAL = new int[8192];
+    private static final int QUEUE_MASK = QUEUE_CAPACITY - 1;
+    @Unique
+    private static final long[] PENDING_POS = new long[QUEUE_CAPACITY];
+    @Unique
+    private static final int[] PENDING_VAL = new int[QUEUE_CAPACITY];
     @Unique
     private static int head = 0;
     @Unique
     private static int tail = 0;
+    @Unique
+    private static final int BATCH_TASK_CAPACITY = QUEUE_CAPACITY / 4;
+    @Unique
+    private static final long[] BATCH_POS = new long[BATCH_TASK_CAPACITY];
+    @Unique
+    private static final int[] BATCH_VAL = new int[BATCH_TASK_CAPACITY];
     @Unique
     private static final Object QUEUE_LOCK = new Object();
     @Unique
@@ -26,27 +36,33 @@ public class LightingMixin {
     @Unique
     private static final java.util.concurrent.atomic.AtomicBoolean rustLightThreadStarted = new java.util.concurrent.atomic.AtomicBoolean(false);
     @Unique
-    private static final int[] flatBuffer = new int[8192 / 4];
+    private static final int[] flatBuffer = new int[QUEUE_CAPACITY / 4];
     @Unique
     private static long rustLightIdleSleepMs = 1L;
     // Drains the queue and dispatches packed xyz/value entries to Rust.
     @Unique
     private static boolean drainAndDispatch() {
-        int idx = 0;
+        int entries = 0;
         synchronized (QUEUE_LOCK) {
-            while (head < tail && idx + 4 <= flatBuffer.length) {
-                int qIdx = head % 8192;
-                long pos = PENDING_POS[qIdx];
-                int val = PENDING_VAL[qIdx];
+            while (head < tail && entries < BATCH_TASK_CAPACITY) {
+                int qIdx = head & QUEUE_MASK;
+                BATCH_POS[entries] = PENDING_POS[qIdx];
+                BATCH_VAL[entries] = PENDING_VAL[qIdx];
+                head++;
+                entries++;
+            }
+        }
+        if (entries > 0) {
+            int idx = 0;
+            for (int i = 0; i < entries; i++) {
+                long pos = BATCH_POS[i];
+                int val = BATCH_VAL[i];
                 flatBuffer[idx++] = (int) (pos >> 38);       // X
                 flatBuffer[idx++] = (int) (pos << 52 >> 52); // Y
                 flatBuffer[idx++] = (int) (pos << 26 >> 38); // Z
                 flatBuffer[idx++] = val;                     // Value
-                head++;
             }
-        }
-        if (idx > 0) {
-            NativeBridge.propagateLightBulk(flatBuffer, idx);
+            NativeBridge.propagateLightBulk(flatBuffer, idx, NativeBridge.CONTEXT_VANILLA);
             return true;
         }
         return false;

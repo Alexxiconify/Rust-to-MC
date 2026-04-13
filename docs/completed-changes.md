@@ -17,6 +17,22 @@ This document records optimization and stability work that has already been comp
 - `LightingMixin` now backs off its worker loop when no work is pending.
 - `LightingMixin` and `rust_mc_core/src/lighting.rs` now avoid busy-spin / Rayon writeback overhead on the hot path.
 
+### Lighting & JNI Hot-Path Trim
+
+**Completed this follow-up pass:**
+- `LightingMixin` now uses a power-of-two queue mask for its fixed lighting ring buffer.
+- `LightingMixin` now snapshots queue entries under the lock and packs them after release.
+- `LightingMixin` now calls the explicit vanilla-context lighting bulk wrapper to skip per-drain mod detection.
+- `NativeBridge` now exposes a context-aware `propagateLightBulk(int[] data, int len, int context)` wrapper and clamps batch length before JNI work.
+- `ScalableLuxCompat` now reuses a scratch buffer instead of allocating a fresh dummy array for every offload.
+- `rust_mc_core/src/lighting.rs` now hoists repeated index math out of the vanilla propagation loop.
+
+**Still deferred:**
+- Deeper `QUEUE_LOCK` replacement until profiling proves it still wins.
+- Any broader lock-free rewrite until profiling proves contention.
+
+The live roadmap now keeps only the remaining work for this pass.
+
 **Payoff:**
 - Fewer JNI crossings on render overlays.
 - Fewer per-frame allocations in frame-time and debug HUD paths.
@@ -195,6 +211,8 @@ These are the completed optimization items previously called out in the live roa
 A rollback was completed as part of the stabilization process. The saved artifacts below document the change history around that event:
 
 - `docs/rollback.md`
+
+The old `docs/rollback/` fragment folder was retired after consolidation into the single archive file above.
 
 ### Rollback Snapshot
 

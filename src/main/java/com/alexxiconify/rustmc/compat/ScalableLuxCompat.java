@@ -2,6 +2,7 @@ package com.alexxiconify.rustmc.compat;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
 import net.fabricmc.loader.api.FabricLoader;
+import java.util.Arrays;
 import java.lang.reflect.Method;
 import java.lang.reflect.Field;
 import java.util.Collection;
@@ -12,8 +13,20 @@ import java.util.Collection;
 public class ScalableLuxCompat {
     private static Method mUpdateLight;
     private static Field fPendingQueue;
+    private static int[] luxScratch = new int[0];
+    private static final Object LUX_SCRATCH_LOCK = new Object();
     private static boolean active = false;
     private ScalableLuxCompat() {}
+    private static int[] ensureLuxScratch(int size) {
+        synchronized (LUX_SCRATCH_LOCK) {
+            if (luxScratch.length < size) {
+                luxScratch = new int[size];
+            } else {
+                Arrays.fill(luxScratch, 0, size, 0);
+            }
+            return luxScratch;
+        }
+    }
     public static void initialize() {
         if (!FabricLoader.getInstance().isModLoaded("scalablelux")) {
             return;
@@ -80,9 +93,8 @@ public class ScalableLuxCompat {
             if (fPendingQueue != null) {
                 Object queue = fPendingQueue.get(null);
                 if (queue instanceof Collection<?> col && !col.isEmpty()) {
-                    // Extract update count and pass to specialized Rust path we generate a dummy array of the same size to trigger the context-aware propagation in Rust, which will effectively 'subvert' the original method.
                     int packedSize = col.size() * 4;
-                    int result = NativeBridge.propagateLightBulk(new int[packedSize], packedSize);
+                    int result = NativeBridge.propagateLightBulk(ensureLuxScratch(packedSize), packedSize, NativeBridge.CONTEXT_LUX);
                     if (result >= 0) {
                         RustMC.LOGGER.debug("[Rust-MC] Offloaded {} ScalableLux tasks to Rust cores.", col.size());
                     }

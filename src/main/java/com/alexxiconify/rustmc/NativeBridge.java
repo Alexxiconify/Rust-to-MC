@@ -416,7 +416,9 @@ public class NativeBridge {
         }
     }
     public static int propagateLightBulk(int[] data, int len) {
-        if (!libLoaded) return -1;
+        if (data == null || len <= 0) return -1;
+        int safeLen = Math.min(len, data.length);
+        if (safeLen <= 0) return -1;
         int context = CONTEXT_VANILLA;
         if (ModBridge.SCALABLELUX) {
             context = CONTEXT_LUX;
@@ -425,7 +427,14 @@ public class NativeBridge {
         } else if (ModBridge.SODIUM) {
             context = CONTEXT_SODIUM;
         }
-        try { return rustPropagateLightBulk(data, len, context); }
+        return propagateLightBulk(data, safeLen, context);
+    }
+
+    public static int propagateLightBulk(int[] data, int len, int context) {
+        if (!libLoaded || data == null || len <= 0) return -1;
+        int safeLen = Math.min(len, data.length);
+        if (safeLen <= 0) return -1;
+        try { return rustPropagateLightBulk(data, safeLen, context); }
         catch (UnsatisfiedLinkError e) { return -1; }
     }
     public static void propagateLightDH(long[] tasks, int len) {
