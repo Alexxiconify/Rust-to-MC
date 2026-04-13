@@ -66,6 +66,7 @@ debug/
 replay_*/
 hs_err_pid*
 replay_pid*
+*.patch
 
 # ─── Temp / generated files ───────────────────────────────────────────────────
 PumpkinTemp/
