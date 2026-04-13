@@ -14,7 +14,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 // Draws a compact frame-time sparkline graph in the F3 overlay when enabled. The frame history is maintained in the Rust native core as a ring buffer (240 samples). Each bar represents one frame's ms time. Uses require=0 to gracefully skip if DebugHud.render changes signature across MC versions (the method was refactored in 1.21.11).
-@SuppressWarnings("ALL")
 @Mixin(DebugHud.class)
 public class DebugHudMixin {
 

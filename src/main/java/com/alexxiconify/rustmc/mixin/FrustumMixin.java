@@ -29,7 +29,6 @@ public class FrustumMixin {
         }
     }
 
-    @SuppressWarnings("null")
     @Inject(method = "setPosition", at = @At("RETURN"))
     private void rustmc$onSetPosition(double cameraX, double cameraY, double cameraZ, CallbackInfo ci) {
         if (NativeBridge.isReady()) {

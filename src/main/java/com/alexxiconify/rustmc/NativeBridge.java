@@ -6,7 +6,6 @@ import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 // NativeBridge handles all communication between Java and the Rust native core via JNI. <p> Many wrapper methods appear "unused" in static analysis because they form the public API surface for other mods (ImmediatelyFast, Distant Horizons, etc.) and our own mixins. The Rust-side JNI functions are always kept in sync with these wrappers.
-@SuppressWarnings({"unused", "java:S1135"})
 public class NativeBridge {
     private NativeBridge() {}
 
@@ -227,7 +226,6 @@ public class NativeBridge {
     }
 
     private static native void rustFrustumSetFovScale(long ptr, double fovScale);
-    @SuppressWarnings("java:S107")
     private static native boolean rustFrustumTest(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin);
     private static native byte[] rustBatchFrustumTest(long ptr, double[] aabbs, int count, double margin);
 
@@ -254,7 +252,6 @@ public class NativeBridge {
     private static native double rustLerp(double delta, double start, double end);
     private static native double rustAbsMax(double a, double b);
     private static native float rustWrapDegrees(float value);
-    @SuppressWarnings("java:S107")
     private static native boolean rustRayIntersectsBox(double rx, double ry, double rz, double dx, double dy, double dz, double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
     private static native float[] rustComputeAmbientOcclusion(float[] vertexData, int vertexCount);
     private static native float[] rustComputeAmbientOcclusionDirect(java.nio.ByteBuffer vertexData, int vertexCount);
@@ -491,7 +488,6 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError e) { return -1; }
     }
 
-    @SuppressWarnings("unused")
     public static int invokeFrustumIntersect(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
         return -1; // Fallback to Vanilla for now since stateful frustums are only implemented for DH
     }
@@ -518,7 +514,6 @@ public class NativeBridge {
         return testRustFrustum(ptr, minX, minY, minZ, maxX, maxY, maxZ, 0.0);
     }
 
-    @SuppressWarnings("java:S107")
     public static boolean testRustFrustum(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin) {
         frustumChecksThisFrame.incrementAndGet();
         if (!libLoaded || ptr == 0) return true; // Default to visible if Rust is not available or ptr is 0
@@ -579,7 +574,6 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError e) { return 0; }
     }
 
-    @SuppressWarnings("java:S107")
     public static boolean invokeRayIntersectsBox(double rx, double ry, double rz, double dx, double dy, double dz, double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
         if (!libLoaded) return true; // Safe fallback: assume intersection to trigger Vanilla calc
         try { return rustRayIntersectsBox(rx, ry, rz, dx, dy, dz, minX, minY, minZ, maxX, maxY, maxZ); }

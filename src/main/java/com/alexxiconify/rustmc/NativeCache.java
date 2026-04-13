@@ -6,7 +6,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 // NativeCache provides bounded LRU storage for frequently accessed data. Evicts oldest entries when capacity is exceeded to prevent unbounded RAM growth. Tracks hit/miss statistics for performance monitoring. Methods like store, has, get form the public API used by mod compat hooks.
-@SuppressWarnings("unused")
 public class NativeCache {
     private NativeCache() {}
 

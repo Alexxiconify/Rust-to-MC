@@ -54,7 +54,6 @@ public abstract class LightingMixin {
     }
 
     @Unique
-    @SuppressWarnings("all")
     private static synchronized void ensureRustThread() {
         if (rustLightThreadRunning) return;
         rustLightThreadRunning = true;

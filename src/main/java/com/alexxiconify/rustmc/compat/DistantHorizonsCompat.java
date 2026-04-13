@@ -5,7 +5,6 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 
 // Reflection-based integration with Distant Horizons. API methods like {@link #computeRustAmbientOcclusion} and {@link #computeRustAmbientOcclusionDirect} are public API for DH vertex builders to offload AO to Rust's wgpu compute pipeline.
-@SuppressWarnings("unused")
 public class DistantHorizonsCompat {
     private static final String DH_MOD_ID = "distanthorizons";
     private static final String DH_API_CLASS = "com.seibel.distanthorizons.api.DhApi";
@@ -19,7 +18,6 @@ public class DistantHorizonsCompat {
 
     private static java.lang.reflect.Method getValuesAsArrayMethod = null;
 
-    @SuppressWarnings("java:S3776")
     public static void registerFrustumCuller() {
         if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID) || !com.alexxiconify.rustmc.NativeBridge.isReady()) return;
         try {
@@ -63,7 +61,6 @@ public class DistantHorizonsCompat {
 
     private static float[] lastVpArray = null;
 
-    @SuppressWarnings("java:S112") // Reflection methods throw many checked exception types
     private static Object handleFrustumProxy(Object proxy, java.lang.reflect.Method method, Object[] args) throws ReflectiveOperationException {
         String name = method.getName();
         return switch (name) {

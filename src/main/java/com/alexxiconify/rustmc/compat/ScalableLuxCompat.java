@@ -8,7 +8,6 @@ import java.lang.reflect.Field;
 import java.util.Collection;
 
 // High-performance hook for ScalableLux. Extracts pending light updates via reflection and offloads them to Rust's parallel engine.
-@SuppressWarnings({"unused", "java:S3011"})
 public class ScalableLuxCompat {
     private static Method mUpdateLight;
     private static Field fPendingQueue;
@@ -33,12 +32,12 @@ public class ScalableLuxCompat {
         }
     }
 
+    @SuppressWarnings("java:S3011") // Deep reflection required to integrate with other optimization mods
     private static void tryProbeInternals() {
         try {
             Class<?> engineClass = Class.forName("com.scalablelux.engine.LightingEngine");
             fPendingQueue = probeField(engineClass, "pendingUpdates", "queue", "tasks");
             if (fPendingQueue != null) {
-                // NOSONAR: Deep reflection is required to integrate with other optimization mods
                 fPendingQueue.setAccessible(true);
                 active = true;
                 RustMC.LOGGER.info("[Rust-MC] ScalableLux internals bound (field: {})", fPendingQueue.getName());

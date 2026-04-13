@@ -4,7 +4,6 @@ import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.RustMC;
 
 // Integration with ImmediatelyFast (IF) — a rendering optimization mod that batches draw calls, defers HUD rendering, and optimizes text/map rendering.
-@SuppressWarnings("unused") // Public API surface for mixins and future compat hooks
 public final class ImmediatelyFastCompat {
 
     private ImmediatelyFastCompat() {}
@@ -45,7 +44,6 @@ public final class ImmediatelyFastCompat {
         }
     }
 
-    @SuppressWarnings("java:S3400") // fallback parameter designed for future use with different defaults
     private static boolean probeBoolean(Object config, String fieldName, boolean fallback) {
         try {
             java.lang.reflect.Field f = config.getClass().getField(fieldName);

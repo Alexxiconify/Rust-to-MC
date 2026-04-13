@@ -120,7 +120,6 @@ public class MixinManager implements IMixinConfigPlugin {
     }
 
     // Classifies a mixin into a human-readable blame group via map lookup.
-    @SuppressWarnings({"java:S3776", "CognitiveComplexity"})
     private static String classifyMixin(String mixinClassName) {
         for (Map.Entry<String, String> entry : MIXIN_GROUP_PREFIXES.entrySet()) {
             if (mixinClassName.contains(entry.getKey())) return entry.getValue();

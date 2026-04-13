@@ -34,7 +34,6 @@ public class RenderUtilsMixin {
         return cam != null && cam.squaredDistanceTo(cx, cy, cz) > rSq;
     }
 
-    @SuppressWarnings("all")
     @Inject(method = "drawOutlinedBox(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumer;DDDDDDFFFF)V",
             at = @At("HEAD"), cancellable = true, require = 0)
     private static void cullOutlinedBox(MatrixStack matrices, VertexConsumer consumer,
@@ -48,7 +47,6 @@ public class RenderUtilsMixin {
         }
     }
 
-    @SuppressWarnings("all")
     @Inject(method = "drawBoxAllSides", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void cullDrawBoxAllSides(
             double minX, double minY, double minZ,
@@ -61,7 +59,6 @@ public class RenderUtilsMixin {
         }
     }
 
-    @SuppressWarnings("all")
     @Inject(method = "drawLine", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void cullDrawLine(
             double x1, double y1, double z1,

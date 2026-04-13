@@ -99,7 +99,6 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
     }
 
     private static @NonNull AbstractAppender getAbstractAppender ( ) {
-        @SuppressWarnings("java:S4830")
         AbstractAppender counter = new AbstractAppender("RustMCElbCounter", null,
                 org.apache.logging.log4j.core.layout.PatternLayout.createDefaultLayout(), true,
                 org.apache.logging.log4j.core.config.Property.EMPTY_ARRAY) {

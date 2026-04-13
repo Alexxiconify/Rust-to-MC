@@ -10,9 +10,10 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 // Supplements map rendering performance by offloading color processing to Rust. Complements ImmediatelyFast's atlas-based batching.
-@SuppressWarnings("java:S1118")
 @Mixin(MapRenderer.class)
 public class MapRendererMixin {
+
+    private MapRendererMixin() {}
 
     // Redirects internal map texture updates to our native processor. Handles per-pixel calculations parallel on the Rust side. Drastically reduces time spent on the main render thread.
     @Mixin(targets = "net.minecraft.client.render.MapRenderer$MapTexture")

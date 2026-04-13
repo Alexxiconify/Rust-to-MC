@@ -9,7 +9,6 @@ import java.io.OutputStream;
 import java.util.Properties;
 
 // Configuration POJO for Rust-MC.
-@SuppressWarnings({"java:S3068", "java:S3011", "java:S108", "java:S3776", "java:S112"})
 public class RustMCConfig {
     // Math optimizations
     private boolean useNativeSine     = true;
@@ -67,7 +66,7 @@ public class RustMCConfig {
     private boolean modImmediatelyFastLoaded = false;
     private boolean modEntityCullingLoaded = false;
 
-    @SuppressWarnings({"java:S3011", "java:S3776"})
+    @SuppressWarnings("java:S3011")
     public void load(Path path) {
         Properties props = new Properties();
         if (Files.exists(path)) {
@@ -78,17 +77,20 @@ public class RustMCConfig {
         for (Field field : this.getClass().getDeclaredFields()) {
             if (Modifier.isStatic(field.getModifiers()) || field.getName().startsWith("mod") || field.getName().equals("nativeReady")) continue;
             field.setAccessible(true);
-            String val = props.getProperty(field.getName());
-            if (val != null) {
-                try {
-                    if (field.getType() == boolean.class) {
-                        field.set(this, Boolean.parseBoolean(val));
-                    } else if (field.getType() == int.class) {
-                        field.set(this, Integer.decode(val));
-                    }
-                } catch (Exception e) { e.printStackTrace(); }
-            }
+            applyProperty(field, props.getProperty(field.getName()));
         }
+    }
+
+    @SuppressWarnings("java:S3011")
+    private void applyProperty(Field field, String val) {
+        if (val == null) return;
+        try {
+            if (field.getType() == boolean.class) {
+                field.set(this, Boolean.parseBoolean(val)); // NOSONAR
+            } else if (field.getType() == int.class) {
+                field.set(this, Integer.decode(val)); // NOSONAR
+            }
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
     @SuppressWarnings("java:S3011")
@@ -115,7 +117,7 @@ public class RustMCConfig {
         } catch (Exception e) { /* ignore */ }
     }
 
-    @SuppressWarnings({"java:S3011", "java:S3776"})
+    @SuppressWarnings("java:S3011")
     public String toJson() {
         StringBuilder sb = new StringBuilder();
         sb.append("{\n");

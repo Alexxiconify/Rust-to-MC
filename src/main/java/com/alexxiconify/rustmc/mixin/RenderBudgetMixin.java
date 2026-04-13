@@ -14,12 +14,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(WorldRenderer.class)
 class RenderBudgetMixin {
 
+    private RenderBudgetMixin() {}
+
     @Unique private static long lastBudgetCheckNs = 0;
     @Unique private static final long BUDGET_CHECK_INTERVAL_NS = 250_000_000L; // 4 Hz
 
-    @SuppressWarnings("java:S2696") // @Inject methods can't be static in Mixin
     @Inject(method = "render", at = @At("HEAD"), require = 0)
-    private void adjustRenderBudget(CallbackInfo ci) {
+    private static void adjustRenderBudget(CallbackInfo ci) {
         long now = System.nanoTime();
         if (now - lastBudgetCheckNs < BUDGET_CHECK_INTERVAL_NS) return;
         lastBudgetCheckNs = now;

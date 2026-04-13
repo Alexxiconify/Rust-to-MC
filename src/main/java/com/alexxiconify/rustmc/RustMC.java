@@ -90,7 +90,6 @@ public class RustMC implements ModInitializer {
 
     private static volatile boolean configLoaded = false;
 
-    @SuppressWarnings("null")
     public static synchronized void loadConfig() {
         if (configLoaded) return; // Already loaded by preload thread
         try {

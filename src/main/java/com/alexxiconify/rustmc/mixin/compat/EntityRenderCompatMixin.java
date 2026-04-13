@@ -14,9 +14,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class EntityRenderCompatMixin {
     private EntityRenderCompatMixin() {}
 
-    @SuppressWarnings("java:S2696") // Mixin @Inject must be instance; writing static RenderState fields is intentional
     @Inject(method = "render", at = @At("HEAD"), require = 0)
-    private void onEntityRenderPass(CallbackInfo ci) {
+    private static void onEntityRenderPass(CallbackInfo ci) {
         if (ModBridge.ENTITYCULLING && RustMC.CONFIG.isEnableEntityCullingCompat()) {
             RenderState.heavyEntityModsActive = false;
             return;

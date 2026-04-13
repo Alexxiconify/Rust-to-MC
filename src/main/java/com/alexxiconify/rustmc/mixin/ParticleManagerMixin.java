@@ -13,8 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 // Distance-culls particles before they are created to reduce GPU and CPU overhead. Uses a tighter cutoff when heavy entity mods (EMF/ETF) are active to free up rendering headroom. When ImmediatelyFast is batching draws, we use a more generous cutoff since IF makes each particle draw cheaper.
 @Mixin(ParticleManager.class)
-public class ParticleManagerMixin {
-    @SuppressWarnings("java:S107") // 8 params match the target method signature exactly
+public class ParticleManagerMixin { // 8 params match the target method signature exactly
     @Inject(method = "addParticle(Lnet/minecraft/particle/ParticleEffect;DDDDDD)Lnet/minecraft/client/particle/Particle;",
             at = @At("HEAD"), cancellable = true)
     private void cullDistantParticles(ParticleEffect params, double x, double y, double z,
