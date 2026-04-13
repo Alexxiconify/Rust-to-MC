@@ -16,10 +16,14 @@ public class DistantHorizonsCompat {
     private static int currentMinY = -64;
     private static int currentMaxY = 320;
     private static java.lang.reflect.Method getValuesAsArrayMethod = null;
-    private static boolean hasLastPlayerPos = false;
-    private static double lastPlayerX = 0.0;
-    private static double lastPlayerY = 0.0;
-    private static double lastPlayerZ = 0.0;
+    private static boolean hasLastCameraState = false;
+    private static double lastCameraX = 0.0;
+    private static double lastCameraY = 0.0;
+    private static double lastCameraZ = 0.0;
+    private static float lastCameraYaw = 0.0f;
+    private static float lastCameraPitch = 0.0f;
+    private static double lastFov = Double.NaN;
+    private static double lastAspect = Double.NaN;
     @SuppressWarnings("java:S3776")
     public static void registerFrustumCuller() {
         if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID) || !com.alexxiconify.rustmc.NativeBridge.isReady()) return;
@@ -91,24 +95,46 @@ public class DistantHorizonsCompat {
 
     private static boolean shouldRefreshFrustum(float[] vpArray) {
         net.minecraft.client.MinecraftClient mc2 = net.minecraft.client.MinecraftClient.getInstance();
-        net.minecraft.entity.player.PlayerEntity player = mc2 != null ? mc2.player : null;
-        boolean moved = true;
-        if (player != null) {
-            double px = player.getX();
-            double py = player.getY();
-            double pz = player.getZ();
-            if (hasLastPlayerPos) {
-                double dx = px - lastPlayerX;
-                double dy = py - lastPlayerY;
-                double dz = pz - lastPlayerZ;
-                moved = (dx * dx + dy * dy + dz * dz) > 1.0e-6;
-            }
-            lastPlayerX = px;
-            lastPlayerY = py;
-            lastPlayerZ = pz;
-            hasLastPlayerPos = true;
+        boolean matrixChanged = lastVpArray == null || !java.util.Arrays.equals(lastVpArray, vpArray);
+        if (mc2 == null) {
+            return matrixChanged;
         }
-        return moved && (lastVpArray == null || !java.util.Arrays.equals(lastVpArray, vpArray));
+        net.minecraft.entity.Entity camera = mc2.getCameraEntity();
+        if (camera == null) {
+            return matrixChanged;
+        }
+
+        double cx = camera.getX();
+        double cy = camera.getY();
+        double cz = camera.getZ();
+        float yaw = camera.getYaw();
+        float pitch = camera.getPitch();
+        double fov = mc2.options.getFov().getValue();
+        double aspect = mc2.getWindow().getFramebufferWidth() / Math.max(1.0, mc2.getWindow().getFramebufferHeight());
+
+        boolean moved = true;
+        boolean rotated = true;
+        boolean opticsChanged = true;
+        if (hasLastCameraState) {
+            double dx = cx - lastCameraX;
+            double dy = cy - lastCameraY;
+            double dz = cz - lastCameraZ;
+            moved = (dx * dx + dy * dy + dz * dz) > 1.0e-6;
+            rotated = Math.abs(yaw - lastCameraYaw) > 1.0e-4f || Math.abs(pitch - lastCameraPitch) > 1.0e-4f;
+            opticsChanged = Math.abs(fov - lastFov) > 1.0e-4 || Math.abs(aspect - lastAspect) > 1.0e-4;
+        }
+
+        lastCameraX = cx;
+        lastCameraY = cy;
+        lastCameraZ = cz;
+        lastCameraYaw = yaw;
+        lastCameraPitch = pitch;
+        lastFov = fov;
+        lastAspect = aspect;
+        hasLastCameraState = true;
+
+        // Refresh when any camera state changes, not only when position+matrix both changed.
+        return matrixChanged || moved || rotated || opticsChanged;
     }
     private static Object handleFrustumIntersects(Object[] args) {
         if (args == null || args.length < 4) {

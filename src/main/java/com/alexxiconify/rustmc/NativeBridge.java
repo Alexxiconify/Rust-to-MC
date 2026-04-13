@@ -477,8 +477,8 @@ public class NativeBridge {
             double fov = client.options.getFov().getValue();
             double aspect = client.getWindow().getFramebufferWidth() / Math.max(1.0, client.getWindow().getFramebufferHeight());
             double aspectBoost = Math.max(1.0, aspect / (16.0 / 9.0));
-            double fovScale = Math.clamp(1.15 / (fov / 70.0) / Math.sqrt(aspectBoost), 0.8, 2.5);
-            return new ClientFrustumContext(fovScale, cam.getX(), cam.getY(), cam.getZ());
+            double fovScale = Math.clamp(1.15 * (fov / 70.0) * Math.sqrt(aspectBoost), 0.8, 2.5);
+            return new ClientFrustumContext(fovScale, cam.getX(), cam.getEyeY(), cam.getZ());
         } catch (Exception ignored) {
             return null;
         }

@@ -12,12 +12,12 @@ tasks.register('rustBuild', Exec) {
     group = 'build'
     description = 'Compiles the Rust native library'
     workingDir 'rust_mc_core'
-    
+
     // Gradle Incremental Build Tracking
     inputs.dir('rust_mc_core/src')
     inputs.file('rust_mc_core/Cargo.toml')
     inputs.file('rust_mc_core/Cargo.lock')
-    
+
     // Track environment variables that affect the build
     inputs.property('rust_flags', '-C target-cpu=native')
 
@@ -29,7 +29,7 @@ tasks.register('rustBuild', Exec) {
     // Disabling CARGO_INCREMENTAL for release builds to prevent potential cache corruption
     // and ensure clean LTO optimization across all codegen units.
     environment 'CARGO_INCREMENTAL', '0'
-    
+
     doFirst {
         if (org.gradle.internal.os.OperatingSystem.current().isWindows() && outputBin.exists()) {
             // Pre-check if the DLL is locked by a running Minecraft instance
@@ -40,7 +40,7 @@ tasks.register('rustBuild', Exec) {
             }
         }
     }
-    
+
     if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
         commandLine 'cmd', '/c', 'cargo build --release'
     } else {
@@ -67,7 +67,7 @@ tasks.register('moveRustBinaries', Copy) {
     group = 'build'
     description = 'Updates resources with latest Rust binaries'
     dependsOn 'rustBuild'
-    
+
     def libName = System.mapLibraryName('rust_mc_core')
     from("rust_mc_core/target/release/${libName}")
     into 'src/main/resources'
@@ -78,6 +78,9 @@ tasks.register('moveRustBinaries', Copy) {
 // Ensure native lib is always updated before subprojects try to package resources
 subprojects {
     tasks.withType(ProcessResources).configureEach {
+        dependsOn ':moveRustBinaries'
+    }
+    tasks.matching { it.name == 'sourcesJar' }.configureEach {
         dependsOn ':moveRustBinaries'
     }
 }
