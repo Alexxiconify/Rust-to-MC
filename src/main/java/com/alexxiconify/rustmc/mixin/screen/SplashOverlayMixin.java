@@ -27,6 +27,8 @@ public abstract class SplashOverlayMixin {
     @Unique private static long splashStartMs = 0;
     @Unique private static final long TEXT_UPDATE_INTERVAL_MS = 100L;
     @Unique private static long lastTextUpdateMs = -1L;
+    @Unique private int cachedScreenW;
+    @Unique private int cachedScreenH;
     @Unique private static int cachedProgressPct = -1;
     @Unique private static String cachedProgressText = "0%";
     @Unique private static String cachedStageText = "Initializing...";
@@ -70,17 +72,17 @@ public abstract class SplashOverlayMixin {
     public void renderHead(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!RustMC.CONFIG.isUseFastLoadingScreen()) return;
         initStartTime();
-        int w = context.getScaledWindowWidth();
-        int h = context.getScaledWindowHeight();
+        cachedScreenW = context.getScaledWindowWidth();
+        cachedScreenH = context.getScaledWindowHeight();
         // Dark background — eliminates vanilla white flash and reduces GPU work
-        context.fill(0, 0, w, h, 0xFF0D0D0D);
+        context.fill(0, 0, cachedScreenW, cachedScreenH, 0xFF0D0D0D);
     }
     @Inject(at = @At("TAIL"), method = "render")
     public void renderTail(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!RustMC.CONFIG.isUseFastLoadingScreen()) return;
         if (this.client.textRenderer == null) return;
-        int w = context.getScaledWindowWidth();
-        int h = context.getScaledWindowHeight();
+        int w = cachedScreenW;
+        int h = cachedScreenH;
         // ── Actual resource loading progress ──
         float progress = 0f;
         try {

@@ -194,11 +194,7 @@ These are the completed optimization items previously called out in the live roa
 
 A rollback was completed as part of the stabilization process. The saved artifacts below document the change history around that event:
 
-- `docs/rollback/commits_since_v1.0.3-a3.txt`
-- `docs/rollback/name_status_since_v1.0.3-a3.txt`
-- `docs/rollback/diff_stat_since_v1.0.3-a3.txt`
-- `docs/rollback/full_diff_since_v1.0.3-a3.patch`
-- `docs/rollback/working_tree_uncommitted.patch`
+- `docs/rollback.md`
 
 ### Rollback Snapshot
 

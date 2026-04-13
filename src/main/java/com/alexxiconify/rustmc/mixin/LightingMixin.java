@@ -27,6 +27,8 @@ public class LightingMixin {
     private static final java.util.concurrent.atomic.AtomicBoolean rustLightThreadStarted = new java.util.concurrent.atomic.AtomicBoolean(false);
     @Unique
     private static final int[] flatBuffer = new int[8192 / 4];
+    @Unique
+    private static long rustLightIdleSleepMs = 1L;
     // Drains the queue and dispatches packed xyz/value entries to Rust.
     @Unique
     private static boolean drainAndDispatch() {
@@ -58,18 +60,23 @@ public class LightingMixin {
     private static void ensureRustThread() {
         if (!rustLightThreadStarted.compareAndSet(false, true)) return;
         rustLightThreadRunning = true;
+        rustLightIdleSleepMs = 1L;
         Thread.ofPlatform().name("rustmc-light-propagation").daemon(true).start(() -> {
             try {
                 while (rustLightThreadRunning) {
                     try {
                         if (isRustLightingActive()) {
                             if (!drainAndDispatch()) {
-                                sleepQuietly(1L);
+                                sleepQuietly(rustLightIdleSleepMs);
+                                rustLightIdleSleepMs = Math.min(rustLightIdleSleepMs << 1, 16L);
+                            } else {
+                                rustLightIdleSleepMs = 1L;
                             }
                         } else {
                             sleepQuietly(8L);
+                            rustLightIdleSleepMs = 1L;
                         }
-                    } catch (Exception e) {
+                     } catch (Exception e) {
                         RustMC.LOGGER.warn("[Rust-MC] Lighting worker stopped after error: {}", e.getMessage());
                         rustLightThreadRunning = false;
                     }

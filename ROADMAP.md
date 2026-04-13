@@ -23,6 +23,7 @@ Scope: active work only. Completed optimization history lives in [`docs/complete
 ## Completed Changes
 
 Completed optimization and stabilization work is documented in [`docs/completed-changes.md`](docs/completed-changes.md).
+- Rollback archive now lives in [`docs/rollback.md`](docs/rollback.md).
 
 ## Active Optimization Priorities
 
@@ -106,11 +107,13 @@ Goal: reduce locks, allocations, and crossings in hot render loops.
 - `RenderUtilsMixin` now uses correct box center math and one camera lookup per cull path.
 - `FrustumMixin` now batches frustum refresh + cave status into one JNI call when native culling is active.
 - `WindowMixin` now skips repeated clear attempts after first successful init clear.
+- `LightingMixin` now backs off exponentially when the lighting queue stays empty.
+- `SplashOverlayMixin` now caches screen dimensions across head/tail passes.
+- `NativeBridge` now uses a lean fallback path for batched frustum+cave updates.
 
 Next step: profile the remaining real bottleneck before any deeper lock rewrite.
 
 - **LightingMixin**: Measure `QUEUE_LOCK` contention first; then replace only the hot queue path with a lower-contention structure or staged double-buffering.
-- **Screen Mixins**: Batch drawable updates instead of per-frame rebuilds; reduce string and temp-object allocations in progress rendering.
 - **NativeBridge**: Keep JNI batching only where it still wins over vanilla Java or local snapshots.
 
 ### 8) Screen & HUD Layer Optimization (Future)

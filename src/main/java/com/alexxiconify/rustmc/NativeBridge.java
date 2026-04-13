@@ -163,12 +163,8 @@ public class NativeBridge {
                 // Fall through to separate native calls.
             }
         }
-        try {
-            updateVanillaFrustum(vpMatrix);
-            updateCaveStatus(inCave);
-        } catch (UnsatisfiedLinkError e) {
-            updateVanillaFrustum(vpMatrix);
-        }
+        updateVanillaFrustum(vpMatrix);
+        updateCaveStatus(inCave);
     }
     // Optimizes entity/particle culling by offloading frustum intersection checks to Rust.
     // Uses the persistent global frustum updated via 'updateVanillaFrustum'.
