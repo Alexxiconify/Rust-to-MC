@@ -40,9 +40,10 @@ Goal: keep culling correct, fast, and debuggable.
 Goal: keep native offload only where it clearly wins.
 
 - Keep wrappers safe and explicit on fallback behavior.
-- Minimize JNI overhead where it helps; avoid JNI where vanilla Java is faster.
-- Document per-path strategy (copy vs pinned) for maintainability.
-- Profile before/after every JNI change so regressions are easy to catch.
+- Batch adjacent native work into fewer crossings when one call can cover multiple operations.
+- Minimize JNI overhead where vanilla Java is faster.
+- Document per-path strategy: copy vs pinned, single-call vs batched, and why.
+- Profile before/after every JNI change.
 
 ### 3) Config and Compat Cleanup
 
@@ -52,6 +53,7 @@ Goal: simplify the runtime surface without losing functionality.
 - Remove dead placeholder/accessor files when no longer referenced.
 - Trim noisy inspections and stale suppressions without changing behavior.
 - Prefer one clear toggle per optimization instead of overlapping config paths.
+- Avoid new sync points in compat glue unless they replace higher-cost paths.
 
 ### 4) Native Lighting, Packet, and Chunk Workloads
 
@@ -68,25 +70,30 @@ Goal: improve CPU cache efficiency in hot render loops.
 
 - Profile matrix buffer allocations in `MatrixMixin` for NUMA effects on multi-socket systems.
 - Validate JOML matrix data layout (row-major vs column-major) against Rust SIMD expectation.
-- Explore persistent buffer reuse in `FrustumMixin` to avoid per-frame allocations.
+- Reuse persistent buffers in `FrustumMixin` instead of per-frame rebuilds.
 - Profile render-state lookups in `ParticleManagerMixin` and `RenderBudgetMixin` for cache thrashing.
+- Prefer contiguous, reused state over new per-frame objects.
 
 ### 6) Debug Visibility for Profiling (Next)
 
 Goal: add internal observability hooks for performance validation.
 
 - Expose frustum check counters and culling ratios via a debug HUD overlay.
-- Add optional JNI call timing instrumentation (frame-time contribution per path).
+- Add optional JNI call timing instrumentation with low overhead.
 - Log mixin exception fallbacks so silent degradation is visible in debug builds.
-- Capture particle cull decisions and RenderState transitions for offline analysis.
+- Capture particle cull decisions and `RenderState` transitions for offline analysis.
+- Keep diagnostics opt-in and cheap when disabled.
 
-### 7) Allocation Pressure Reduction (IN PROGRESS)
+### 7) Hot-Path Overhead Reduction (IN PROGRESS)
 
-Goal: minimize GC overhead in hot render loops.
+Goal: reduce locks, allocations, and crossings in hot render loops.
 
-- **LightingMixin**: Profile PENDING_POS/PENDING_VAL ring buffer churn; consider pre-allocated double-buffering.
-- **Screen Mixins**: Batch drawable updates instead of per-frame rebuilds; reduce string allocations in progress rendering.
-- **MinecraftClientMixin**: Profile long[] array allocation in frame-time history; use circular index without allocation.
+- **LightingMixin**: Measure `QUEUE_LOCK` contention first; then replace only the hot queue path with a lower-contention structure or staged double-buffering.
+- **Screen Mixins**: Batch drawable updates instead of per-frame rebuilds; reduce string and temp-object allocations in progress rendering.
+- **MinecraftClientMixin**: Remove per-frame `long[]` history allocations; use a fixed circular buffer and index math.
+- **FrustumMixin**: Reuse matrix and plane buffers across frames; avoid transient copies unless JNI requires them.
+- **RenderBudgetMixin**: Make FPS and budget reads lazy; avoid recomputing the same metrics multiple times per frame.
+- **NativeBridge**: Combine small adjacent native calls where batching reduces overhead without changing semantics.
 
 ### 8) Screen & HUD Layer Optimization (Future)
 
@@ -95,8 +102,8 @@ Goal: optimize splash screen, loading screen, and debug overlays.
 - **SplashOverlayMixin**: Profile gradient rendering and text measurement; validate GPU utilization during loads.
 - **LevelLoadingScreenMixin**: Reduce per-frame resource reload progress polling.
 - **WindowMixin**: Cache window size calculations; avoid reshape overhead on every frame.
-- **DebugHudMixin**: Batch text rendering; profile memory format conversions for overlay data.
-- **RenderBudgetMixin**: Implement lazy evaluation of FPS calculations; avoid redundant metric collection.
+- **DebugHudMixin**: Batch text rendering; minimize format conversions for overlay data.
+- **RenderBudgetMixin**: Keep lazy FPS evaluation and shared metric caching.
 
 ### 9) Chunk & Mesh Rendering Pipeline (Future)
 
@@ -106,6 +113,7 @@ Goal: optimize chunk building and vertex buffer management.
 - Explore persistent memory-mapped chunks to reduce per-load allocation.
 - Validate that chunk sort order doesn't regress under heavy mod loading.
 - Profile vertex transformation cost in EMF/ETF scenarios; evaluate caching or lazy evaluation.
+- Keep mesh reuse safe across reloads and mod state changes.
 
 ### 10) JNI Call Site Optimization (Future)
 
@@ -113,17 +121,17 @@ Goal: reduce JNI crossing overhead in high-frequency paths.
 
 - Batch multiple Rust operations per JNI call where possible (e.g., frustum + cave check).
 - Profile JNI method lookup cost vs direct native invocation.
-- Consider JNI function pointers cache if repeated crossings dominate frame time.
-- Validate that exception handling in fallback paths doesn't trigger costly class lookups.
+- Cache stable JNI function references only if repeated crossings dominate frame time.
+- Validate that exception handling in fallback paths does not trigger costly class lookups.
 
 ### 11) Lock-Free Synchronization (Future)
 
 Goal: replace synchronized blocks with lock-free alternatives in high-contention paths.
 
-- **MinecraftClientMixin**: Evaluate AtomicLong for frame-time history instead of lock-based ring buffer.
-- **LightingMixin**: Profile QUEUE_LOCK contention; consider ConcurrentLinkedQueue for work-stealing.
-- **FrustumMixin**: Validate that matrix buffer reads are single-threaded or cache-friendly.
-- Profile lock contention under heavy particle spawning or chunk loading.
+- **MinecraftClientMixin**: Keep frame-time history lock-free with a fixed buffer if it remains thread-safe.
+- **LightingMixin**: Replace `QUEUE_LOCK` only if profiling proves the queue path dominates.
+- **FrustumMixin**: Validate that matrix buffer reads stay single-threaded or cache-friendly.
+- Profile lock contention under heavy particle spawning or chunk loading before broad refactors.
 
 ## Validation Gates
 
@@ -132,14 +140,20 @@ Every optimization should satisfy at least one of these before it is considered 
 - No visible correctness regression in frustum or LOD culling.
 - Lower or unchanged frame time in the target scene.
 - Lower CPU cost or allocation pressure on the measured hot path.
+- Lower lock contention on the measured path.
+- Lower JNI crossing count or per-call overhead when native offload is involved.
 - No new crash, fallback breakage, or mod-compat regression.
 - Clear benchmark or debug evidence that the change is doing useful work.
+- No new warnings or errors in touched files.
 
 ## Non-Goals / Guardrails
 
 - Do not keep JNI hooks that are slower than vanilla Java paths.
 - Do not ship optimizations that break frustum correctness or DH LOD visibility rules.
 - Do not add config surface for features that are removed/defunct.
+- Do not trade correctness for lock removal.
+- Do not widen shared mutable state unless profiling proves the reuse pays off.
+- Do not add per-frame logging in release paths.
 
 ## Backlog
 
