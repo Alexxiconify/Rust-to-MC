@@ -21,45 +21,22 @@ public class DebugHudMixin {
     @Unique private static float cachedMax;
     @Unique private static long lastHistoryUpdateMs;
     @Unique private static final long HISTORY_UPDATE_INTERVAL_MS = 100; // 10 Hz refresh
-    @Unique private static int frustumChecksLast;
-    @Unique private static int frustumVisibleLast;
-    @Unique private static int frustumCulledLast;
     @Inject(method = "render", at = @At("TAIL"), require = 0)
     private void onRenderTail(DrawContext context, CallbackInfo ci) {
         if (!NativeBridge.isReady()) return;
-        // Only render overlays when actually in a world — suppress on title screen,
-        // multiplayer list, singleplayer list, and other menu screens.
+        // Only render overlays when actually in a world.
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.world == null || mc.player == null) return;
-        // Early exit if neither overlay is enabled — avoids any JNI/rendering overhead
-        if (!RustMC.CONFIG.isEnableDebugHudGraph() && !RustMC.CONFIG.isEnablePieChart() && !RustMC.CONFIG.isEnableFrustumDebugHud()) return;
-        // ── Sparkline graph (F8 toggle) ──
+        if (!RustMC.CONFIG.isEnableDebugHudGraph() && !RustMC.CONFIG.isEnablePieChart()) return;
         if (RustMC.CONFIG.isEnableDebugHudGraph() && RustMC.CONFIG.isUseNativeF3() && !ModBridge.isHudOwned()) {
             drawSparkline(context);
         }
-        // ── Pie chart (F7 toggle) ──
         if (RustMC.CONFIG.isEnablePieChart() && mc.textRenderer != null) {
             int screenW = context.getScaledWindowWidth();
             PieChartRenderer.draw(context, mc.textRenderer, screenW);
         }
-        if (RustMC.CONFIG.isEnableFrustumDebugHud() && mc.textRenderer != null) {
-            drawFrustumDebug(context, mc);
-        }
     }
 
-    @Unique
-    private static void drawFrustumDebug(DrawContext context, MinecraftClient mc) {
-        int[] frameStats = NativeBridge.getLastFrustumFrameCounters();
-        frustumChecksLast = frameStats[0];
-        frustumVisibleLast = frameStats[1];
-        frustumCulledLast = frameStats[2];
-        int y = 56;
-        context.drawTextWithShadow(mc.textRenderer, "Frustum/frame", 2, y, 0xFF66CCFF);
-        y += 10;
-        context.drawTextWithShadow(mc.textRenderer,
-                "checks=%d  visible=%d  culled=%d".formatted(frustumChecksLast, frustumVisibleLast, frustumCulledLast),
-                2, y, 0xFFDDDDDD);
-    }
     @Unique
     private static void refreshHistoryCache() {
         long now = System.currentTimeMillis();

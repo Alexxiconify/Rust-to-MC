@@ -83,7 +83,22 @@ public class ModMenuIntegration implements ModMenuApi {
                     .formatValue(val -> Text.literal("§b" + NativeBridge.getMetrics(false)[2])))
                 .available(false)
                 .build())
+            .option(Option.<String>createBuilder()
+                .name(Text.literal("Frustum Frame Stats"))
+                .description(OptionDescription.of(Text.literal("Current frame counters for Rust frustum checks, visible results, and culls.")))
+                .binding("checks=0 visible=0 culled=0", ModMenuIntegration::getFrustumFrameStatsText, val -> {})
+                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
+                .available(false)
+                .build())
             .build();
+    }
+
+    private static String getFrustumFrameStatsText() {
+        int[] frameStats = NativeBridge.getLastFrustumFrameCounters();
+        if (frameStats.length < 3) {
+            return "checks=0 visible=0 culled=0";
+        }
+        return "checks=%d visible=%d culled=%d".formatted(frameStats[0], frameStats[1], frameStats[2]);
     }
 
     private ConfigCategory buildUnifiedConfigCategory(RustMCConfig cfg) {
