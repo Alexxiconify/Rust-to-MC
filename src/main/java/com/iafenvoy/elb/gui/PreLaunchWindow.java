@@ -9,11 +9,10 @@ import java.io.InputStream;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-/**
- * Modern dark-themed pre-launch splash screen.
- * Custom-painted: rounded gradient bars, anti-aliased text, mod icon,
- * elapsed timer, and periodic memory updates without busy-waiting.
- */
+//
+ //  Modern dark-themed pre-launch splash screen.
+ //  Custom-painted: rounded gradient bars, anti-aliased text, mod icon,
+ //  elapsed timer, and periodic memory updates without busy-waiting.
 @SuppressWarnings({"java:S107", "java:S1948"}) // Swing paintComponent params, serializable fields
 public class PreLaunchWindow extends JFrame {
     private static PreLaunchWindow instance;
@@ -67,15 +66,18 @@ public class PreLaunchWindow extends JFrame {
             try {
                 java.nio.file.Path p = java.nio.file.Paths.get(config.getLogoPath());
                 if (java.nio.file.Files.exists(p)) { logoImage = ImageIO.read(p.toFile()); return; }
-            } catch (Exception ignored) { /* Custom logo path failed — try defaults */ }
+            } catch (Exception ignored) { // Custom logo path failed; try defaults.
+            }
         }
         // Try namespaced path first to avoid loading another mod's icon.png
         try (InputStream is = PreLaunchWindow.class.getResourceAsStream("/assets/rust-mc/icon.png")) {
             if (is != null) { logoImage = ImageIO.read(is); return; }
-        } catch (Exception ignored) { /* Namespaced icon not found — try root */ }
+        } catch (Exception ignored) { // Namespaced icon not found; try root path.
+        }
         try (InputStream is = PreLaunchWindow.class.getResourceAsStream("/icon.png")) {
             if (is != null) logoImage = ImageIO.read(is);
-        } catch (Exception ignored) { /* No icon available — will render without logo */ }
+        } catch (Exception ignored) { // No icon available; render without logo.
+        }
     }
     private class SplashPanel extends JPanel {
         SplashPanel() { setOpaque(true); setBackground(BG_DARK); }

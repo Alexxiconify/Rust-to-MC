@@ -1,29 +1,23 @@
 package com.alexxiconify.rustmc.compat;
-
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
 import net.fabricmc.loader.api.FabricLoader;
 import java.lang.reflect.Method;
 import java.lang.reflect.Field;
 import java.util.Collection;
-
-/**
- * High-performance hook for ScalableLux.
- * Extracts pending light updates via reflection and offloads them to Rust's parallel engine.
- */
+//
+ //  High-performance hook for ScalableLux.
+ //  Extracts pending light updates via reflection and offloads them to Rust's parallel engine.
 @SuppressWarnings({"unused", "java:S3011"})
 public class ScalableLuxCompat {
     private static Method mUpdateLight;
     private static Field fPendingQueue;
     private static boolean active = false;
-
     private ScalableLuxCompat() {}
-
     public static void initialize() {
         if (!FabricLoader.getInstance().isModLoaded("scalablelux")) {
             return;
         }
-
         try {
             Class<?> apiClass = Class.forName("com.scalablelux.api.ScalableLuxAPI");
             RustMC.LOGGER.info("[Rust-MC] Detected ScalableLux API: {}", apiClass.getName());
@@ -35,11 +29,10 @@ public class ScalableLuxCompat {
             RustMC.LOGGER.error("[Rust-MC] Error hooking into ScalableLux: {}", e.getMessage());
         }
     }
-
     private static void tryProbeInternals() {
         try {
             Class<?> engineClass = Class.forName("com.scalablelux.engine.LightingEngine");
-            fPendingQueue = probeField(engineClass, "pendingUpdates", "queue", "tasks");
+            fPendingQueue = probeField(engineClass );
             if (fPendingQueue != null) {
                 // NOSONAR: Deep reflection is required to integrate with other optimization mods
                 fPendingQueue.setAccessible(true);
@@ -54,9 +47,8 @@ public class ScalableLuxCompat {
             RustMC.LOGGER.debug("[Rust-MC] ScalableLux internals probe failed: {}", e.getMessage());
         }
     }
-
-    private static Field probeField(Class<?> cls, String... names) {
-        for (String name : names) {
+    private static Field probeField(Class<?> cls ) {
+        for (String name : new String[] { "pendingUpdates" , "queue" , "tasks" } ) {
             try { return cls.getDeclaredField(name); }
             catch (NoSuchFieldException ignored) {
                 // Ignore and continue probing other field names
@@ -64,7 +56,6 @@ public class ScalableLuxCompat {
         }
         return null;
     }
-
     private static void bindScalableLuxApi(Class<?> apiClass) {
         try {
             mUpdateLight = apiClass.getMethod("processUpdates");
@@ -74,22 +65,17 @@ public class ScalableLuxCompat {
             RustMC.LOGGER.debug("[Rust-MC] ScalableLux API signature mismatch.");
         }
     }
-
     public static boolean isActive() { return active; }
-
-    /**
-     * Extracts ScalableLux's pending updates and offloads them to Rust.
-     */
+    //
+     // Extracts ScalableLux's pending updates and offloads them to Rust.
     public static void invokeOptimizationPipeline() {
         if (!active) {
             return;
         }
-
         if (!NativeBridge.isReady()) {
             RustMC.LOGGER.debug("[Rust-MC] Lux offload skipped: NativeBridge not ready.");
             return;
         }
-        
         try {
             if (fPendingQueue != null) {
                 Object queue = fPendingQueue.get(null);

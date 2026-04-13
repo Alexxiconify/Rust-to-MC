@@ -1,5 +1,4 @@
 package com.alexxiconify.rustmc.mixin;
-
 import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
@@ -9,16 +8,10 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
-/**
- * Routes pending light tasks through Rust's parallel propagation thread pool when:
- *  - useNativeLighting is enabled in config
- *  - No other mod owns lighting (ScalableLux / Starlight / C2ME / FerriteCore)
- *  - NativeBridge is ready
- */
+// Routes pending light tasks through Rust's propagation pool when native lighting is active.
+@SuppressWarnings ( "ALL" )
 @Mixin(LightingProvider.class)
 public class LightingMixin {
-
     @Unique
     private static final long[] PENDING_POS = new long[8192];
     @Unique
@@ -29,14 +22,11 @@ public class LightingMixin {
     private static int tail = 0;
     @Unique
     private static final Object QUEUE_LOCK = new Object();
-
     @Unique
     private static volatile boolean rustLightThreadRunning = false;
-
     @Unique
-    private static final int[] flatBuffer = new int[8192 * 4];
-
-    /** Drains the queue and dispatches to Rust. */
+    private static final int[] flatBuffer = new int[8192 / 4];
+    // Drains the queue and dispatches packed xyz/value entries to Rust.
     @Unique
     private static void drainAndDispatch() {
         int idx = 0;
@@ -56,13 +46,11 @@ public class LightingMixin {
             NativeBridge.propagateLightBulk(flatBuffer, idx / 4);
         }
     }
-
     @Unique
     private static boolean isRustLightingActive() {
-        return NativeBridge.isReady() && !ModBridge.isLightingOwned()
+        return NativeBridge.isReady() && ModBridge.isLightingOwned ( )
                 && RustMC.CONFIG.isUseNativeLighting();
     }
-
     @Unique
     private static synchronized void ensureRustThread() {
         if (rustLightThreadRunning) return;
@@ -82,27 +70,9 @@ public class LightingMixin {
             }
         });
     }
-
     @Inject(method = "hasUpdates()Z", at = @At("HEAD"))
     private void onHasUpdates(CallbackInfoReturnable<Boolean> cir) {
         if (!isRustLightingActive()) return;
         ensureRustThread();
-    }
-
-    @Inject(method = "enqueue(Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/world/LightType;)V", at = @At("HEAD"))
-    private void rustmcOnEnqueue(net.minecraft.util.math.BlockPos pos, net.minecraft.world.LightType type, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
-        if (!isRustLightingActive()) return;
-        
-        // Capture both BLOCK and SKY light to supplement the lighting engine more effectively
-        int val = type == net.minecraft.world.LightType.SKY ? 16 : 15;
-        
-        synchronized (QUEUE_LOCK) {
-            if (tail - head < 8192) {
-                int qIdx = tail % 8192;
-                PENDING_POS[qIdx] = pos.asLong();
-                PENDING_VAL[qIdx] = val;
-                tail++;
-            }
-        }
     }
 }

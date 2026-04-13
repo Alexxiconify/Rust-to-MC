@@ -1,25 +1,20 @@
 package com.iafenvoy.elb.config;
-
 import com.alexxiconify.rustmc.RustMC;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
-
 import java.awt.Color;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-
 public class ElbConfig {
     private static ElbConfig instance = null;
-
     private String logoPath = "";
     private String barTitle = "Early Loading Bar %version%";
     private String barMessage = "Loading Minecraft %version%...";
     private String memoryBarColor = String.valueOf(Color.RED.getRGB());
     private String messageBarColor = String.valueOf(Color.MAGENTA.getRGB());
-
     public String getLogoPath() { return logoPath; }
     public void setLogoPath(String logoPath) { this.logoPath = logoPath; }
     public String getBarTitle() { return barTitle; }
@@ -30,7 +25,6 @@ public class ElbConfig {
     public void setMemoryBarColor(String memoryBarColor) { this.memoryBarColor = memoryBarColor; }
     public String getMessageBarColor() { return messageBarColor; }
     public void setMessageBarColor(String messageBarColor) { this.messageBarColor = messageBarColor; }
-
     public static ElbConfig getInstance() {
         if (instance == null) {
             Path path = FabricLoader.getInstance().getConfigDir().resolve("early-loading-bar.json");
@@ -42,7 +36,6 @@ public class ElbConfig {
                 }
             }
             if (instance == null) instance = new ElbConfig();
-
             FabricLoader.getInstance().getModContainer("minecraft").ifPresent(container -> {
                 String version = container.getMetadata().getVersion().getFriendlyString();
                 instance.barTitle = instance.barTitle.replace("%version%", version);
@@ -51,7 +44,6 @@ public class ElbConfig {
         }
         return instance;
     }
-
     public void save() {
         Path path = FabricLoader.getInstance().getConfigDir().resolve("early-loading-bar.json");
         try (Writer writer = Files.newBufferedWriter(path)) {

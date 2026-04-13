@@ -1,15 +1,8 @@
 package com.alexxiconify.rustmc;
-
 import net.fabricmc.loader.api.FabricLoader;
-
-/**
- * Central mod detection registry. Fields marked as active are referenced by mixins,
- * compat hooks, or ownership checks. Commented-out fields are detected but not yet
- * wired into any optimization — uncomment when adding support.
- */
+    // Returns true if another mod completely owns the lighting threading model, and we cannot safely intervene.
 @SuppressWarnings({"unused", "java:S125"}) // API surface + intentional commented-out mod stubs
 public class ModBridge {
-
     // ── Core Performance Mods (actively used in ownership checks) ───────────
     public static final boolean SODIUM      = isMod("sodium");
     public static final boolean STARLIGHT   = isMod("starlight");
@@ -24,13 +17,11 @@ public class ModBridge {
     public static final boolean SERVERCORE  = isMod("servercore");
     public static final boolean OXIDIZIUM   = isMod("oxidizium");
     public static final boolean MORECULLING = isMod("moreculling");
-
     // ── Networking Mods (used in isNetworkingOwned) ─────────────────────────
     public static final boolean RAKNETIFY     = isMod("raknetify");
     public static final boolean VIAFABRICPLUS = isMod("viafabricplus");
     public static final boolean PACKETFIXER   = isMod("packetfixer");
     public static final boolean AUTHME        = isMod("authme");
-
     // ── Compat Mods (actively used in mixin conditions / render hooks) ──────
     public static final boolean DISTANT_HORIZONS       = isMod("distanthorizons");
     public static final boolean BETTERBLOCKENTITIES    = isMod("betterblockentities");
@@ -40,7 +31,6 @@ public class ModBridge {
     public static final boolean IMMEDIATELYFAST        = isMod("immediatelyfast");
     public static final boolean TICK_SYNC              = isMod("tick-sync");
     public static final boolean APPLESKIN              = isMod("appleskin");
-
     // ── HUD / Map Mods (actively used in render hooks) ──────────────────────
     public static final boolean MINIHUD      = isMod("minihud");
     public static final boolean LIGHTY       = isMod("lighty");
@@ -48,15 +38,12 @@ public class ModBridge {
     public static final boolean GNETUM       = isMod("gnetum");
     public static final boolean REESES_SODIUM = isMod("reeses-sodium-options");
     public static final boolean SODIUM_EXTRA = isMod("sodium-extra");
-
     // ── Interaction Mods (used in isInteractionOwned) ───────────────────────
     public static final boolean TWEAKEROO    = isMod("tweakeroo");
     public static final boolean LITEMATICA   = isMod("litematica");
-
     // ════════════════════════════════════════════════════════════════════════
     // Detected but not yet wired — uncomment when adding specific support.
     // ════════════════════════════════════════════════════════════════════════
-
     // public static final boolean INDIUM = isMod("indium");
     // public static final boolean BADOPTIMIZATIONS = isMod("badoptimizations");
     // public static final boolean FREECAM = isMod("freecam");
@@ -190,74 +177,58 @@ public class ModBridge {
     // public static final boolean YEETUSEXPERIMENTUS = isMod("yeetusexperimentus");
     // public static final boolean YET_ANOTHER_CONFIG_LIB_V3 = isMod("yet_another_config_lib_v3");
     // public static final boolean SERVER_TRANSLATIONS_API = isMod("server_translations_api");
-
     private ModBridge() {}
-
     private static boolean isMod(String id) {
         return FabricLoader.getInstance().isModLoaded(id);
     }
-
     // ── Initialization ──────────────────────────────────────────────────────
-
     public static void initialize() {
         RustMC.LOGGER.info("[Rust-MC] Mod ecosystem detected: Sodium={}, Lithium={}, C2ME={}, Iris={}, " +
                         "ScalableLux={}, Ferritecore={}, Oxidizium={}, ImmediatelyFast={}, DH={}",
                 SODIUM, LITHIUM, C2ME, IRIS, SCALABLELUX, FERRITECORE, OXIDIZIUM, IMMEDIATELYFAST, DISTANT_HORIZONS);
     }
-
     // ── Ownership Checks ────────────────────────────────────────────────────
-
-    /** 
-     * Returns true if another mod completely owns the lighting threading model and 
-     * we cannot safely intervene. We now allow intervention for Lux and Sodium 
-     * where we have specific Rust-based sub-functions.
-     */
+    //
+     // Returns true if another mod completely owns the lighting threading model, and
+     // we cannot safely intervene. We now allow intervention for Lux and Sodium
+     // where we have specific Rust-based sub-functions.
     public static boolean isLightingOwned() {
         // Starlight is very intrusive; we usually yield unless we have a specific hook.
         // For ScalableLux and Sodium, we can co-optimize.
-        return STARLIGHT && !RustMC.CONFIG.isExperimentalCoexistEnabled();
+        return !STARLIGHT || RustMC.CONFIG.isExperimentalCoexistEnabled ( );
     }
-
-    /** Returns true if DH is present and handles its own high-performance lighting. */
+    // Returns true if DH is present and handles its own high-performance lighting.
     public static boolean isDhLightingActive() {
         return DISTANT_HORIZONS;
     }
-
-    /** Returns true when C2ME or similar controls math/noise so we should skip our hooks. */
+    // Returns true when C2ME or similar controls math/noise so we should skip our hooks.
     public static boolean isMathOwned() {
         return ( !C2ME && !MOONRISE && !MODERNFIX && !FERRITECORE && !SERVERCORE && !LITHIUM )
           || !RustMC.CONFIG.isBridgeC2ME ( );
     }
-
-    /** Returns true when Lithium or similar controls' pathfinding. */
+    // Returns true when Lithium or similar controls' pathfinding.
     public static boolean isPathfindingOwned() {
         return (LITHIUM || MOONRISE || VMP || SERVERCORE)
                 && RustMC.CONFIG.isBridgeLithium();
     }
-
-    /** Returns true when a specialized networking mod controls packet flow. */
+    // Returns true when a specialized networking mod controls packet flow.
     public static boolean isNetworkingOwned() {
         return !RAKNETIFY && !VIAFABRICPLUS && !PACKETFIXER && !AUTHME && !SERVERCORE;
     }
-
-    /** Returns true when another mod's frustum would conflict with our Rust frustum. */
+    // Returns true when another mod's frustum would conflict with our Rust frustum.
     public static boolean isFrustumOwned() {
         return (SODIUM && !RustMC.CONFIG.isBridgeSodium()) || MORECULLING;
     }
-
-    /** Returns true if interaction/raycasting logic is handled by other mods. */
+    // Returns true if interaction/raycasting logic is handled by other mods.
     public static boolean isInteractionOwned() {
         return TWEAKEROO || LITEMATICA || MORECULLING;
     }
-
-    /** Gnetum owns HUD frame distribution — yield to it for HUD rendering. */
+    //Gnetum owns HUD frame distribution — yield to it for HUD rendering. // /
     public static boolean isHudOwned() {
         return GNETUM;
     }
-
-    /** Reese's Sodium Options / Sodium Extra integrate visual configs in Sodium UI. */
+    //Reese's Sodium Options / Sodium Extra integrate visual configs in Sodium UI. // /
     public static boolean isVisualConfigIntegrated() {
         return REESES_SODIUM || SODIUM_EXTRA;
     }
-
 }

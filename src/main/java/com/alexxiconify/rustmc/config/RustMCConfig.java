@@ -1,10 +1,11 @@
 package com.alexxiconify.rustmc.config;
-
-/**
- * Configuration POJO for Rust-MC. All fields are serialized/deserialized by Gson,
- * and getters/setters are referenced by ModMenu (YACL) via method references.
- */
+//
+ //  Configuration POJO for Rust-MC. All fields are serialized/deserialized by Gson,
+ //  and getters/setters are referenced by ModMenu (YACL) via method references.
 public class RustMCConfig {
+    public static final int CURRENT_CONFIG_VERSION = 2;
+    private int configVersion = CURRENT_CONFIG_VERSION;
+
     // Math optimizations
     private boolean useNativeSine     = true;
     private boolean useNativeCos      = true;
@@ -14,7 +15,6 @@ public class RustMCConfig {
     private boolean useNativeFloor    = true;
     private boolean useNativeNoise    = true;
     private boolean useNativeF3       = true;
-
     // World / system features
     private boolean useNativeLighting    = true;
     private boolean useNativeCompression = true;
@@ -22,7 +22,6 @@ public class RustMCConfig {
     private boolean useNativeCulling     = true;
     private boolean useFastLoadingScreen = false;
     private boolean useNativeCommands    = false;
-
     // Mod compat toggles
     private boolean enableParticleCulling      = true;
     private boolean enableChunkBuilderExpand   = true;
@@ -34,20 +33,20 @@ public class RustMCConfig {
     private boolean enableEntityCullingCompat  = true;
     private boolean enableImmediatelyFastCompat = true;
     private boolean enableClientRedstoneSkip   = true;
+    private boolean enableDhCaveCulling        = true;
+    private boolean usePlayerPosForDhCulling   = false;
+    private boolean enableDhCullingDebugLog    = false;
     private boolean enableDebugHudGraph        = false;
     private boolean enablePieChart             = false;
-
+    private boolean enableNativeMetricsHud     = false;
     // DNS / Server List
     private boolean enableDnsCache             = true;
-
     // Mod bridges
     private boolean bridgeSodium    = true;
     private boolean bridgeStarlight = true;
     private boolean bridgeC2ME      = true;
     private boolean bridgeIris      = true;
     private boolean bridgeLithium   = true;
-    private boolean disableDhFade   = true;
-
     // Loading screen colors
     private int loadingBarBgColor      = 0xFF1A1A1A;
     private int loadingBarLowColor     = 0xFF22AA44;
@@ -55,13 +54,12 @@ public class RustMCConfig {
     private int loadingBarHighColor    = 0xFFCC2222;
     private int loadingBarTextColor    = 0xDDFFFFFF;
     private int loadingBarSubtextColor = 0x9900FFFF;
-
     // Developer
     private boolean silenceLogs = true;
     private boolean nativeReady = false;
     private boolean experimentalCoexistEnabled = true;
-
     public void copyFrom(RustMCConfig o) {
+        this.configVersion = o.configVersion;
         this.useNativeSine = o.useNativeSine;
         this.useNativeCos = o.useNativeCos;
         this.useNativeSqrt = o.useNativeSqrt;
@@ -86,15 +84,18 @@ public class RustMCConfig {
         this.enableEntityCullingCompat = o.enableEntityCullingCompat;
         this.enableImmediatelyFastCompat = o.enableImmediatelyFastCompat;
         this.enableClientRedstoneSkip = o.enableClientRedstoneSkip;
+        this.enableDhCaveCulling = o.enableDhCaveCulling;
+        this.usePlayerPosForDhCulling = o.usePlayerPosForDhCulling;
+        this.enableDhCullingDebugLog = o.enableDhCullingDebugLog;
         this.enableDebugHudGraph = o.enableDebugHudGraph;
         this.enablePieChart = o.enablePieChart;
+        this.enableNativeMetricsHud = o.enableNativeMetricsHud;
         this.enableDnsCache = o.enableDnsCache;
         this.bridgeSodium = o.bridgeSodium;
         this.bridgeStarlight = o.bridgeStarlight;
         this.bridgeC2ME = o.bridgeC2ME;
         this.bridgeIris = o.bridgeIris;
         this.bridgeLithium = o.bridgeLithium;
-        this.disableDhFade = o.disableDhFade;
         this.loadingBarBgColor = o.loadingBarBgColor;
         this.loadingBarLowColor = o.loadingBarLowColor;
         this.loadingBarMidColor = o.loadingBarMidColor;
@@ -105,11 +106,11 @@ public class RustMCConfig {
         this.nativeReady = o.nativeReady;
         this.experimentalCoexistEnabled = o.experimentalCoexistEnabled;
     }
-
     // Getters
+    public int getConfigVersion()           { return configVersion; }
     public boolean isUseNativeSine()        { return useNativeSine; }
     public boolean isUseNativeCos()         { return useNativeCos; }
-    public boolean isUseNativeSqrt()        { return useNativeSqrt; }
+
     public boolean isUseNativeInvSqrt()     { return useNativeInvSqrt; }
     public boolean isUseNativeAtan2()       { return useNativeAtan2; }
     public boolean isUseNativeFloor()       { return useNativeFloor; }
@@ -131,15 +132,18 @@ public class RustMCConfig {
     public boolean isEnableEntityCullingCompat()  { return enableEntityCullingCompat; }
     public boolean isEnableImmediatelyFastCompat() { return enableImmediatelyFastCompat; }
     public boolean isEnableClientRedstoneSkip()   { return enableClientRedstoneSkip; }
+    public boolean isEnableDhCaveCulling()        { return enableDhCaveCulling; }
+    public boolean isUsePlayerPosForDhCulling()   { return usePlayerPosForDhCulling; }
+    public boolean isEnableDhCullingDebugLog()    { return enableDhCullingDebugLog; }
     public boolean isEnableDebugHudGraph()        { return enableDebugHudGraph; }
     public boolean isEnablePieChart()             { return enablePieChart; }
+    public boolean isEnableNativeMetricsHud()     { return enableNativeMetricsHud; }
     public boolean isEnableDnsCache()             { return enableDnsCache; }
     public boolean isBridgeSodium()         { return bridgeSodium; }
     public boolean isBridgeStarlight()      { return bridgeStarlight; }
     public boolean isBridgeC2ME()           { return bridgeC2ME; }
     public boolean isBridgeIris()           { return bridgeIris; }
     public boolean isBridgeLithium()        { return bridgeLithium; }
-    public boolean isDisableDhFade()        { return disableDhFade; }
     public int getLoadingBarBgColor()       { return loadingBarBgColor; }
     public int getLoadingBarLowColor()      { return loadingBarLowColor; }
     public int getLoadingBarMidColor()      { return loadingBarMidColor; }
@@ -147,13 +151,14 @@ public class RustMCConfig {
     public int getLoadingBarTextColor()     { return loadingBarTextColor; }
     public int getLoadingBarSubtextColor()  { return loadingBarSubtextColor; }
     public boolean isSilenceLogs()          { return silenceLogs; }
+    @SuppressWarnings("unused")
     public boolean isNativeReady()          { return nativeReady; }
     public boolean isExperimentalCoexistEnabled() { return experimentalCoexistEnabled; }
-
     // Setters
+    public void setConfigVersion(int v)          { configVersion = v; }
     public void setUseNativeSine(boolean v)        { useNativeSine = v; }
     public void setUseNativeCos(boolean v)         { useNativeCos = v; }
-    public void setUseNativeSqrt(boolean v)        { useNativeSqrt = v; }
+
     public void setUseNativeInvSqrt(boolean v)     { useNativeInvSqrt = v; }
     public void setUseNativeAtan2(boolean v)       { useNativeAtan2 = v; }
     public void setUseNativeFloor(boolean v)       { useNativeFloor = v; }
@@ -174,15 +179,18 @@ public class RustMCConfig {
     public void setEnableEntityCullingCompat(boolean v)  { enableEntityCullingCompat = v; }
     public void setEnableImmediatelyFastCompat(boolean v) { enableImmediatelyFastCompat = v; }
     public void setEnableClientRedstoneSkip(boolean v)   { enableClientRedstoneSkip = v; }
+    public void setEnableDhCaveCulling(boolean v)        { enableDhCaveCulling = v; }
+    public void setUsePlayerPosForDhCulling(boolean v)   { usePlayerPosForDhCulling = v; }
+    public void setEnableDhCullingDebugLog(boolean v)    { enableDhCullingDebugLog = v; }
     public void setEnableDebugHudGraph(boolean v)        { enableDebugHudGraph = v; }
     public void setEnablePieChart(boolean v)             { enablePieChart = v; }
+    public void setEnableNativeMetricsHud(boolean v)     { enableNativeMetricsHud = v; }
     public void setEnableDnsCache(boolean v)             { enableDnsCache = v; }
     public void setBridgeSodium(boolean v)         { bridgeSodium = v; }
     public void setBridgeStarlight(boolean v)      { bridgeStarlight = v; }
     public void setBridgeC2ME(boolean v)           { bridgeC2ME = v; }
     public void setBridgeIris(boolean v)           { bridgeIris = v; }
     public void setBridgeLithium(boolean v)        { bridgeLithium = v; }
-    public void setDisableDhFade(boolean v)        { disableDhFade = v; }
     public void setLoadingBarBgColor(int v)        { loadingBarBgColor = v; }
     public void setLoadingBarLowColor(int v)       { loadingBarLowColor = v; }
     public void setLoadingBarMidColor(int v)       { loadingBarMidColor = v; }
@@ -190,6 +198,8 @@ public class RustMCConfig {
     public void setLoadingBarTextColor(int v)      { loadingBarTextColor = v; }
     public void setLoadingBarSubtextColor(int v)   { loadingBarSubtextColor = v; }
     public void setSilenceLogs(boolean v)          { silenceLogs = v; }
+    @SuppressWarnings("unused")
     public void setNativeReady(boolean v)          { nativeReady = v; }
+    @SuppressWarnings("unused")
     public void setExperimentalCoexistEnabled(boolean v) { experimentalCoexistEnabled = v; }
 }

@@ -13,16 +13,18 @@ base { archivesName = "rust-mc-${rootProject.minecraft_version_26}" }
 loom {}
 
 sourceSets {
-    main {
+    main(({
         java {
             srcDirs rootProject.file('src/main/java')
             srcDirs 'src/main/java'   // version-specific overrides
         }
         resources {
-            srcDirs rootProject.file('src/main/resources')
-            srcDirs 'src/main/resources'  // overrides fabric.mod.json
+            setSrcDirs([
+                rootProject.file('src/main/resources'),
+                file('src/main/resources')
+            ])
         }
-    }
+    } as String))
 }
 
 repositories {

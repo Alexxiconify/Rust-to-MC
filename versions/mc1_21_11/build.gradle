@@ -14,9 +14,11 @@ sourceSets {
     main {
         java   { srcDirs rootProject.file('src/main/java') }
         resources {
-            srcDirs rootProject.file('src/main/resources')
-            // Override fabric.mod.json with our version-specific one
-            srcDirs 'src/main/resources'
+            // Ordered: shared root resources first, then version-specific overrides.
+            setSrcDirs([
+                rootProject.file('src/main/resources'),
+                file('src/main/resources')
+            ])
         }
     }
 }

@@ -7,7 +7,6 @@
   "plugin": "com.alexxiconify.rustmc.MixinManager",
   "mixins": [
     "BootstrapMixin",
-    "MathHelperMixin",
     "MatrixMixin",
     "CommandManagerMixin",
     "PacketDeflaterMixin",
@@ -21,7 +20,6 @@
   ],
   "client": [
     "FrustumMixin",
-    "MapRendererMixin",
     "ParticleManagerMixin",
     "ChunkBuilderMixin",
     "BoxMixin",
@@ -39,7 +37,6 @@
     "compat.MiniHUDLightUpdateMixin",
     "compat.ClientRedstoneSkipMixin",
     "compat.TickSyncCompatMixin",
-    "compat.BBECompatMixin",
     "compat.EntityRenderCompatMixin"
   ],
   "injectors": {
