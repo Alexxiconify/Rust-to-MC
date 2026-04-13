@@ -8,7 +8,6 @@
   "mixins": [
     "BootstrapMixin",
     "MatrixMixin",
-    "CommandManagerMixin",
     "PacketDeflaterMixin",
     "SimplexNoiseSamplerMixin",
     "LightingMixin",
@@ -16,7 +15,8 @@
     "DecoderHandlerMixin",
     "BlockStateMixin",
     "CrashReportSectionMixin",
-    "SchemasMixin"
+    "SchemasMixin",
+    "RandomMixin"
   ],
   "client": [
     "FrustumMixin",
