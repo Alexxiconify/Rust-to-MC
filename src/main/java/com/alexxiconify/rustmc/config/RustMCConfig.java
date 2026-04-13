@@ -38,6 +38,7 @@ public class RustMCConfig {
     private boolean enableDhCullingDebugLog    = false;
     private boolean enableDebugHudGraph        = false;
     private boolean enablePieChart             = false;
+    private boolean enableFrustumDebugHud      = false;
     private boolean enableNativeMetricsHud     = false;
     // DNS / Server List
     private boolean enableDnsCache             = true;
@@ -89,6 +90,7 @@ public class RustMCConfig {
         this.enableDhCullingDebugLog = o.enableDhCullingDebugLog;
         this.enableDebugHudGraph = o.enableDebugHudGraph;
         this.enablePieChart = o.enablePieChart;
+        this.enableFrustumDebugHud = o.enableFrustumDebugHud;
         this.enableNativeMetricsHud = o.enableNativeMetricsHud;
         this.enableDnsCache = o.enableDnsCache;
         this.bridgeSodium = o.bridgeSodium;
@@ -137,6 +139,7 @@ public class RustMCConfig {
     public boolean isEnableDhCullingDebugLog()    { return enableDhCullingDebugLog; }
     public boolean isEnableDebugHudGraph()        { return enableDebugHudGraph; }
     public boolean isEnablePieChart()             { return enablePieChart; }
+    public boolean isEnableFrustumDebugHud()      { return enableFrustumDebugHud; }
     public boolean isEnableNativeMetricsHud()     { return enableNativeMetricsHud; }
     public boolean isEnableDnsCache()             { return enableDnsCache; }
     public boolean isBridgeSodium()         { return bridgeSodium; }
@@ -184,6 +187,7 @@ public class RustMCConfig {
     public void setEnableDhCullingDebugLog(boolean v)    { enableDhCullingDebugLog = v; }
     public void setEnableDebugHudGraph(boolean v)        { enableDebugHudGraph = v; }
     public void setEnablePieChart(boolean v)             { enablePieChart = v; }
+    public void setEnableFrustumDebugHud(boolean v)      { enableFrustumDebugHud = v; }
     public void setEnableNativeMetricsHud(boolean v)     { enableNativeMetricsHud = v; }
     public void setEnableDnsCache(boolean v)             { enableDnsCache = v; }
     public void setBridgeSodium(boolean v)         { bridgeSodium = v; }
