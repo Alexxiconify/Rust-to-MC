@@ -33,19 +33,24 @@ public class ParticleManagerMixin {
     }
 
     @Unique
-    private static double getCutoff ( double baseDistance ) {
+    private static double getCutoff(double baseDistance) {
         double cutoff;
-        if (RenderState.renderBudgetTight) {
+        // Cache render state checks: avoid repeated static lookups
+        boolean tight = RenderState.renderBudgetTight;
+        boolean relaxed = RenderState.renderBudgetRelaxed;
+        boolean heavy = RenderState.heavyEntityModsActive;
+
+        if (tight) {
             cutoff = baseDistance / 0.4; // FPS < 60: aggressive recovery
-        } else if (RenderState.heavyEntityModsActive) {
+        } else if (heavy) {
             cutoff = baseDistance / 0.6; // 40% tighter when EMF/ETF are heavy
         } else {
             cutoff = baseDistance;
         }
-        // Apply IF multiplier: IS makes draws cheaper via batching, so extend cutoff
+        // Apply IF multiplier: IF makes draws cheaper via batching, so extend cutoff
         cutoff *= com.alexxiconify.rustmc.compat.ImmediatelyFastCompat.getCullingDistanceMultiplier();
         // Extra headroom when FPS is healthy
-        if (RenderState.renderBudgetRelaxed) {
+        if (relaxed) {
             cutoff *= 1.15;
         }
         return cutoff;

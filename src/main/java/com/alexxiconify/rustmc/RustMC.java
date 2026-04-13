@@ -21,7 +21,9 @@ public class RustMC implements ModInitializer {
     public void onInitialize() {
         LOGGER.info("[Rust-MC] Initializing...");
         loadConfig(); // Safe to re-call: config was preloaded during DFU, this just ensures it's done
+        ModBridgeCache.initialize(); // Cache mod detection results for hot-path efficiency
         ModBridge.initialize();
+        // ...existing code...
         // Flush per-group mixin application timings into the blame chart
         MixinManager.flushBlameTimings();
         // Run independent compat initializations in parallel on virtual threads
