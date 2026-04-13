@@ -4,6 +4,32 @@ This document records optimization and stability work that has already been comp
 
 ## April 13, 2026 - Client-Only Mixin Refactor & Performance Optimization
 
+### Hot-Path Telemetry & Budget Cleanup
+
+**Completed the next overhead pass:**
+- `NativeBridge` now keeps frame telemetry in a local shared snapshot instead of repeated JNI frame-history pulls.
+- `DebugHudMixin` and `PieChartRenderer` now reuse the same cached frame-history snapshot and stats.
+- `MinecraftClientMixin` now uses a plain per-instance timestamp instead of an atomic render-thread update.
+- `RenderState` now stores one render-budget tier instead of two separate booleans.
+- `RenderBudgetMixin` now writes the tier once per budget check.
+- `ParticleManagerMixin` now reads the budget tier once and caches `MinecraftClient` locally.
+- `MultiplayerScreenMixin` now uses a daemon platform thread for DNS prewarm and avoids the extra pre-sized array path.
+- `LightingMixin` now backs off its worker loop when no work is pending.
+- `LightingMixin` and `rust_mc_core/src/lighting.rs` now avoid busy-spin / Rayon writeback overhead on the hot path.
+
+**Payoff:**
+- Fewer JNI crossings on render overlays.
+- Fewer per-frame allocations in frame-time and debug HUD paths.
+- Lower render-thread atomic overhead.
+- Lower shared-state reads in particle culling.
+- Lower thread overhead in DNS prewarm and lighting dispatch.
+- Safer fallback behavior for matrix multiplication and frame telemetry.
+
+**Still deferred:**
+- `LightingMixin` queue lock replacement.
+- `occlusion.rs` lock restructuring.
+- Any broader lock-free rewrite until profiling proves contention.
+
 ### Mixin Cleanup
 
 **Removed 7 pure server-side mixins** that cannot run on vanilla servers:

@@ -22,10 +22,11 @@ public class ParticleManagerMixin {
     private void cullDistantParticles(ParticleEffect params, double x, double y, double z,
             double vx, double vy, double vz, CallbackInfoReturnable<Particle> cir) {
         if (!com.alexxiconify.rustmc.RustMC.CONFIG.isEnableParticleCulling()) return;
-        PlayerEntity player = MinecraftClient.getInstance().player;
+        MinecraftClient client = MinecraftClient.getInstance();
+        PlayerEntity player = client.player;
         if (player == null) return;
         // Early exit on distance check before expensive cutoff calculation
-        double baseDistance = MinecraftClient.getInstance().options.getClampedViewDistance() / 8.0;
+        double baseDistance = client.options.getClampedViewDistance() / 8.0;
         double cutoff = getCutoff(baseDistance);
         if (player.squaredDistanceTo(x, y, z) > cutoff * cutoff) {
             cir.setReturnValue(null);
@@ -35,12 +36,11 @@ public class ParticleManagerMixin {
     @Unique
     private static double getCutoff(double baseDistance) {
         double cutoff;
-        // Cache render state checks: avoid repeated static lookups
-        boolean tight = RenderState.renderBudgetTight;
-        boolean relaxed = RenderState.renderBudgetRelaxed;
+        // Cache render state checks: one budget tier read, one compat read.
+        int budgetTier = RenderState.renderBudgetTier;
         boolean heavy = RenderState.heavyEntityModsActive;
 
-        if (tight) {
+        if (budgetTier == 1) {
             cutoff = baseDistance / 0.4; // FPS < 60: aggressive recovery
         } else if (heavy) {
             cutoff = baseDistance / 0.6; // 40% tighter when EMF/ETF are heavy
@@ -50,7 +50,7 @@ public class ParticleManagerMixin {
         // Apply IF multiplier: IF makes draws cheaper via batching, so extend cutoff
         cutoff *= com.alexxiconify.rustmc.compat.ImmediatelyFastCompat.getCullingDistanceMultiplier();
         // Extra headroom when FPS is healthy
-        if (relaxed) {
+        if (budgetTier == 2) {
             cutoff *= 1.15;
         }
         return cutoff;

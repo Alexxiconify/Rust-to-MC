@@ -14,11 +14,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 // Draws a compact frame-time sparkline graph in the F3 overlay when enabled.
 @Mixin(DebugHud.class)
 public class DebugHudMixin {
-    // ── Cached sparkline data (avoids JNI every render frame) ──
-    @Unique private static float[] cachedHistory;
-    @Unique private static float cachedAvg;
-    @Unique private static float cachedMin;
-    @Unique private static float cachedMax;
+    // ── Cached sparkline data ──
+    @Unique private static NativeBridge.FrameHistorySnapshot cachedSnapshot;
     @Unique private static long lastHistoryUpdateMs;
     @Unique private static final long HISTORY_UPDATE_INTERVAL_MS = 100; // 10 Hz refresh
     @Inject(method = "render", at = @At("TAIL"), require = 0)
@@ -40,34 +37,23 @@ public class DebugHudMixin {
     @Unique
     private static void refreshHistoryCache() {
         long now = System.currentTimeMillis();
-        if (cachedHistory != null && now - lastHistoryUpdateMs < HISTORY_UPDATE_INTERVAL_MS) return;
-        float[] history = NativeBridge.invokeGetFrameHistory();
+        if (cachedSnapshot != null && now - lastHistoryUpdateMs < HISTORY_UPDATE_INTERVAL_MS) return;
+        NativeBridge.FrameHistorySnapshot snapshot = NativeBridge.getFrameHistorySnapshot();
+        float[] history = snapshot.history();
         if (history == null || history.length == 0) {
-            cachedHistory = null;
+            cachedSnapshot = null;
             return;
         }
-        cachedHistory = history;
-        int len = Math.min(history.length, 240);
-        float total = 0;
-        float min = Float.MAX_VALUE;
-        float max = 0;
-        for (int i = 0; i < len; i++) {
-            float ms = history[i];
-            total += ms;
-            if (ms < min) min = ms;
-            if (ms > max) max = ms;
-        }
-        cachedAvg = total / len;
-        cachedMin = min;
-        cachedMax = max;
+        cachedSnapshot = snapshot;
         lastHistoryUpdateMs = now;
     }
     @Unique
     private static void drawSparkline(DrawContext context) {
         refreshHistoryCache();
-        if (cachedHistory == null) return;
+        if (cachedSnapshot == null) return;
         MinecraftClient mc = MinecraftClient.getInstance();
-        int graphW = Math.min(cachedHistory.length, 240);
+        float[] history = cachedSnapshot.history();
+        int graphW = Math.min(history.length, 240);
         int graphH = 40;
         int x0 = 2;
         int y0 = 2;
@@ -81,7 +67,7 @@ public class DebugHudMixin {
         context.fill(x0, target30Y, x0 + graphW, target30Y + 1, 0x40FFFF00);
         // Draw bars
         for (int i = 0; i < graphW; i++) {
-            float ms = cachedHistory[i];
+            float ms = history[i];
             int barH = Math.clamp((int) ((ms / 50.0f) * graphH), 1, graphH);
             int barY = y0 + graphH - barH;
             int color;
@@ -102,7 +88,7 @@ public class DebugHudMixin {
             // Stats below graph — use cached values
             int statsY = y0 + graphH + 3;
             context.drawTextWithShadow(mc.textRenderer,
-                    "%.1fms avg | %.1f min | %.1f max".formatted(cachedAvg, cachedMin, cachedMax),
+                    "%.1fms avg | %.1f min | %.1f max".formatted(cachedSnapshot.avgMs(), cachedSnapshot.minMs(), cachedSnapshot.maxMs()),
                     x0, statsY, 0xFFAAAAAA);
             // Color legend
             int legendY = statsY + 11;

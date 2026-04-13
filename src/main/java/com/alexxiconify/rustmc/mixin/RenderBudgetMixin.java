@@ -30,7 +30,12 @@ class RenderBudgetMixin {
         if (mc.world == null) return;
         float rustAvg = NativeBridge.invokeGetAvgFps();
         int fps = rustAvg > 0 ? (int) rustAvg : mc.getCurrentFps();
-        RenderState.renderBudgetTight = fps < 60;
-        RenderState.renderBudgetRelaxed = fps > 90;
+        if (fps < 60) {
+            RenderState.renderBudgetTier = 1;
+        } else if (fps > 90) {
+            RenderState.renderBudgetTier = 2;
+        } else {
+            RenderState.renderBudgetTier = 0;
+        }
     }
 }

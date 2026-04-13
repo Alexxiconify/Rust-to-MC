@@ -24,10 +24,12 @@ public class LightingMixin {
     @Unique
     private static volatile boolean rustLightThreadRunning = false;
     @Unique
+    private static final java.util.concurrent.atomic.AtomicBoolean rustLightThreadStarted = new java.util.concurrent.atomic.AtomicBoolean(false);
+    @Unique
     private static final int[] flatBuffer = new int[8192 / 4];
     // Drains the queue and dispatches packed xyz/value entries to Rust.
     @Unique
-    private static void drainAndDispatch() {
+    private static boolean drainAndDispatch() {
         int idx = 0;
         synchronized (QUEUE_LOCK) {
             while (head < tail && idx + 4 <= flatBuffer.length) {
@@ -43,7 +45,9 @@ public class LightingMixin {
         }
         if (idx > 0) {
             NativeBridge.propagateLightBulk(flatBuffer, idx / 4);
+            return true;
         }
+        return false;
     }
     @Unique
     private static boolean isRustLightingActive() {
@@ -51,16 +55,30 @@ public class LightingMixin {
         return NativeBridge.isReady() && RustMC.CONFIG.isUseNativeLighting();
     }
     @Unique
-    private static synchronized void ensureRustThread() {
-        if (rustLightThreadRunning) return;
+    private static void ensureRustThread() {
+        if (!rustLightThreadStarted.compareAndSet(false, true)) return;
         rustLightThreadRunning = true;
         Thread.ofPlatform().name("rustmc-light-propagation").daemon(true).start(() -> {
             while (rustLightThreadRunning) {
                 if (isRustLightingActive()) {
-                    drainAndDispatch();
+                    if (!drainAndDispatch()) {
+                        sleepQuietly(1L);
+                    }
+                } else {
+                    sleepQuietly(8L);
                 }
             }
         });
+    }
+
+    @Unique
+    private static void sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            rustLightThreadRunning = false;
+        }
     }
     @Inject(method = "hasUpdates()Z", at = @At("HEAD"))
     private void onHasUpdates(CallbackInfoReturnable<Boolean> cir) {

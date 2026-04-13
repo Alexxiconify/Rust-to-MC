@@ -88,12 +88,20 @@ Goal: add internal observability hooks for performance validation.
 
 Goal: reduce locks, allocations, and crossings in hot render loops.
 
+- Recent pass absorbed most shared telemetry overhead into history.
+- `NativeBridge`, `DebugHudMixin`, and `PieChartRenderer` now share one frame-history snapshot path.
+- `MinecraftClientMixin` now uses a plain timestamp update instead of an atomic render-thread write.
+- `RenderState`, `RenderBudgetMixin`, and `ParticleManagerMixin` now use one budget tier read instead of two booleans.
+- `MultiplayerScreenMixin` now uses a daemon DNS prewarm thread.
+- `LightingMixin` now backs off when idle instead of spinning hard.
+- `rust_mc_core/src/lighting.rs` now avoids Rayon writeback overhead in the small vanilla batch path.
+
+Next step: profile the remaining real bottleneck before any deeper lock rewrite.
+
 - **LightingMixin**: Measure `QUEUE_LOCK` contention first; then replace only the hot queue path with a lower-contention structure or staged double-buffering.
-- **Screen Mixins**: Batch drawable updates instead of per-frame rebuilds; reduce string and temp-object allocations in progress rendering.
-- **MinecraftClientMixin**: Remove per-frame `long[]` history allocations; use a fixed circular buffer and index math.
 - **FrustumMixin**: Reuse matrix and plane buffers across frames; avoid transient copies unless JNI requires them.
-- **RenderBudgetMixin**: Make FPS and budget reads lazy; avoid recomputing the same metrics multiple times per frame.
-- **NativeBridge**: Combine small adjacent native calls where batching reduces overhead without changing semantics.
+- **Screen Mixins**: Batch drawable updates instead of per-frame rebuilds; reduce string and temp-object allocations in progress rendering.
+- **NativeBridge**: Keep JNI batching only where it still wins over vanilla Java or local snapshots.
 
 ### 8) Screen & HUD Layer Optimization (Future)
 

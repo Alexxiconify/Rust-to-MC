@@ -23,7 +23,7 @@ public class MultiplayerScreenMixin {
     private static void triggerBatchResolve() {
         if (!NativeBridge.isReady() || !RustMC.CONFIG.isEnableDnsCache()) return;
         try {
-            Thread.ofVirtual().name("rustmc-dns-batch-prewarm").start(MultiplayerScreenMixin::resolveAllServers);
+            Thread.ofPlatform().name("rustmc-dns-batch-prewarm").daemon(true).start(MultiplayerScreenMixin::resolveAllServers);
         } catch (Exception e) {
             RustMC.LOGGER.debug("[Rust-MC] Failed to start DNS pre-resolve thread: {}", e.getMessage());
         }
@@ -38,7 +38,7 @@ public class MultiplayerScreenMixin {
             List<String> hostnames = collectHostnames(serverList);
             if (hostnames.isEmpty()) return;
             long start = System.nanoTime();
-            String[] results = NativeBridge.dnsBatchResolve(hostnames.toArray(new String[0]));
+            String[] results = NativeBridge.dnsBatchResolve(hostnames.toArray(String[]::new));
             long elapsed = (System.nanoTime() - start) / 1_000_000;
             int resolved = 0;
             for (String r : results) {

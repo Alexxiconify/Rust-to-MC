@@ -6,6 +6,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 //
  //  NativeBridge handles all communication between Java and the Rust native core via JNI.
  //  Many wrapper methods appear "unused" in static analysis because they are part of the
@@ -26,6 +28,41 @@ public class NativeBridge {
     private static final java.util.concurrent.atomic.AtomicInteger frustumChecksLastFrame = new java.util.concurrent.atomic.AtomicInteger(0);
     private static final java.util.concurrent.atomic.AtomicInteger frustumVisibleLastFrame = new java.util.concurrent.atomic.AtomicInteger(0);
     private static final java.util.concurrent.atomic.AtomicInteger frustumCulledLastFrame = new java.util.concurrent.atomic.AtomicInteger(0);
+    private static final int FRAME_HISTORY_CAPACITY = 240;
+    private static final float[] frameHistoryMs = new float[FRAME_HISTORY_CAPACITY];
+    private static int frameHistoryWriteIndex;
+    private static int frameHistoryCount;
+    private static final AtomicInteger frameHistoryVersion = new AtomicInteger(0);
+    private static final AtomicReference<FrameHistorySnapshot> cachedFrameHistorySnapshot = new AtomicReference<>(FrameHistorySnapshot.empty());
+
+    public static final class FrameHistorySnapshot {
+        private final float[] history;
+        private final float avgMs;
+        private final float minMs;
+        private final float maxMs;
+        private final int slowFrames;
+        private final int version;
+
+        private FrameHistorySnapshot(float[] history, float avgMs, float minMs, float maxMs, int slowFrames, int version) {
+            this.history = history;
+            this.avgMs = avgMs;
+            this.minMs = minMs;
+            this.maxMs = maxMs;
+            this.slowFrames = slowFrames;
+            this.version = version;
+        }
+
+        private static FrameHistorySnapshot empty() {
+            return new FrameHistorySnapshot(new float[0], 0.0f, 0.0f, 0.0f, 0, -1);
+        }
+
+        public float[] history() { return history; }
+        public float avgMs() { return avgMs; }
+        public float minMs() { return minMs; }
+        public float maxMs() { return maxMs; }
+        public int slowFrames() { return slowFrames; }
+        private int version() { return version; }
+    }
     public static boolean isReady() { return libLoaded; }
     static {
         try {
@@ -145,8 +182,16 @@ public class NativeBridge {
         rustTransformVertices(vertices, normals, matrix, vertices.length / 3);
     }
     public static void invokeMatrixMul(float[] left, float[] right, float[] result) {
-        if (!libLoaded) return;
-        rustMatrixMul(left, right, result);
+        if (left == null || right == null || result == null || left.length < 16 || right.length < 16 || result.length < 16) return;
+        if (!libLoaded) {
+            multiplyMatrices(left, right, result);
+            return;
+        }
+        try {
+            rustMatrixMul(left, right, result);
+        } catch (UnsatisfiedLinkError e) {
+            multiplyMatrices(left, right, result);
+        }
     }
     private static native void rustProcessMapTexture(int[] pixels, int width, int height);
     private static native void rustProcessMapTexturePtr(long ptr, int width, int height);
@@ -239,17 +284,13 @@ public class NativeBridge {
     private static native boolean rustDHCull(double minY, double maxY, double surfaceY);
     private static native boolean rustDHCullFused(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double surfaceY);
     private static native void rustSetCaveStatus(boolean inCave);
-    private static native float rustGetAvgFps();
     private static native float rustClamp(float value, float min, float max);
     private static native double rustLerp(double delta, double start, double end);
     private static native double rustAbsMax(double a, double b);
     private static native float rustWrapDegrees(float value);
-    @SuppressWarnings("java:S107")
     private static native boolean rustRayIntersectsBox(double rx, double ry, double rz, double dx, double dy, double dz, double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
     private static native float[] rustComputeAmbientOcclusion(float[] vertexData, int vertexCount);
     private static native float[] rustComputeAmbientOcclusionDirect(java.nio.ByteBuffer vertexData, int vertexCount);
-    private static native void rustAddFrameTime(long nanos);
-    private static native float[] rustGetFrameHistory();
     // DNS cache
     private static native String rustDnsResolve(String hostname);
     private static native String[] rustDnsBatchResolve(String[] hostnames);
@@ -629,11 +670,10 @@ public class NativeBridge {
         try { rustSetCaveStatus(inCave); }
         catch (UnsatisfiedLinkError ignored) { }
     }
-    // Returns smoothed average FPS from the Rust frame-time ring buffer.
+    // Returns smoothed average FPS from the local frame-time ring buffer.
     public static float invokeGetAvgFps() {
-        if (!libLoaded) return 0;
-        try { return rustGetAvgFps(); }
-        catch (UnsatisfiedLinkError e) { return 0; }
+        float avgMs = getFrameHistorySnapshot().avgMs();
+        return avgMs > 0.0f ? 1000.0f / avgMs : 0.0f;
     }
     @SuppressWarnings("java:S107")
     public static boolean invokeRayIntersectsBox(double rx, double ry, double rz, double dx, double dy, double dz, double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
@@ -655,19 +695,68 @@ public class NativeBridge {
         }
     }
     public static void invokeAddFrameTime(long nanos) {
-        if (!libLoaded) return;
-        try {
-            rustAddFrameTime(nanos);
-        } catch (UnsatisfiedLinkError ignored) {
-            // Optional native method
-        }
+        recordFrameTime(nanos);
     }
+    // Returns shared frame telemetry in oldest-to-newest order for debug overlays.
     public static float[] invokeGetFrameHistory() {
-        if (!libLoaded) return new float[0];
-        try {
-            return rustGetFrameHistory();
-        } catch (UnsatisfiedLinkError e) {
-            return new float[0];
+        return getFrameHistorySnapshot().history();
+    }
+    public static FrameHistorySnapshot getFrameHistorySnapshot() {
+        int version = frameHistoryVersion.get();
+        FrameHistorySnapshot snapshot = cachedFrameHistorySnapshot.get();
+        if (snapshot != null && snapshot.version() == version) {
+            return snapshot;
+        }
+        FrameHistorySnapshot built = buildFrameHistorySnapshot(version);
+        cachedFrameHistorySnapshot.set(built);
+        return built;
+    }
+    public static void recordFrameTime(long nanos) {
+        if (nanos <= 0) return;
+        float ms = nanos / 1_000_000.0f;
+        int index = frameHistoryWriteIndex;
+        frameHistoryMs[index] = ms;
+        frameHistoryWriteIndex = (index + 1) % FRAME_HISTORY_CAPACITY;
+        if (frameHistoryCount < FRAME_HISTORY_CAPACITY) {
+            frameHistoryCount++;
+        }
+        frameHistoryVersion.incrementAndGet();
+    }
+
+    private static FrameHistorySnapshot buildFrameHistorySnapshot(int version) {
+        int count = frameHistoryCount;
+        if (count <= 0) return new FrameHistorySnapshot(new float[0], 0.0f, 0.0f, 0.0f, 0, version);
+        float[] copy = new float[count];
+        int start = frameHistoryCount < FRAME_HISTORY_CAPACITY ? 0 : frameHistoryWriteIndex;
+        int firstLen = Math.min(count, FRAME_HISTORY_CAPACITY - start);
+        System.arraycopy(frameHistoryMs, start, copy, 0, firstLen);
+        if (firstLen < count) {
+            System.arraycopy(frameHistoryMs, 0, copy, firstLen, count - firstLen);
+        }
+        float total = 0.0f;
+        float min = Float.MAX_VALUE;
+        float max = 0.0f;
+        int slowFrames = 0;
+        for (float ms : copy) {
+            total += ms;
+            if (ms < min) min = ms;
+            if (ms > max) max = ms;
+            if (ms > 16.67f) slowFrames++;
+        }
+        return new FrameHistorySnapshot(copy, total / count, min, max, slowFrames, version);
+    }
+
+    private static void multiplyMatrices(float[] left, float[] right, float[] result) {
+        for (int col = 0; col < 4; col++) {
+            int colBase = col * 4;
+            float r0 = right[colBase];
+            float r1 = right[colBase + 1];
+            float r2 = right[colBase + 2];
+            float r3 = right[colBase + 3];
+            result[colBase] = left[0] * r0 + left[4] * r1 + left[8] * r2 + left[12] * r3;
+            result[colBase + 1] = left[1] * r0 + left[5] * r1 + left[9] * r2 + left[13] * r3;
+            result[colBase + 2] = left[2] * r0 + left[6] * r1 + left[10] * r2 + left[14] * r3;
+            result[colBase + 3] = left[3] * r0 + left[7] * r1 + left[11] * r2 + left[15] * r3;
         }
     }
     public static int[] generateLodMeshGpu(int[] blocks, int chunkX, int chunkZ, int detail) {

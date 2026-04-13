@@ -83,22 +83,16 @@ public final class PieChartRenderer {
      // Refreshes cached stats from the native frame history ring buffer.
      // Returns false if no history is available.
     private static boolean refreshStats() {
-        float[] history = NativeBridge.invokeGetFrameHistory();
+        NativeBridge.FrameHistorySnapshot snapshot = NativeBridge.getFrameHistorySnapshot();
+        float[] history = snapshot.history();
         if (history == null || history.length == 0) {
             cacheValid = false;
             return false;
         }
-        float total = 0;
-        float min = Float.MAX_VALUE;
-        float max = 0;
-        int slowFrames = 0;
-        for (float ms : history) {
-            total += ms;
-            if (ms < min) min = ms;
-            if (ms > max) max = ms;
-            if (ms > 16.67f) slowFrames++;
-        }
-        float avg = total / history.length;
+        float avg = snapshot.avgMs();
+        float min = snapshot.minMs();
+        float max = snapshot.maxMs();
+        int slowFrames = snapshot.slowFrames();
         // Estimate category proportions heuristically from frame variance
         float renderPct = Math.min(0.55f, 0.35f + (avg - 8f) * 0.005f);
         float tickPct   = Math.min(0.25f, 0.15f + (slowFrames / (float) history.length) * 0.1f);
