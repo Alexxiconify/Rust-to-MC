@@ -18,6 +18,9 @@ import java.util.function.Supplier;
 public class ModMenuIntegration implements ModMenuApi {
     private static final String YES = "§aYES";
     private static final String NO  = "§7NO";
+    private static final long METRICS_REFRESH_INTERVAL_MS = 100L;
+    private static long lastMetricsRefreshMs;
+    private static long[] cachedMetrics = new long[] { 0L, 0L, 0L };
     @Override
     public ConfigScreenFactory<?> getModConfigScreenFactory() {
         return parent -> {
@@ -33,6 +36,7 @@ public class ModMenuIntegration implements ModMenuApi {
         };
     }
     private ConfigCategory buildStatusCategory() {
+        refreshMetricsCache();
         return ConfigCategory.createBuilder()
             .name(Text.literal("Status"))
             .tooltip(Text.literal("Runtime status of the Rust native library."))
@@ -62,25 +66,25 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(Option.<Long>createBuilder()
                 .name(Text.literal("Total JNI Calls"))
                 .description(OptionDescription.of(Text.literal("Lifetime count of Java -> Rust calls via the NativeBridge.")))
-                .binding(0L, () -> NativeBridge.getMetrics(false)[0], val -> {})
+                .binding(0L, () -> getCachedMetric(0), val -> {})
                 .controller(opt -> dev.isxander.yacl3.api.controller.LongFieldControllerBuilder.create(opt)
-                    .formatValue(val -> Text.literal("§e" + NativeBridge.getMetrics(false)[0])))
+                    .formatValue(val -> Text.literal("§e" + getCachedMetric(0))))
                 .available(false)
                 .build())
             .option(Option.<Long>createBuilder()
                 .name(Text.literal("Lighting Updates"))
                 .description(OptionDescription.of(Text.literal("Total 3D voxel light updates processed by Rust.")))
-                .binding(0L, () -> NativeBridge.getMetrics(false)[1], val -> {})
+                .binding(0L, () -> getCachedMetric(1), val -> {})
                 .controller(opt -> dev.isxander.yacl3.api.controller.LongFieldControllerBuilder.create(opt)
-                    .formatValue(val -> Text.literal("§a" + NativeBridge.getMetrics(false)[1])))
+                    .formatValue(val -> Text.literal("§a" + getCachedMetric(1))))
                 .available(false)
                 .build())
             .option(Option.<Long>createBuilder()
                 .name(Text.literal("Frustum Tests"))
                 .description(OptionDescription.of(Text.literal("Total AABB visibility tests performed by Rust.")))
-                .binding(0L, () -> NativeBridge.getMetrics(false)[2], val -> {})
+                .binding(0L, () -> getCachedMetric(2), val -> {})
                 .controller(opt -> dev.isxander.yacl3.api.controller.LongFieldControllerBuilder.create(opt)
-                    .formatValue(val -> Text.literal("§b" + NativeBridge.getMetrics(false)[2])))
+                    .formatValue(val -> Text.literal("§b" + getCachedMetric(2))))
                 .available(false)
                 .build())
             .option(Option.<String>createBuilder()
@@ -99,6 +103,26 @@ public class ModMenuIntegration implements ModMenuApi {
             return "checks=0 visible=0 culled=0";
         }
         return "checks=%d visible=%d culled=%d".formatted(frameStats[0], frameStats[1], frameStats[2]);
+    }
+
+    private static long getCachedMetric(int index) {
+        refreshMetricsCache();
+        if (index < 0 || index >= cachedMetrics.length) return 0L;
+        return cachedMetrics[index];
+    }
+
+    private static void refreshMetricsCache() {
+        long now = System.currentTimeMillis();
+        if (now - lastMetricsRefreshMs < METRICS_REFRESH_INTERVAL_MS && cachedMetrics.length >= 3) {
+            return;
+        }
+        long[] metrics = NativeBridge.getMetrics(false);
+        if (metrics.length >= 3) {
+            cachedMetrics = metrics;
+        } else {
+            cachedMetrics = new long[] { 0L, 0L, 0L };
+        }
+        lastMetricsRefreshMs = now;
     }
 
     private ConfigCategory buildUnifiedConfigCategory(RustMCConfig cfg) {

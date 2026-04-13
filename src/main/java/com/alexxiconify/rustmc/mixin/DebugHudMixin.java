@@ -27,7 +27,7 @@ public class DebugHudMixin {
         if (mc.world == null || mc.player == null) return;
         if (!RustMC.CONFIG.isEnableDebugHudGraph() && !RustMC.CONFIG.isEnablePieChart()) return;
         if (RustMC.CONFIG.isEnableDebugHudGraph() && RustMC.CONFIG.isUseNativeF3() && !ModBridge.isHudOwned()) {
-            drawSparkline(context);
+            drawSparkline(context, mc);
         }
         if (RustMC.CONFIG.isEnablePieChart() && mc.textRenderer != null) {
             int screenW = context.getScaledWindowWidth();
@@ -51,10 +51,9 @@ public class DebugHudMixin {
         lastHistoryUpdateMs = now;
     }
     @Unique
-    private static void drawSparkline(DrawContext context) {
+    private static void drawSparkline(DrawContext context, MinecraftClient mc) {
         refreshHistoryCache();
         if (cachedSnapshot == null) return;
-        MinecraftClient mc = MinecraftClient.getInstance();
         float[] history = cachedSnapshot.history();
         int graphW = Math.min(history.length, 240);
         int graphH = 40;

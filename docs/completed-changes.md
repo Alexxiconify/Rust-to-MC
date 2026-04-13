@@ -34,6 +34,19 @@ This document records optimization and stability work that has already been comp
 
 The live roadmap now keeps only the remaining work for this pass.
 
+### UI / Metrics / Mesh Hot-Path Trim
+
+**Completed this pass:**
+- `DebugHudMixin` now reuses the already-fetched `MinecraftClient` for the sparkline path.
+- `ModMenuIntegration` now caches JNI metrics snapshots instead of re-pulling counters for every status option render.
+- `NativeBridge.generateLodMeshGpu()` and `DistantHorizonsCompat.generateGpuLod()` now skip empty chunk arrays before JNI work.
+- `rust_mc_core/src/pipeline.rs`, `rust_mc_core/src/wgpu_mesher.rs`, and `rust_mc_core/src/wgpu_ao.rs` now short-circuit empty inputs before GPU setup.
+
+**Still deferred:**
+- Broader cache-locality rewrites in `MatrixMixin` / render state.
+- Deeper loading-screen repaint changes unless traces show the overlay still dominates.
+- Wider chunk/mesh algorithm changes beyond buffer/input reuse.
+
 **Payoff:**
 - Fewer JNI crossings on render overlays.
 - Fewer per-frame allocations in frame-time and debug HUD paths.

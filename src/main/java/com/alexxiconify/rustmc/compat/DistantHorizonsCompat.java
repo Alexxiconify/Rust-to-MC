@@ -15,6 +15,7 @@ public class DistantHorizonsCompat {
     private static long rustFrustumPtr = 0;
     private static int currentMinY = -64;
     private static int currentMaxY = 320;
+    private static boolean frustumInitialized = false;
     private static java.lang.reflect.Method getValuesAsArrayMethod = null;
     private static boolean hasLastCameraState = false;
     private static double lastCameraX = 0.0;
@@ -30,6 +31,7 @@ public class DistantHorizonsCompat {
         try {
             rustFrustumPtr = com.alexxiconify.rustmc.NativeBridge.createRustFrustum();
             if (rustFrustumPtr == 0) return;
+            frustumInitialized = false;
             Class<?> apiClass = Class.forName(DH_API_CLASS);
             Object overridesInjector = apiClass.getField("overrides").get(null);
             java.lang.reflect.Method bindMethod = findBindMethod(overridesInjector);
@@ -49,6 +51,7 @@ public class DistantHorizonsCompat {
                 com.alexxiconify.rustmc.NativeBridge.destroyRustFrustum(rustFrustumPtr);
                 rustFrustumPtr = 0;
             }
+            frustumInitialized = false;
         }
     }
     private static java.lang.reflect.Method findBindMethod(Object overridesInjector) {
@@ -62,26 +65,34 @@ public class DistantHorizonsCompat {
     private static float[] lastVpArray = null;
     @SuppressWarnings("java:S112") // Reflection methods throw many checked exception types
     private static Object handleFrustumProxy(Object proxy, java.lang.reflect.Method method, Object[] args) throws Exception {
-        String name = method.getName();
+        String name = method.getName().toLowerCase(java.util.Locale.ROOT);
+        if ("getpriority".equals(name)) {
+            return Integer.MAX_VALUE;
+        }
+        if (name.contains("update")) {
+            return handleFrustumUpdate(args);
+        }
+        if (name.contains("intersect") || name.contains("visible") || name.contains("contain")) {
+            return handleFrustumIntersects(args);
+        }
         return switch (name) {
-            case "getPriority" -> Integer.MAX_VALUE;
-            case "update" -> handleFrustumUpdate(args);
-            case "intersects" -> handleFrustumIntersects(args);
             case "equals" -> proxy == args[0];
-            case "hashCode" -> System.identityHashCode(proxy);
-            case "toString" -> "RustMC-DH-FrustumCuller";
+            case "hashcode" -> System.identityHashCode(proxy);
+            case "tostring" -> "RustMC-DH-FrustumCuller";
             default -> null;
         };
     }
 
     @SuppressWarnings("java:S112")
     private static Object handleFrustumUpdate(Object[] args) throws Exception {
-        if (args == null || args.length != 3) {
+        if (args == null || args.length == 0) {
             return null;
         }
-        currentMinY = (int) args[0];
-        currentMaxY = (int) args[1];
-        Object mat = args[2];
+        if (args.length >= 3 && args[0] instanceof Number minY && args[1] instanceof Number maxY) {
+            currentMinY = minY.intValue();
+            currentMaxY = maxY.intValue();
+        }
+        Object mat = args[args.length - 1];
         if (getValuesAsArrayMethod == null) {
             getValuesAsArrayMethod = mat.getClass().getMethod("getValuesAsArray");
         }
@@ -89,6 +100,7 @@ public class DistantHorizonsCompat {
         if (shouldRefreshFrustum(vpArray)) {
             lastVpArray = vpArray != null ? vpArray.clone() : null;
             com.alexxiconify.rustmc.NativeBridge.updateRustFrustum(rustFrustumPtr, vpArray);
+            frustumInitialized = rustFrustumPtr != 0 && vpArray != null && vpArray.length >= 16;
         }
         return null;
     }
@@ -137,17 +149,63 @@ public class DistantHorizonsCompat {
         return matrixChanged || moved || rotated || opticsChanged;
     }
     private static Object handleFrustumIntersects(Object[] args) {
-        if (args == null || args.length < 4) {
+        // Keep fallback behavior: before first successful matrix update, treat sections as visible.
+        if (!frustumInitialized || rustFrustumPtr == 0) {
             return true;
         }
-        int minX = (int) args[0];
-        int minZ = (int) args[1];
-        int maxX = (int) args[2];
-        int maxZ = (int) args[3];
+        if (args == null || args.length == 0) {
+            return true;
+        }
+        double minX;
+        double minY;
+        double minZ;
+        double maxX;
+        double maxY;
+        double maxZ;
+        if (args.length == 1 && args[0] != null) {
+            Object box = args[0];
+            try {
+                Class<?> cls = box.getClass();
+                minX = cls.getField("minX").getDouble(box);
+                minY = cls.getField("minY").getDouble(box);
+                minZ = cls.getField("minZ").getDouble(box);
+                maxX = cls.getField("maxX").getDouble(box);
+                maxY = cls.getField("maxY").getDouble(box);
+                maxZ = cls.getField("maxZ").getDouble(box);
+            } catch (Exception e) {
+                return true;
+            }
+        } else if (args.length >= 6
+            && args[0] instanceof Number minXArg
+            && args[1] instanceof Number minYArg
+            && args[2] instanceof Number minZArg
+            && args[3] instanceof Number maxXArg
+            && args[4] instanceof Number maxYArg
+            && args[5] instanceof Number maxZArg) {
+            minX = minXArg.doubleValue();
+            minY = minYArg.doubleValue();
+            minZ = minZArg.doubleValue();
+            maxX = maxXArg.doubleValue();
+            maxY = maxYArg.doubleValue();
+            maxZ = maxZArg.doubleValue();
+        } else if (args.length >= 4
+            && args[0] instanceof Number minXArg
+            && args[1] instanceof Number minZArg
+            && args[2] instanceof Number maxXArg
+            && args[3] instanceof Number maxZArg) {
+            minX = minXArg.doubleValue();
+            minY = currentMinY;
+            minZ = minZArg.doubleValue();
+            maxX = maxXArg.doubleValue();
+            maxY = currentMaxY;
+            maxZ = maxZArg.doubleValue();
+        } else {
+            return true;
+        }
         return com.alexxiconify.rustmc.NativeBridge.cullDistantHorizonsSection(
             rustFrustumPtr,
-            Math.min(minX, maxX), currentMinY, Math.min(minZ, maxZ),
-            Math.max(minX, maxX), currentMaxY, Math.max(minZ, maxZ),
+            Math.min(minX, maxX), Math.min(minY, maxY), Math.min(minZ, maxZ),
+            Math.max(minX, maxX), Math.max(minY, maxY), Math.max(minZ, maxZ),
             DH_SURFACE_Y,
             DH_AGGRESSIVE_MARGIN
         );
@@ -244,7 +302,7 @@ public class DistantHorizonsCompat {
     //
      // Offloads DH LOD meshing to Rust GPU path when detail level is high-value for batching.
     public static int[] generateGpuLod(int[] blocks, int chunkX, int chunkZ, int detail) {
-        if (!com.alexxiconify.rustmc.NativeBridge.isReady() || detail > 2 || blocks == null) {
+        if (!com.alexxiconify.rustmc.NativeBridge.isReady() || detail > 2 || blocks == null || blocks.length == 0) {
             return new int[0];
         }
         return com.alexxiconify.rustmc.NativeBridge.generateLodMeshGpu(blocks, chunkX, chunkZ, detail);

@@ -19,6 +19,8 @@ Scope: active work only. Completed optimization history lives in [`docs/complete
 - Java side emphasizes compatibility gating via `MixinManager` and `ModBridge`.
 - Rust side provides frustum, particle, audio, compression, and utility paths with fallback wrappers in `NativeBridge`.
 - Distant Horizons culling path remains Rust-driven with fused/fallback behavior.
+- DH frustum fallback now stays visible until the first successful matrix upload, preventing stale-pointer culling on world join.
+- Native metrics are now wired end-to-end (`rustGetMetrics` + hot-path counters), so HUD/Mod Menu no longer report permanent zeros when JNI is active.
 
 ## Completed Changes
 

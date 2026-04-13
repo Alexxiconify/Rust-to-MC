@@ -791,7 +791,7 @@ public class NativeBridge {
         }
     }
     public static int[] generateLodMeshGpu(int[] blocks, int chunkX, int chunkZ, int detail) {
-        if (!libLoaded || blocks == null) return new int[0];
+        if (!libLoaded || blocks == null || blocks.length == 0) return new int[0];
         try {
             return rustGenerateLodMeshGpu(blocks, chunkX, chunkZ, detail);
         } catch (UnsatisfiedLinkError e) {
