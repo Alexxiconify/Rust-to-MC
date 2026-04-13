@@ -1,7 +1,6 @@
 package com.alexxiconify.rustmc.mixin;
 
 import com.alexxiconify.rustmc.NativeBridge;
-import com.alexxiconify.rustmc.RustMC;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.LightType;
@@ -24,15 +23,16 @@ public class FrustumMixin {
 
     @Inject(method = "init", at = @At("RETURN"))
     private void rustmc$onInit(Matrix4f viewMatrix, Matrix4f projectionMatrix, CallbackInfo ci) {
-        if (NativeBridge.isReady() && RustMC.CONFIG.isUseNativeCulling()) {
+        if (NativeBridge.isReady()) {
             rustmc$combined.set(projectionMatrix).mul(viewMatrix);
             rustmc$combined.get(rustmc$matrixBuf);
         }
     }
 
+    @SuppressWarnings("null")
     @Inject(method = "setPosition", at = @At("RETURN"))
     private void rustmc$onSetPosition(double cameraX, double cameraY, double cameraZ, CallbackInfo ci) {
-        if (NativeBridge.isReady() && RustMC.CONFIG.isUseNativeCulling()) {
+        if (NativeBridge.isReady()) {
             MinecraftClient client = MinecraftClient.getInstance();
             double fovScale = 1.0;
             if (client != null) {
@@ -48,7 +48,15 @@ public class FrustumMixin {
                     NativeBridge.updateCaveStatus(inCave);
                 }
             }
-            NativeBridge.updateVanillaFrustum(rustmc$matrixBuf, fovScale, cameraX, cameraY, cameraZ);
+            if (!com.alexxiconify.rustmc.RustMC.CONFIG.isLockCullingToPlayer()) {
+                NativeBridge.updateVanillaFrustum(rustmc$matrixBuf, fovScale, cameraX, cameraY, cameraZ);
+            } else {
+                if (client != null && client.player != null) {
+                    NativeBridge.updateVanillaFrustum(rustmc$matrixBuf, fovScale, client.player.getX(), client.player.getEyeY(), client.player.getZ());
+                } else {
+                    NativeBridge.updateVanillaFrustum(rustmc$matrixBuf, fovScale, cameraX, cameraY, cameraZ);
+                }
+            }
         }
     }
 }

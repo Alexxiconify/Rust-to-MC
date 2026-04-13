@@ -11,11 +11,10 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import com.alexxiconify.rustmc.NativeBridge;
-import com.alexxiconify.rustmc.RustMC;
 
 import java.util.Set;
 
-// Hooks into mob pathfinding to get a distance estimate from Rust A*. When the mob is already at the target (distance 0), vanilla pathfinding is canceled with null (no path needed).  For all other distances the vanilla A* runs normally; in a future update Rust will return a serialized Path.
+// Hooks into mob pathfinding to get a distance estimate from Rust A*
 @Mixin(PathNodeNavigator.class)
 public class PathfindingMixin {
 
@@ -29,7 +28,7 @@ public class PathfindingMixin {
             Set<BlockPos> positions, float distance, int range, float extraRange,
             CallbackInfoReturnable<Path> cir) {
 
-        if (!NativeBridge.isReady() || !RustMC.CONFIG.isUseNativePathfinding()) return;
+        if (!NativeBridge.isReady()) return;
 
         BlockPos start = mob.getBlockPos();
         for (BlockPos end : positions) {
@@ -42,7 +41,6 @@ public class PathfindingMixin {
                 cir.setReturnValue(null);
                 return;
             }
-            // result > 0: Rust returned path cost/distance; let vanilla A* navigate result < 0: error – let vanilla A* handle it
         }
     }
 }

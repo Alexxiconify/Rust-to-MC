@@ -1,7 +1,6 @@
 package com.alexxiconify.rustmc.mixin;
 
 import com.alexxiconify.rustmc.NativeBridge;
-import com.alexxiconify.rustmc.RustMC;
 import net.minecraft.client.render.MapRenderer;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,7 +23,7 @@ public class MapRendererMixin {
         // Called when map texture updates from its MapState. Intercepts state after Vanilla fill, before GPU upload.
         @Inject(method = {"updateTexture", "update"}, at = @At("TAIL"), require = 0)
         private void onUpdate(CallbackInfo ci) {
-            if (!NativeBridge.isReady() || !RustMC.CONFIG.isUseNativeCulling()) return;
+            if (!NativeBridge.isReady()) return;
             
             // Map textures in MC are strictly 128x128.
             net.minecraft.client.texture.NativeImage image = this.texture.getImage();

@@ -33,6 +33,7 @@ Performance-focused Minecraft mod that offloads hot-paths to native Rust via JNI
 - **Trig LUT (65536 entries)**: Pre-warmed on background thread during `JNI_OnLoad`; matches Java `MathHelper` exactly.
 - **Fast atan2**: Polynomial approximation; avoids libc call overhead.
 - **Adaptive Particle Culling**: Throttle relaxes with ImmediatelyFast, tightens with EMF/ETF. Migrated to `tick()` for 1.21.11.
+- **SIMD Particle Tick Offload**: Moved x/y/z and velocity simulation (gravity + drag) to Rust Rayon loops; eliminates per-particle Java `tick()` overhead for environmental emitters.
 - **Parallel Map Texture**: `rustProcessMapTexture` / `rustProcessMapTexturePtr` parallelize Item Frame color math.
 - **SIMD AO**: WGPU-backed ambient occlusion compute via `rustComputeAmbientOcclusion`.
 
@@ -70,6 +71,10 @@ Performance-focused Minecraft mod that offloads hot-paths to native Rust via JNI
 - **Zero Warnings**: All major Clippy and Java IDE warnings resolved.
 - **Fast JSON (`rustLoadJson`)**: `serde_json` parses + minifies JSON in Rust; returned as Java String. Replaces GSON for resource/language file parsing; no GC allocation on hot language-load path.
 
+### ✅ Completed Optimizations (April 13)
+
+1. **SIMD Particle Tick Offload** — Parallelized physics (gravity/drag/motion) for environmental particles via Rust Rayon.
+
 ### ✅ Completed Optimizations (April 12)
 
 1. **GPU LOD Quantization (VRAM)** — Quantize `LodVertex` (32 bytes -> 8 bytes). 75% VRAM reduction for Distant Horizons.
@@ -97,8 +102,6 @@ Performance-focused Minecraft mod that offloads hot-paths to native Rust via JNI
 - **Next**: Hook `ClientChunkMap` or `ChunkSerializer` to pass raw section bytes via `long ptr`; implement palette decoder in Rust.
 
 ## 🔮 Upcoming Optimizations
-
-1. **SIMD Particle Tick Offload** — Move x/y/z and velocity simulation for particles to Rust Rayon loops. Eliminates per-particle Java `tick()` overhead.
 
 ### Medium Priority
 

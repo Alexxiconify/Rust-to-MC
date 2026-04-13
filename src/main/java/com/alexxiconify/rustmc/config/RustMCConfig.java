@@ -3,62 +3,72 @@ package com.alexxiconify.rustmc.config;
 // Configuration POJO for Rust-MC. All fields are serialized/deserialized by Gson, and getters/setters are referenced by ModMenu (YACL) via method references.
 public class RustMCConfig {
     // Math optimizations
-    private boolean useNativeSine     = true;
-    private boolean useNativeCos      = true;
-    private boolean useNativeSqrt     = true;
-    private boolean useNativeInvSqrt  = true;
-    private boolean useNativeAtan2    = true;
-    private boolean useNativeFloor    = true;
-    private boolean useNativeNoise    = true;
-    private boolean useNativeF3       = true;
-    private boolean useNativeRandom   = true;
+    @com.google.gson.annotations.Expose private boolean useNativeSine     = true;
+    @com.google.gson.annotations.Expose private boolean useNativeCos      = true;
+    @com.google.gson.annotations.Expose private boolean useNativeSqrt     = true;
+    @com.google.gson.annotations.Expose private boolean useNativeInvSqrt  = true;
+    @com.google.gson.annotations.Expose private boolean useNativeAtan2    = true;
+    @com.google.gson.annotations.Expose private boolean useNativeFloor    = true;
+    @com.google.gson.annotations.Expose private boolean useNativeNoise    = true;
+    @com.google.gson.annotations.Expose private boolean useNativeF3       = true;
+    @com.google.gson.annotations.Expose private boolean useNativeRandom   = true;
 
     // World / system features
-    private boolean useNativeLighting    = true;
-    private boolean useNativeCompression = true;
-    private boolean useNativePathfinding = true;
-    private boolean useNativeCulling     = true;
-    private boolean useFastLoadingScreen = false;
-    private boolean useNativeCommands    = false;
+    @com.google.gson.annotations.Expose private boolean useNativeLighting    = true;
+    @com.google.gson.annotations.Expose private boolean useNativeCompression = true;
+    @com.google.gson.annotations.Expose private boolean useFastLoadingScreen = false;
+    @com.google.gson.annotations.Expose private boolean useNativeCommands    = false;
 
     // Mod compat toggles
-    private boolean enableParticleCulling      = true;
-    private boolean enableChunkBuilderExpand   = true;
-    private boolean enableTickSyncCompat       = true;
-    private boolean enableBBECompat            = true;
-    private boolean enableEMFCompat            = true;
-    private boolean enableETFCompat            = true;
-    private boolean enableAppleSkinCompat      = true;
-    private boolean enableEntityCullingCompat  = true;
-    private boolean enableImmediatelyFastCompat = true;
-    private boolean enableClientRedstoneSkip   = true;
-    private boolean enableDebugHudGraph        = false;
-    private boolean enablePieChart             = false;
-    private boolean enableNativeMetricsHud    = false;
+    @com.google.gson.annotations.Expose private boolean enableParticleCulling      = true;
+    @com.google.gson.annotations.Expose private boolean enableChunkBuilderExpand   = true;
+    @com.google.gson.annotations.Expose private boolean enableTickSyncCompat       = true;
+    @com.google.gson.annotations.Expose private boolean enableBBECompat            = true;
+    @com.google.gson.annotations.Expose private boolean enableEMFCompat            = true;
+    @com.google.gson.annotations.Expose private boolean enableETFCompat            = true;
+    @com.google.gson.annotations.Expose private boolean enableAppleSkinCompat      = true;
+    @com.google.gson.annotations.Expose private boolean enableEntityCullingCompat  = true;
+    @com.google.gson.annotations.Expose private boolean enableImmediatelyFastCompat = true;
+    @com.google.gson.annotations.Expose private boolean enableClientRedstoneSkip   = true;
+    @com.google.gson.annotations.Expose private boolean enableDebugHudGraph        = false;
+    @com.google.gson.annotations.Expose private boolean enablePieChart             = false;
+    @com.google.gson.annotations.Expose private boolean enableNativeMetricsHud    = false;
 
     // DNS / Server List
-    private boolean enableDnsCache             = true;
+    @com.google.gson.annotations.Expose private boolean enableDnsCache             = true;
 
     // Mod bridges
-    private boolean bridgeSodium    = true;
-    private boolean bridgeStarlight = true;
-    private boolean bridgeC2ME      = true;
-    private boolean bridgeIris      = true;
-    private boolean bridgeLithium   = true;
-    private boolean disableDhFade   = true;
+    @com.google.gson.annotations.Expose private boolean bridgeSodium    = true;
+    @com.google.gson.annotations.Expose private boolean bridgeStarlight = true;
+    @com.google.gson.annotations.Expose private boolean bridgeC2ME      = true;
+    @com.google.gson.annotations.Expose private boolean bridgeIris      = true;
+    @com.google.gson.annotations.Expose private boolean bridgeLithium   = true;
+    @com.google.gson.annotations.Expose private boolean disableDhFade   = true;
 
     // Loading screen colors
-    private int loadingBarBgColor      = 0xFF1A1A1A;
-    private int loadingBarLowColor     = 0xFF22AA44;
-    private int loadingBarMidColor     = 0xFFCCAA00;
-    private int loadingBarHighColor    = 0xFFCC2222;
-    private int loadingBarTextColor    = 0xDDFFFFFF;
-    private int loadingBarSubtextColor = 0x9900FFFF;
+    @com.google.gson.annotations.Expose private int loadingBarBgColor      = 0xFF1A1A1A;
+    @com.google.gson.annotations.Expose private int loadingBarLowColor     = 0xFF22AA44;
+    @com.google.gson.annotations.Expose private int loadingBarMidColor     = 0xFFCCAA00;
+    @com.google.gson.annotations.Expose private int loadingBarHighColor    = 0xFFCC2222;
+    @com.google.gson.annotations.Expose private int loadingBarTextColor    = 0xDDFFFFFF;
+    @com.google.gson.annotations.Expose private int loadingBarSubtextColor = 0x9900FFFF;
 
     // Developer
-    private boolean silenceLogs = true;
+    @com.google.gson.annotations.Expose private boolean silenceLogs = true;
+    @com.google.gson.annotations.Expose(serialize = false, deserialize = false)
     private boolean nativeReady = false;
-    private boolean experimentalCoexistEnabled = true;
+    @com.google.gson.annotations.Expose private boolean experimentalCoexistEnabled = true;
+    @com.google.gson.annotations.Expose private boolean lockCullingToPlayer = false;
+
+    // --- Runtime Mod Detection State (not saved to disk) ---
+    @com.google.gson.annotations.Expose(serialize = false, deserialize = false) private boolean modSodiumLoaded = false;
+    @com.google.gson.annotations.Expose(serialize = false, deserialize = false) private boolean modLithiumLoaded = false;
+    @com.google.gson.annotations.Expose(serialize = false, deserialize = false) private boolean modIrisLoaded = false;
+    @com.google.gson.annotations.Expose(serialize = false, deserialize = false) private boolean modStarlightLoaded = false;
+    @com.google.gson.annotations.Expose(serialize = false, deserialize = false) private boolean modC2MELoaded = false;
+    @com.google.gson.annotations.Expose(serialize = false, deserialize = false) private boolean modDistantHorizonsLoaded = false;
+    @com.google.gson.annotations.Expose(serialize = false, deserialize = false) private boolean modImmediatelyFastLoaded = false;
+    @com.google.gson.annotations.Expose(serialize = false, deserialize = false) private boolean modEntityCullingLoaded = false;
 
     public void copyFrom(RustMCConfig o) {
         this.useNativeSine = o.useNativeSine;
@@ -72,8 +82,6 @@ public class RustMCConfig {
         this.useNativeRandom = o.useNativeRandom;
         this.useNativeLighting = o.useNativeLighting;
         this.useNativeCompression = o.useNativeCompression;
-        this.useNativePathfinding = o.useNativePathfinding;
-        this.useNativeCulling = o.useNativeCulling;
         this.useFastLoadingScreen = o.useFastLoadingScreen;
         this.useNativeCommands = o.useNativeCommands;
         this.enableParticleCulling = o.enableParticleCulling;
@@ -105,6 +113,7 @@ public class RustMCConfig {
         this.silenceLogs = o.silenceLogs;
         this.nativeReady = o.nativeReady;
         this.experimentalCoexistEnabled = o.experimentalCoexistEnabled;
+        this.lockCullingToPlayer = o.lockCullingToPlayer;
     }
 
     // Getters
@@ -119,8 +128,6 @@ public class RustMCConfig {
     public boolean isEnableNativeRandom()   { return useNativeRandom; }
     public boolean isUseNativeLighting()    { return useNativeLighting; }
     public boolean isUseNativeCompression() { return useNativeCompression; }
-    public boolean isUseNativePathfinding() { return useNativePathfinding; }
-    public boolean isUseNativeCulling()     { return useNativeCulling; }
     public boolean isUseFastLoadingScreen() { return useFastLoadingScreen; }
     public boolean isUseNativeCommands()    { return useNativeCommands; }
     public boolean isEnableParticleCulling()      { return enableParticleCulling; }
@@ -152,6 +159,16 @@ public class RustMCConfig {
     public boolean isSilenceLogs()          { return silenceLogs; }
     public boolean isNativeReady()          { return nativeReady; }
     public boolean isExperimentalCoexistEnabled() { return experimentalCoexistEnabled; }
+    public boolean isLockCullingToPlayer()        { return lockCullingToPlayer; }
+
+    public boolean isModSodiumLoaded() { return modSodiumLoaded; }
+    public boolean isModLithiumLoaded() { return modLithiumLoaded; }
+    public boolean isModIrisLoaded() { return modIrisLoaded; }
+    public boolean isModStarlightLoaded() { return modStarlightLoaded; }
+    public boolean isModC2MELoaded() { return modC2MELoaded; }
+    public boolean isModDistantHorizonsLoaded() { return modDistantHorizonsLoaded; }
+    public boolean isModImmediatelyFastLoaded() { return modImmediatelyFastLoaded; }
+    public boolean isModEntityCullingLoaded() { return modEntityCullingLoaded; }
 
     // Setters
     public void setUseNativeSine(boolean v)        { useNativeSine = v; }
@@ -164,8 +181,6 @@ public class RustMCConfig {
     public void setEnableNativeRandom(boolean v)   { useNativeRandom = v; }
     public void setUseNativeLighting(boolean v)    { useNativeLighting = v; }
     public void setUseNativeCompression(boolean v) { useNativeCompression = v; }
-    public void setUseNativePathfinding(boolean v) { useNativePathfinding = v; }
-    public void setUseNativeCulling(boolean v)     { useNativeCulling = v; }
     public void setUseFastLoadingScreen(boolean v) { useFastLoadingScreen = v; }
     public void setUseNativeCommands(boolean v)    { useNativeCommands = v; }
     public void setEnableParticleCulling(boolean v)      { enableParticleCulling = v; }
@@ -197,4 +212,14 @@ public class RustMCConfig {
     public void setSilenceLogs(boolean v)          { silenceLogs = v; }
     public void setNativeReady(boolean v)          { nativeReady = v; }
     public void setExperimentalCoexistEnabled(boolean v) { experimentalCoexistEnabled = v; }
+    public void setLockCullingToPlayer(boolean v)        { lockCullingToPlayer = v; }
+
+    public void setModSodiumLoaded(boolean v) { modSodiumLoaded = v; }
+    public void setModLithiumLoaded(boolean v) { modLithiumLoaded = v; }
+    public void setModIrisLoaded(boolean v) { modIrisLoaded = v; }
+    public void setModStarlightLoaded(boolean v) { modStarlightLoaded = v; }
+    public void setModC2MELoaded(boolean v) { modC2MELoaded = v; }
+    public void setModDistantHorizonsLoaded(boolean v) { modDistantHorizonsLoaded = v; }
+    public void setModImmediatelyFastLoaded(boolean v) { modImmediatelyFastLoaded = v; }
+    public void setModEntityCullingLoaded(boolean v) { modEntityCullingLoaded = v; }
 }

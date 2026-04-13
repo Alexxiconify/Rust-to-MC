@@ -32,7 +32,7 @@ public class NativeBridge {
                 System.load(devPath.toString());
             } else {
                 // Use a persistent cache path in the game config directory to avoid re-extracting every launch
-                Path cacheDir = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("rustmc-bin");
+                Path cacheDir = RustMC.CONFIG_DIR.resolve("bin");
                 Files.createDirectories(cacheDir);
                 String version = RustMC.class.getPackage().getImplementationVersion();
                 if (version == null) version = "dev";
@@ -80,6 +80,8 @@ public class NativeBridge {
     private static native int rustProcessPacketDirect(long ptr, int len);
     private static native void rustProcessChunkData(byte[] buf, int len, int chunkX, int chunkZ);
     private static native void rustRequestMemoryCleanup();
+    private static native void rustConfigUpdate(String json);
+    private static native void rustSetConfigDir(String path);
 
     // Subverts Java-side chunk data parsing by offloading large byte buffers directly to Rust's optimized decoder (PumpkinMC style).
     public static void processChunkData(byte[] buf, int chunkX, int chunkZ) {
@@ -89,6 +91,20 @@ public class NativeBridge {
 
     public static void requestMemoryCleanup() {
         if (libLoaded) rustRequestMemoryCleanup();
+    }
+    
+    public static void configUpdate(String json) {
+        if (libLoaded) {
+            try { rustConfigUpdate(json); }
+            catch (UnsatisfiedLinkError ignored) { /* Optional */ }
+        }
+    }
+
+    public static void setConfigDir(String path) {
+        if (libLoaded) {
+            try { rustSetConfigDir(path); }
+            catch (UnsatisfiedLinkError ignored) { /* Optional */ }
+        }
     }
     // Frustum state management
     private static native long rustFrustumCreate();
@@ -636,7 +652,7 @@ public class NativeBridge {
     // ─── DNS Disk Persistence ────────────────────────────────────────────────
 
     private static final java.nio.file.Path DNS_CACHE_PATH =
-        net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("rust-mc-dns-cache.json");
+        RustMC.CONFIG_DIR.resolve("dns-cache.json");
 
     // Saves resolved hostname→IP pairs to disk so subsequent launches can skip DNS lookups entirely. Called on world unload and game exit.
     public static void dnsCacheSave() {
@@ -662,6 +678,14 @@ public class NativeBridge {
     public static void dnsCacheLoad() {
         if (!libLoaded) return;
         try {
+            if (!java.nio.file.Files.exists(DNS_CACHE_PATH)) {
+                // Check legacy path
+                java.nio.file.Path legacy = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("rust-mc-dns-cache.json");
+                if (java.nio.file.Files.exists(legacy)) {
+                    java.nio.file.Files.move(legacy, DNS_CACHE_PATH);
+                    RustMC.LOGGER.info("[Rust-MC] Migrated DNS cache to {}", DNS_CACHE_PATH);
+                }
+            }
             if (java.nio.file.Files.exists(DNS_CACHE_PATH)) {
                 String json = java.nio.file.Files.readString(DNS_CACHE_PATH);
                 if (!json.isBlank()) {

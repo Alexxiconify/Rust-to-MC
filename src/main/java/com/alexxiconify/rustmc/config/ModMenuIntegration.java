@@ -11,31 +11,26 @@ import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.YetAnotherConfigLib;
 import dev.isxander.yacl3.api.controller.BooleanControllerBuilder;
-import dev.isxander.yacl3.api.controller.ColorControllerBuilder;
 import net.minecraft.text.Text;
-
-import java.awt.Color;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class ModMenuIntegration implements ModMenuApi {
 
-    private static final String YES = "§aYES";
-    private static final String NO  = "§7NO";
+    private static final String DETECTED     = "§aDETECTED";
+    private static final String NOT_FOUND    = "§7NOT FOUND";
 
     @Override
     public ConfigScreenFactory<?> getModConfigScreenFactory() {
         return parent -> {
+            if (!NativeBridge.isReady()) return null;
             RustMCConfig cfg = RustMC.CONFIG;
             return YetAnotherConfigLib.createBuilder()
                 .title(Text.literal("Rust to MC Config"))
                 .category(buildStatusCategory())
-                .category(buildMathCategory(cfg))
                 .category(buildFeaturesCategory(cfg))
+                .category(buildMathCategory(cfg))
                 .category(buildModCompatCategory(cfg))
-                .category(buildBridgesCategory(cfg))
-                .category(buildLoadingScreenCategory(cfg))
-                .category(buildElbCategory())
                 .category(buildDevCategory(cfg))
                 .category(buildMetricsCategory())
                 .category(buildBlameCategory())
@@ -58,29 +53,25 @@ public class ModMenuIntegration implements ModMenuApi {
                 .controller(opt -> BooleanControllerBuilder.create(opt)
                     .formatValue(val -> Text.literal(NativeBridge.isReady() ? "§aREADY" : "§cFAILED")))
                 .build())
-            .option(buildDetectOption("Sodium Detected",   () -> ModBridge.SODIUM))
-            .option(buildDetectOption("Iris Detected",     () -> ModBridge.IRIS))
-            .option(buildDetectOption("Lithium Detected",  () -> ModBridge.LITHIUM))
-            .option(buildDetectOption("C2ME Detected",     () -> ModBridge.C2ME))
-            .option(buildDetectOption("BBE Detected",      () -> ModBridge.BETTERBLOCKENTITIES))
-            .option(buildDetectOption("EMF Detected",      () -> ModBridge.ENTITY_MODEL_FEATURES))
-            .option(buildDetectOption("ETF Detected",      () -> ModBridge.ENTITY_TEXTURE_FEATURES))
-            .option(buildDetectOption("EntityCulling Detected", () -> ModBridge.ENTITYCULLING))
-            .option(buildDetectOption("TickSync Detected", () -> ModBridge.TICK_SYNC))
-            .option(buildDetectOption("Oxidizium Detected", () -> ModBridge.OXIDIZIUM))
-            .option(buildDetectOption("ImmediatelyFast Detected", () -> ModBridge.IMMEDIATELYFAST))
-            .option(buildDetectOption("Distant Horizons Detected", () -> ModBridge.DISTANT_HORIZONS))
-            .option(buildDetectOption("AppleSkin Detected",       () -> ModBridge.APPLESKIN))
+            .option(buildDetectOption("Sodium",   () -> ModBridge.SODIUM))
+            .option(buildDetectOption("Iris",     () -> ModBridge.IRIS))
+            .option(buildDetectOption("Lithium",  () -> ModBridge.LITHIUM))
+            .option(buildDetectOption("C2ME",     () -> ModBridge.C2ME))
+            .option(buildDetectOption("BBE",      () -> ModBridge.BETTERBLOCKENTITIES))
+            .option(buildDetectOption("EMF/ETF",  () -> ModBridge.ENTITY_MODEL_FEATURES || ModBridge.ENTITY_TEXTURE_FEATURES))
+            .option(buildDetectOption("EntityCulling", () -> ModBridge.ENTITYCULLING))
+            .option(buildDetectOption("ImmediatelyFast", () -> ModBridge.IMMEDIATELYFAST))
+            .option(buildDetectOption("Distant Horizons", () -> ModBridge.DISTANT_HORIZONS))
             .build();
     }
 
     private Option<Boolean> buildDetectOption(String name, Supplier<Boolean> isDetected) {
         return Option.<Boolean>createBuilder()
             .name(Text.literal(name))
-            .description(OptionDescription.of(Text.literal("Whether " + name.replace(" Detected", "") + " is installed.")))
+            .description(OptionDescription.of(Text.literal("Detection status for " + name + ".")))
             .binding(true, isDetected, val -> {})
             .controller(opt -> BooleanControllerBuilder.create(opt)
-                .formatValue(val -> Text.literal(Boolean.TRUE.equals(isDetected.get()) ? YES : NO)))
+                .formatValue(val -> Text.literal(Boolean.TRUE.equals(isDetected.get()) ? DETECTED : NOT_FOUND)))
             .build();
     }
 
@@ -105,8 +96,7 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildBooleanOption("Native Floor",
                 "Replaces MathHelper.floor() with bitwise cast.", cfg::isUseNativeFloor, v -> cfg.setUseNativeFloor(v != null && v)))
             .option(buildBooleanOption("Native Noise (World Gen)",
-                "Replaces SimplexNoiseSampler with Rust Simplex, seeded by world seed.\n" +
-                "Disabled automatically when C2ME Bridge is ON.",
+                "Replaces SimplexNoiseSampler with Rust Simplex, seeded by world seed.",
                 cfg::isUseNativeNoise, v -> cfg.setUseNativeNoise(v != null && v)))
             .build();
     }
@@ -119,31 +109,20 @@ public class ModMenuIntegration implements ModMenuApi {
                 "Replaces packet Zlib compression with Rust zlib-ng encoder.",
                 cfg::isUseNativeCompression, v -> cfg.setUseNativeCompression(v != null && v)))
             .option(buildBooleanOption("Native Lighting (Experimental)",
-                "Hooks lighting engine for Rust-parallel updates.\n" +
-                "Disabled when Sodium/Starlight/C2ME/Iris Bridge is ON.",
+                "Hooks lighting engine for Rust-parallel updates. Automatically bypasses conflicts.",
                 cfg::isUseNativeLighting, v -> cfg.setUseNativeLighting(v != null && v)))
-            .option(buildBooleanOption("Native Pathfinding (Experimental)",
-                "Rust A* pre-computes mob path distances; cancels vanilla only when mob is at target.\n" +
-                "Disabled when Lithium Bridge is ON.",
-                cfg::isUseNativePathfinding, v -> cfg.setUseNativePathfinding(v != null && v)))
-            .option(buildBooleanOption("Native Culling (Fixes Dripstone)",
-                "Prevents aggressive face culling on 3D Dripstone (VanillaTweaks).",
-                cfg::isUseNativeCulling, v -> cfg.setUseNativeCulling(v != null && v)))
-            .option(buildBooleanOption("Native Commands (Experimental)",
-                "Passes server commands to Rust before Brigadier. Currently a no-op — leave OFF.",
-                cfg::isUseNativeCommands, v -> cfg.setUseNativeCommands(v != null && v)))
+            .option(buildBooleanOption("Lock Culling to Player Body (Debug)",
+                "If ON, culling follows your physical body. If OFF (Default), culling follows your camera (lens).\nUseful for debugging frustum leaks with Freecam.",
+                cfg::isLockCullingToPlayer, v -> cfg.setLockCullingToPlayer(v != null && v)))
             .option(buildBooleanOption("DNS Cache (Server Pings)",
-                "Caches DNS lookups for 5 minutes via Rust to speed up server list pings.\n" +
-                "Eliminates repeated DNS resolution when refreshing the multiplayer server list.\n" +
-                "Cached entries: " + NativeBridge.dnsCacheSize(),
+                "Caches DNS lookups for 5 minutes via Rust to speed up server list pings.",
                 cfg::isEnableDnsCache, v -> cfg.setEnableDnsCache(v != null && v)))
             .option(buildBooleanOption("Native Metrics HUD",
-                "Shows live JNI/SIMD metrics in the corner of the screen.",
+                "Shows native performance metrics. Toggle with F3 + R.",
                 cfg::isEnableNativeMetricsHud, v -> cfg.setEnableNativeMetricsHud(v != null && v)))
             .build();
     }
 
-    // Mod compatibility feature toggles — each can be disabled individually.
     private ConfigCategory buildModCompatCategory(RustMCConfig cfg) {
         return ConfigCategory.createBuilder()
             .name(Text.literal("Mod Compatibility"))
@@ -185,100 +164,6 @@ public class ModMenuIntegration implements ModMenuApi {
             .build();
     }
 
-    private ConfigCategory buildBridgesCategory(RustMCConfig cfg) {
-        return ConfigCategory.createBuilder()
-            .name(Text.literal("Mod Bridges"))
-            .tooltip(Text.literal("Control which mods are allowed to 'own' a subsystem.\nWhen ON + mod installed, Rust-MC steps aside."))
-            .option(buildBooleanOption("Sodium Bridge",
-                "Defer rendering-related math to Sodium when present.",
-                cfg::isBridgeSodium, v -> cfg.setBridgeSodium(v != null && v)))
-            .option(buildBooleanOption("Starlight Bridge",
-                "Disable native lighting when Starlight is installed.",
-                cfg::isBridgeStarlight, v -> cfg.setBridgeStarlight(v != null && v)))
-            .option(buildBooleanOption("C2ME Bridge",
-                "Disable native math/noise/lighting hooks when C2ME is installed.",
-                cfg::isBridgeC2ME, v -> cfg.setBridgeC2ME(v != null && v)))
-            .option(buildBooleanOption("Iris Bridge",
-                "Disable native lighting hook when Iris is installed.",
-                cfg::isBridgeIris, v -> cfg.setBridgeIris(v != null && v)))
-            .option(buildBooleanOption("Lithium Bridge",
-                "Disable native pathfinding when Lithium is installed.",
-                cfg::isBridgeLithium, v -> cfg.setBridgeLithium(v != null && v)))
-            .option(buildBooleanOption("Disable DH Chunk Fade",
-                "Disables Distant Horizons LOD fade for a sharper look.",
-                cfg::isDisableDhFade, v -> cfg.setDisableDhFade(v != null && v)))
-            .build();
-    }
-
-    // Loading screen overlay color configuration.
-    private ConfigCategory buildLoadingScreenCategory(RustMCConfig cfg) {
-        return ConfigCategory.createBuilder()
-            .name(Text.literal("Loading Screen Colors"))
-            .tooltip(Text.literal("Customize the in-game loading overlay colors."))
-            .option(buildBooleanOption("Enable Fast Loading Screen",
-                "Enables the Rust-MC loading overlay (RAM bar, mod count, dark background).",
-                cfg::isUseFastLoadingScreen, v -> cfg.setUseFastLoadingScreen(v != null && v)))
-            .option(buildColorOption("Bar Background",
-                "Dark track color behind the RAM bar.",
-                () -> new Color(cfg.getLoadingBarBgColor(), true),
-                c -> cfg.setLoadingBarBgColor(c.getRGB())))
-            .option(buildColorOption("Bar Low (< 60%)",
-                "Color when RAM usage is below 60%.",
-                () -> new Color(cfg.getLoadingBarLowColor(), true),
-                c -> cfg.setLoadingBarLowColor(c.getRGB())))
-            .option(buildColorOption("Bar Mid (60–80%)",
-                "Color when RAM usage is 60–80%.",
-                () -> new Color(cfg.getLoadingBarMidColor(), true),
-                c -> cfg.setLoadingBarMidColor(c.getRGB())))
-            .option(buildColorOption("Bar High (> 80%)",
-                "Color when RAM usage exceeds 80%.",
-                () -> new Color(cfg.getLoadingBarHighColor(), true),
-                c -> cfg.setLoadingBarHighColor(c.getRGB())))
-            .option(buildColorOption("RAM Label Text",
-                "Color of the RAM MB / MB text.",
-                () -> new Color(cfg.getLoadingBarTextColor(), true),
-                c -> cfg.setLoadingBarTextColor(c.getRGB())))
-            .option(buildColorOption("Mod Count Text",
-                "Color of the 'Rust-MC • N mods' label.",
-                () -> new Color(cfg.getLoadingBarSubtextColor(), true),
-                c -> cfg.setLoadingBarSubtextColor(c.getRGB())))
-            .build();
-    }
-
-    private ConfigCategory buildElbCategory() {
-        com.iafenvoy.elb.config.ElbConfig elb = com.iafenvoy.elb.config.ElbConfig.getInstance();
-        return ConfigCategory.createBuilder()
-            .name(Text.literal("Early Loading Bar"))
-            .tooltip(Text.literal("Customize the pre-launch Swing window appearance."))
-            .option(Option.<String>createBuilder()
-                .name(Text.literal("Window Title"))
-                .description(OptionDescription.of(Text.literal("Title text. Use %version% for MC version.")))
-                .binding("Early Loading Bar %version%", elb::getBarTitle, elb::setBarTitle)
-                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
-                .build())
-            .option(Option.<String>createBuilder()
-                .name(Text.literal("Loading Message"))
-                .description(OptionDescription.of(Text.literal("Text shown below the progress bars.")))
-                .binding("Loading Minecraft %version%...", elb::getBarMessage, elb::setBarMessage)
-                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
-                .build())
-            .option(Option.<String>createBuilder()
-                .name(Text.literal("Logo Path"))
-                .description(OptionDescription.of(Text.literal("Absolute path to a .png / .jpg logo (optional).")))
-                .binding("", elb::getLogoPath, elb::setLogoPath)
-                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
-                .build())
-            .option(buildColorOptionSwing("Memory Bar Color",
-                "Color of the RAM usage bar in the ELB window.",
-                () -> parseSwingColor(elb.getMemoryBarColor(), java.awt.Color.RED),
-                c -> elb.setMemoryBarColor(String.valueOf(c.getRGB()))))
-            .option(buildColorOptionSwing("Mod Bar Color",
-                "Color of the mod loading progress bar in the ELB window.",
-                () -> parseSwingColor(elb.getMessageBarColor(), java.awt.Color.MAGENTA),
-                c -> elb.setMessageBarColor(String.valueOf(c.getRGB()))))
-            .build();
-    }
-
     private ConfigCategory buildDevCategory(RustMCConfig cfg) {
         return ConfigCategory.createBuilder()
             .name(Text.literal("Developer"))
@@ -287,8 +172,6 @@ public class ModMenuIntegration implements ModMenuApi {
                 cfg::isSilenceLogs, v -> cfg.setSilenceLogs(v != null && v)))
             .build();
     }
-
-    // --- Helpers ---
 
     private Option<Boolean> buildBooleanOption(String name, String desc, Supplier<Boolean> getter, Consumer<Boolean> setter) {
         return Option.<Boolean>createBuilder()
@@ -299,23 +182,6 @@ public class ModMenuIntegration implements ModMenuApi {
             .build();
     }
 
-    private Option<Color> buildColorOption(String name, String desc, Supplier<Color> getter, Consumer<Color> setter) {
-        return Option.<Color>createBuilder()
-            .name(Text.literal(name))
-            .description(OptionDescription.of(Text.literal(desc)))
-            .binding(getter.get(), getter, setter)
-            .controller(ColorControllerBuilder::create)
-            .build();
-    }
-
-    // Same as buildColorOption but for Swing java.awt.Color (ELB colors).
-    private Option<Color> buildColorOptionSwing(String name, String desc, Supplier<Color> getter, Consumer<Color> setter) {
-        return buildColorOption(name, desc, getter, setter);
-    }
-
-    private static java.awt.Color parseSwingColor(String val, java.awt.Color fallback) {
-        try { return new java.awt.Color(Integer.parseInt(val)); } catch (Exception e) { return fallback; }
-    }
 
     private ConfigCategory buildMetricsCategory() {
         return ConfigCategory.createBuilder()
@@ -344,8 +210,6 @@ public class ModMenuIntegration implements ModMenuApi {
                 .build())
             .build();
     }
-
-    // ── Blame Chart ─────────────────────────────────────────────────────────
 
     private static final String PCT_FORMAT = "%.1f%%";
 
