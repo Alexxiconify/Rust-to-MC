@@ -105,6 +105,7 @@ Goal: reduce locks, allocations, and crossings in hot render loops.
 - `RamBarRenderer` now caches RAM label text between refreshes.
 - `RenderUtilsMixin` now uses correct box center math and one camera lookup per cull path.
 - `FrustumMixin` now batches frustum refresh + cave status into one JNI call when native culling is active.
+- `WindowMixin` now skips repeated clear attempts after first successful init clear.
 
 Next step: profile the remaining real bottleneck before any deeper lock rewrite.
 
