@@ -26,23 +26,23 @@ public class RustMC implements ModInitializer {
         // ...existing code...
         // Flush per-group mixin application timings into the blame chart
         MixinManager.flushBlameTimings();
-        // Run independent compat initializations in parallel on virtual threads
+        // Run independent compat initializations in parallel on platform daemon threads
         // These have no ordering dependencies on each other
         java.util.concurrent.CompletableFuture.runAsync(
             com.alexxiconify.rustmc.compat.ScalableLuxCompat::initialize,
-            r -> Thread.ofVirtual().name("rustmc-compat-slx").start(r));
+            r -> Thread.ofPlatform().daemon(true).name("rustmc-compat-slx").start(r));
         java.util.concurrent.CompletableFuture.runAsync(() -> {
             if (CONFIG.isUseNativeCulling()) {
                 com.alexxiconify.rustmc.compat.DistantHorizonsCompat.registerFrustumCuller();
             }
             com.alexxiconify.rustmc.compat.DistantHorizonsCompat.optimizeLodThreading();
-        }, r -> Thread.ofVirtual().name("rustmc-compat-dh").start(r));
+        }, r -> Thread.ofPlatform().daemon(true).name("rustmc-compat-dh").start(r));
         // Reflect real native status into config so ModMenu Status screen is accurate
         CONFIG.setNativeReady(NativeBridge.isReady());
         if (NativeBridge.isReady()) {
             LOGGER.info("[Rust-MC] Native optimizations ACTIVE.");
             // Load persisted DNS cache from disk for instant server list lookups - backgrounded
-            Thread.ofVirtual().name("rustmc-dns-load").start(NativeBridge::dnsCacheLoad);
+            Thread.ofPlatform().daemon(true).name("rustmc-dns-load").start(NativeBridge::dnsCacheLoad);
             // Seed noise on every world load so it matches the world seed
             ServerWorldEvents.LOAD.register((server, world) -> {
                 BlameLog.begin("World Load (" + world.getRegistryKey().getValue() + ")");

@@ -28,12 +28,6 @@ public class DistantHorizonsCompat {
     private static final int VP_MATRIX_SIZE = 16;
     private static final float[] lastVpArray = new float[VP_MATRIX_SIZE];
     private static boolean hasLastVpArray = false;
-    private static SpaceMode dhSpaceMode = SpaceMode.UNKNOWN;
-    private enum SpaceMode {
-        UNKNOWN,
-        ABSOLUTE,
-        CAMERA_RELATIVE
-    }
 
     private enum ProxyMethodKind {
         PRIORITY,
@@ -66,7 +60,6 @@ public class DistantHorizonsCompat {
             hasLastVpArray = false;
             hasLastCameraState = false;
             frustumInitialized = false;
-            dhSpaceMode = SpaceMode.UNKNOWN;
             Class<?> apiClass = Class.forName(DH_API_CLASS);
             Object overridesInjector = apiClass.getField("overrides").get(null);
             java.lang.reflect.Method bindMethod = findBindMethod(overridesInjector);
@@ -151,7 +144,6 @@ public class DistantHorizonsCompat {
         if (!frustumInitialized || shouldRefreshFrustum(vpArray)) {
             cacheVpArray(vpArray);
             frustumInitialized = com.alexxiconify.rustmc.NativeBridge.updateRustFrustumTracked(rustFrustumPtr, vpArray);
-            dhSpaceMode = SpaceMode.UNKNOWN;
         }
         return null;
     }
@@ -299,41 +291,28 @@ public class DistantHorizonsCompat {
     }
 
     // DH versions may feed absolute world AABBs or camera-relative AABBs. We test
-    // absolute first, then fall back to camera-offset coordinates to avoid false culls.
+    // absolute first, then signed camera-relative variants to avoid direction-space mismatches.
     private static boolean cullDhSectionInAnySpace(double minX, double minY, double minZ,
                                                    double maxX, double maxY, double maxZ) {
-        if (dhSpaceMode == SpaceMode.ABSOLUTE) {
-            boolean visible = testAbsoluteSpace(minX, minY, minZ, maxX, maxY, maxZ);
-            if (visible) {
-                return true;
-            }
-            boolean visibleRelative = testCameraRelativeSpace(minX, minY, minZ, maxX, maxY, maxZ);
-            if (visibleRelative) {
-                dhSpaceMode = SpaceMode.CAMERA_RELATIVE;
-            }
-            return visibleRelative;
+        String mode = com.alexxiconify.rustmc.RustMC.CONFIG.getDhCullingSpaceMode();
+        if (com.alexxiconify.rustmc.config.RustMCConfig.DH_CULLING_SPACE_ABSOLUTE.equals(mode)) {
+            return testAbsoluteSpace(minX, minY, minZ, maxX, maxY, maxZ);
         }
-        if (dhSpaceMode == SpaceMode.CAMERA_RELATIVE) {
-            boolean visible = testCameraRelativeSpace(minX, minY, minZ, maxX, maxY, maxZ);
-            if (visible) {
-                return true;
-            }
-            boolean visibleAbsolute = testAbsoluteSpace(minX, minY, minZ, maxX, maxY, maxZ);
-            if (visibleAbsolute) {
-                dhSpaceMode = SpaceMode.ABSOLUTE;
-            }
-            return visibleAbsolute;
+        if (com.alexxiconify.rustmc.config.RustMCConfig.DH_CULLING_SPACE_PLUS_CAMERA.equals(mode)) {
+            return testCameraRelativeSpace(minX, minY, minZ, maxX, maxY, maxZ, 1.0);
+        }
+        if (com.alexxiconify.rustmc.config.RustMCConfig.DH_CULLING_SPACE_MINUS_CAMERA.equals(mode)) {
+            return testCameraRelativeSpace(minX, minY, minZ, maxX, maxY, maxZ, -1.0);
         }
         boolean visibleAbsolute = testAbsoluteSpace(minX, minY, minZ, maxX, maxY, maxZ);
         if (visibleAbsolute) {
-            dhSpaceMode = SpaceMode.ABSOLUTE;
             return true;
         }
-        boolean visibleRelative = testCameraRelativeSpace(minX, minY, minZ, maxX, maxY, maxZ);
-        if (visibleRelative) {
-            dhSpaceMode = SpaceMode.CAMERA_RELATIVE;
+        boolean visibleCameraPlus = testCameraRelativeSpace(minX, minY, minZ, maxX, maxY, maxZ, 1.0);
+        if (visibleCameraPlus) {
+            return true;
         }
-        return visibleRelative;
+        return testCameraRelativeSpace(minX, minY, minZ, maxX, maxY, maxZ, -1.0);
     }
 
     private static boolean testAbsoluteSpace(double minX, double minY, double minZ,
@@ -348,7 +327,8 @@ public class DistantHorizonsCompat {
     }
 
     private static boolean testCameraRelativeSpace(double minX, double minY, double minZ,
-                                                   double maxX, double maxY, double maxZ) {
+                                                   double maxX, double maxY, double maxZ,
+                                                   double cameraSign) {
         net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
         if (mc == null) {
             return false;
@@ -357,10 +337,13 @@ public class DistantHorizonsCompat {
         if (camera == null) {
             return false;
         }
+        double cx = camera.getX() * cameraSign;
+        double cy = camera.getY() * cameraSign;
+        double cz = camera.getZ() * cameraSign;
         return com.alexxiconify.rustmc.NativeBridge.cullDistantHorizonsSection(
             rustFrustumPtr,
-            minX + camera.getX(), minY + camera.getY(), minZ + camera.getZ(),
-            maxX + camera.getX(), maxY + camera.getY(), maxZ + camera.getZ(),
+            minX + cx, minY + cy, minZ + cz,
+            maxX + cx, maxY + cy, maxZ + cz,
             DH_SURFACE_Y,
             DH_AGGRESSIVE_MARGIN
         );
@@ -428,11 +411,11 @@ public class DistantHorizonsCompat {
         }
     }
     //
-     // Pre-warms DH's LOD file cache for the current world on a virtual thread.
+     // Pre-warms DH's LOD file cache for the current world on a platform daemon thread.
      // Called when connecting to a world/server to reduce initial LOD pop-in.
     public static void prefetchLodData() {
         if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID)) return;
-        Thread.ofVirtual().name("rustmc-dh-prefetch").start(() -> {
+        Thread.ofPlatform().daemon(true).name("rustmc-dh-prefetch").start(() -> {
             try {
                 // Trigger DH's internal data cache warmup by touching the API
                 Class<?> apiClass = Class.forName(DH_API_CLASS);

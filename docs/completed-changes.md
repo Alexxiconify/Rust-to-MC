@@ -2,6 +2,47 @@
 
 This document records optimization and stability work that has already been completed in **Rust to MC**. It is the historical companion to `ROADMAP.md`, which now focuses on planned and in-progress work.
 
+## April 14, 2026 - Background Thread Sweep & Roadmap Trim
+
+**Completed this cleanup pass:**
+- `RustMC.java` now runs compat initialization and DNS cache loading on platform daemon threads instead of virtual threads.
+- `PreLaunchHandler.java` now triggers the early native preload on a platform daemon thread.
+- `ServerPingerMixin.java` now prewarms DNS on a platform daemon thread.
+- `DistantHorizonsCompat.java` now prefetches DH LOD data on a platform daemon thread.
+- `ROADMAP.md` was trimmed to remove already-finished frustum buffer reuse and batched frustum/cave JNI work.
+
+**Payoff:**
+- Lower scheduler overhead on startup and background warmup paths.
+- Cleaner thread naming and consistent background execution behavior.
+- Leaner roadmap with fewer items that are already archived in this history file.
+
+## April 14, 2026 - Frustum Hot-Path AABB Trim (Java + Rust)
+
+**Completed this optimization pass:**
+- `NativeBridge.updateVanillaFrustumAndCave()` now reuses one captured `ClientFrustumContext` when the fused JNI symbol is unavailable, avoiding an extra context read in the fallback path.
+- `rust_mc_core/src/frustum.rs` now exposes `is_outside_aabb_coords(...)` so callers can run AABB frustum tests without building temporary `[f64; 3]` min/max arrays.
+- `rust_mc_core/src/lib.rs` batch frustum testing now calls the scalar helper directly in `frustum_test_result(...)`, removing per-AABB temporary array materialization from the hot loop.
+- `ROADMAP.md` was trimmed further by removing the already-realized generic locality bullet that is now covered by completed frustum-path reuse work.
+
+**Payoff:**
+- Lower per-call overhead in Java frustum+cave fallback JNI handling.
+- Lower allocation/temporary-value pressure in Rust batch frustum loops.
+- Roadmap remains focused on outstanding profiling and uncompleted cache-locality tasks.
+
+## April 14, 2026 - Gradle + Cargo Build-Speed Pass
+
+**Completed this build-system pass:**
+- `build.gradle` now tracks Rust inputs more precisely (`**/*.rs`, `Cargo.toml`, `Cargo.lock`, optional `build.rs`, optional `.cargo/config.toml`) to improve up-to-date accuracy.
+- `rustBuild` now invokes Cargo directly with `cargo build --release --locked` (no `cmd /c` shell hop on Windows).
+- Rust native artifacts are now staged into `build/generated/rust-resources` instead of writing into `src/main/resources`, avoiding source-tree churn and reducing unnecessary resource invalidation.
+- Subproject `ProcessResources` tasks now consume staged generated resources from the root build directory.
+- Root `sourcesJar` tasks no longer depend on Rust binary staging, so source packaging skips unnecessary Cargo work.
+
+**Payoff:**
+- Fewer unnecessary Cargo runs during Java/source-only iteration.
+- Faster Gradle task graph execution by avoiding source-tree copy invalidation.
+- Better incremental behavior across repeated `processResources` / `build` runs.
+
 ## April 13, 2026 - Client-Only Mixin Refactor & Performance Optimization
 
 ### Hot-Path Telemetry & Budget Cleanup

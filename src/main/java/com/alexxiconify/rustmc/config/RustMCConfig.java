@@ -36,6 +36,7 @@ public class RustMCConfig {
     private boolean enableDhCaveCulling        = true;
     private boolean usePlayerPosForDhCulling   = false;
     private boolean enableDhCullingDebugLog    = false;
+    private String dhCullingSpaceMode          = DH_CULLING_SPACE_AUTO;
     private boolean enableDebugHudGraph        = false;
     private boolean enablePieChart             = false;
     private boolean enableNativeMetricsHud     = false;
@@ -58,6 +59,11 @@ public class RustMCConfig {
     private boolean silenceLogs = true;
     private boolean nativeReady = false;
     private boolean experimentalCoexistEnabled = true;
+
+    public static final String DH_CULLING_SPACE_AUTO = "auto";
+    public static final String DH_CULLING_SPACE_ABSOLUTE = "absolute";
+    public static final String DH_CULLING_SPACE_PLUS_CAMERA = "plus_camera";
+    public static final String DH_CULLING_SPACE_MINUS_CAMERA = "minus_camera";
     public void copyFrom(RustMCConfig o) {
         this.configVersion = o.configVersion;
         this.useNativeSine = o.useNativeSine;
@@ -87,6 +93,7 @@ public class RustMCConfig {
         this.enableDhCaveCulling = o.enableDhCaveCulling;
         this.usePlayerPosForDhCulling = o.usePlayerPosForDhCulling;
         this.enableDhCullingDebugLog = o.enableDhCullingDebugLog;
+        this.dhCullingSpaceMode = normalizeDhCullingSpaceMode(o.dhCullingSpaceMode);
         this.enableDebugHudGraph = o.enableDebugHudGraph;
         this.enablePieChart = o.enablePieChart;
         this.enableNativeMetricsHud = o.enableNativeMetricsHud;
@@ -136,6 +143,7 @@ public class RustMCConfig {
     public boolean isEnableDhCaveCulling()        { return enableDhCaveCulling; }
     public boolean isUsePlayerPosForDhCulling()   { return usePlayerPosForDhCulling; }
     public boolean isEnableDhCullingDebugLog()    { return enableDhCullingDebugLog; }
+    public String getDhCullingSpaceMode()         { return normalizeDhCullingSpaceMode(dhCullingSpaceMode); }
     public boolean isEnableDebugHudGraph()        { return enableDebugHudGraph; }
     public boolean isEnablePieChart()             { return enablePieChart; }
     public boolean isEnableNativeMetricsHud()     { return enableNativeMetricsHud; }
@@ -185,6 +193,7 @@ public class RustMCConfig {
     public void setEnableDhCaveCulling(boolean v)        { enableDhCaveCulling = v; }
     public void setUsePlayerPosForDhCulling(boolean v)   { usePlayerPosForDhCulling = v; }
     public void setEnableDhCullingDebugLog(boolean v)    { enableDhCullingDebugLog = v; }
+    public void setDhCullingSpaceMode(String mode)       { dhCullingSpaceMode = normalizeDhCullingSpaceMode(mode); }
     public void setEnableDebugHudGraph(boolean v)        { enableDebugHudGraph = v; }
     public void setEnablePieChart(boolean v)             { enablePieChart = v; }
     public void setEnableNativeMetricsHud(boolean v)     { enableNativeMetricsHud = v; }
@@ -205,4 +214,25 @@ public class RustMCConfig {
     public void setNativeReady(boolean v)          { nativeReady = v; }
     @SuppressWarnings("unused")
     public void setExperimentalCoexistEnabled(boolean v) { experimentalCoexistEnabled = v; }
+
+    public static String normalizeDhCullingSpaceMode(String mode) {
+        if (mode == null) {
+            return DH_CULLING_SPACE_AUTO;
+        }
+        return switch (mode.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case DH_CULLING_SPACE_ABSOLUTE -> DH_CULLING_SPACE_ABSOLUTE;
+            case DH_CULLING_SPACE_PLUS_CAMERA -> DH_CULLING_SPACE_PLUS_CAMERA;
+            case DH_CULLING_SPACE_MINUS_CAMERA -> DH_CULLING_SPACE_MINUS_CAMERA;
+            default -> DH_CULLING_SPACE_AUTO;
+        };
+    }
+
+    public static String nextDhCullingSpaceMode(String current) {
+        return switch (normalizeDhCullingSpaceMode(current)) {
+            case DH_CULLING_SPACE_AUTO -> DH_CULLING_SPACE_ABSOLUTE;
+            case DH_CULLING_SPACE_ABSOLUTE -> DH_CULLING_SPACE_PLUS_CAMERA;
+            case DH_CULLING_SPACE_PLUS_CAMERA -> DH_CULLING_SPACE_MINUS_CAMERA;
+            default -> DH_CULLING_SPACE_AUTO;
+        };
+    }
 }

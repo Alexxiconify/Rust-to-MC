@@ -25,9 +25,11 @@ Scope: active work only. Completed optimization history lives in [`docs/complete
 - Timing overlay is now text-only (no pie graphic), and keybind category translations are aligned so all Rust-MC binds are discoverable in Controls.
 - Keybind category registration now uses a Controlling-safe namespace (`rustmc:keybinds`) so the category label resolves to `Rust-to-MC` consistently.
 - DH frustum checks now tolerate both absolute and camera-relative section AABBs (absolute-first, camera-offset fallback) to prevent coordinate-space culling regressions.
-- DH frustum compat now caches reflected method/field lookups, reuses a fixed VP matrix snapshot buffer, and learns preferred DH AABB coordinate-space mode to avoid repeated dual JNI cull calls.
+- DH frustum compat now caches reflected method/field lookups, reuses a fixed VP matrix snapshot buffer, and validates DH AABBs across absolute plus signed camera-relative spaces to prevent direction/quadrant culling errors.
+- DH culling space mode is now configurable (`auto` / `absolute` / `plus_camera` / `minus_camera`), cycleable via keybind, and confirmed in-game through action-bar messages for fast live testing.
 - Rust particle ticking now reuses thread-local native scratch buffers and only enables Rayon for larger batches, reducing per-tick allocations and scheduling overhead.
 - Particle spawn culling now caches squared cutoff distance at 20Hz, removing repeated per-spawn cutoff recomputation from `ParticleManagerMixin` hot paths.
+- Gradle/Cargo packaging now stages native outputs in `build/generated/rust-resources` and skips Rust binary staging for `sourcesJar`, reducing avoidable rebuild work.
 
 ## Completed Changes
 
@@ -80,9 +82,7 @@ Goal: improve CPU cache efficiency in hot render loops.
 
 - Profile matrix buffer allocations in `MatrixMixin` for NUMA effects on multi-socket systems.
 - Validate JOML matrix data layout (row-major vs column-major) against Rust SIMD expectation.
-- Reuse persistent buffers in `FrustumMixin` instead of per-frame rebuilds.
 - Profile render-state lookups in `ParticleManagerMixin` and `RenderBudgetMixin` for cache thrashing.
-- Prefer contiguous, reused state over new per-frame objects.
 
 ### 6) Debug Visibility for Profiling (Next)
 
@@ -126,7 +126,6 @@ Goal: optimize chunk building and vertex buffer management.
 
 Goal: reduce JNI crossing overhead in high-frequency paths.
 
-- Batch multiple Rust operations per JNI call where possible (e.g., frustum + cave check).
 - Profile JNI method lookup cost vs direct native invocation.
 - Cache stable JNI function references only if repeated crossings dominate frame time.
 - Validate that exception handling in fallback paths does not trigger costly class lookups.

@@ -8,55 +8,60 @@ group = 'com.alexxiconify.rustmc'
 
 // ─── Rust native library build (Incremental Support) ───────────────────────
 
+def rustProjectDir = layout.projectDirectory.dir('rust_mc_core')
+def rustLibName = System.mapLibraryName('rust_mc_core')
+def rustOutputFile = layout.projectDirectory.file("rust_mc_core/target/release/${rustLibName}")
+def generatedRustResourcesDir = layout.buildDirectory.dir('generated/rust-resources')
+
 tasks.register('rustBuild', Exec) {
     group = 'build'
     description = 'Compiles the Rust native library'
-    workingDir 'rust_mc_core'
+    workingDir = rustProjectDir.asFile
 
-    // Gradle Incremental Build Tracking
-    inputs.dir('rust_mc_core/src')
+    // Track Rust source and build config inputs for accurate up-to-date checks.
+    inputs.files(fileTree('rust_mc_core/src') { include '**/*.rs' })
     inputs.file('rust_mc_core/Cargo.toml')
     inputs.file('rust_mc_core/Cargo.lock')
+    def rustBuildScript = file('rust_mc_core/build.rs')
+    if (rustBuildScript.exists()) {
+        inputs.file(rustBuildScript)
+    }
+    def rustCargoConfig = file('rust_mc_core/.cargo/config.toml')
+    if (rustCargoConfig.exists()) {
+        inputs.file(rustCargoConfig)
+    }
 
-    // Track environment variables that affect the build
+    // Track build properties that influence cargo output.
+    inputs.property('rust_profile', 'release')
     inputs.property('rust_flags', '-C target-cpu=native')
+    inputs.property('rust_lib_name', rustLibName)
 
-    def libName = System.mapLibraryName('rust_mc_core')
-    def outputBin = file("rust_mc_core/target/release/${libName}")
-    outputs.file(outputBin)
+    outputs.file(rustOutputFile)
 
     environment 'RUSTFLAGS', '-C target-cpu=native'
     // Disabling CARGO_INCREMENTAL for release builds to prevent potential cache corruption
     // and ensure clean LTO optimization across all codegen units.
     environment 'CARGO_INCREMENTAL', '0'
+    commandLine 'cargo', 'build', '--release', '--locked'
 
     doFirst {
+        File outputBin = rustOutputFile.asFile
         if (org.gradle.internal.os.OperatingSystem.current().isWindows() && outputBin.exists()) {
             // Pre-check if the DLL is locked by a running Minecraft instance
             try {
                 outputBin.renameTo(outputBin)
             } catch (Exception ignored) {
-                throw new GradleException("[Rust-MC] Cannot build: ${libName} is locked. Please close Minecraft/Loom first.")
+                throw new GradleException("[Rust-MC] Cannot build: ${rustLibName} is locked. Please close Minecraft/Loom first.")
             }
         }
-    }
-
-    if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
-        commandLine 'cmd', '/c', 'cargo build --release'
-    } else {
-        commandLine 'cargo', 'build', '--release'
     }
 }
 
 tasks.register('rustClean', Exec) {
     group = 'build'
     description = 'Cleans the Rust build artifacts'
-    workingDir 'rust_mc_core'
-    if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
-        commandLine 'cmd', '/c', 'cargo clean'
-    } else {
-        commandLine 'cargo', 'clean'
-    }
+    workingDir = rustProjectDir.asFile
+    commandLine 'cargo', 'clean'
 }
 
 tasks.named('clean') {
@@ -65,12 +70,11 @@ tasks.named('clean') {
 
 tasks.register('moveRustBinaries', Copy) {
     group = 'build'
-    description = 'Updates resources with latest Rust binaries'
+    description = 'Stages latest Rust binaries into generated resources'
     dependsOn 'rustBuild'
 
-    def libName = System.mapLibraryName('rust_mc_core')
-    from("rust_mc_core/target/release/${libName}")
-    into 'src/main/resources'
+    from(rustOutputFile)
+    into(generatedRustResourcesDir)
 }
 
 // ─── Multi-project Logic ──────────────────────────────────────────────────
@@ -79,9 +83,7 @@ tasks.register('moveRustBinaries', Copy) {
 subprojects {
     tasks.withType(ProcessResources).configureEach {
         dependsOn ':moveRustBinaries'
-    }
-    tasks.matching { it.name == 'sourcesJar' }.configureEach {
-        dependsOn ':moveRustBinaries'
+        from(rootProject.layout.buildDirectory.dir('generated/rust-resources'))
     }
 }
 

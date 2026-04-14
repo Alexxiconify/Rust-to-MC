@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 //
  //  Optimizes server list ping times by pre-resolving DNS via the Rust cached resolver.
- //  Each server gets its own virtual thread for maximum parallelism — all DNS lookups
+ //  Each server gets its own platform daemon thread for maximum parallelism — all DNS lookups
  //  happen concurrently instead of sequentially.
 @Mixin(MultiplayerServerListPinger.class)
 public class ServerPingerMixin {
@@ -22,8 +22,8 @@ public class ServerPingerMixin {
         // Strip port if present for DNS resolution
         String hostname = address.contains(":") ? address.substring(0, address.lastIndexOf(':')) : address;
         if (hostname.isEmpty() || Character.isDigit(hostname.charAt(0))) return;
-        // Fire-and-forget DNS pre-warm on a virtual thread — each server resolves in parallel
-        Thread.ofVirtual().name("rustmc-dns-" + hostname).start(() -> {
+        // Fire-and-forget DNS pre-warm on a platform daemon thread — each server resolves in parallel
+        Thread.ofPlatform().daemon(true).name("rustmc-dns-" + hostname).start(() -> {
             try {
                 NativeBridge.dnsResolve(hostname);
             } catch (Exception ignored) {

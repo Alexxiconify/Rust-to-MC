@@ -60,11 +60,11 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
     }
     // ─── Early Native Library Load ──────────────────────────────────────────
     //
-     // Triggers NativeBridge's static initializer on a virtual thread so the native
+     // Triggers NativeBridge's static initializer on a platform daemon thread so the native
      // library extraction + System.load() overlaps with mixin application.
      // By the time onInitialize() runs, the library is already loaded.
     private static void triggerEarlyNativeLoad() {
-        Thread.ofVirtual().name("rustmc-native-preload").start(() -> {
+        Thread.ofPlatform().daemon(true).name("rustmc-native-preload").start(() -> {
             try {
                 // Touching NativeBridge.class triggers its static {} block which loads the .dll/.so
                 Class.forName("com.alexxiconify.rustmc.NativeBridge");
@@ -236,7 +236,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
      // Phase  80-95%: mod init ("Loaded N mods" seen)
      // Phase  95-99%: game world prepare
     private static void startModLoadingProgressThread() {
-        Thread.ofVirtual().name("rustmc-elb-progress").start(() -> {
+        Thread.ofPlatform().daemon(true).name("rustmc-elb-progress").start(() -> {
             int modCount = FabricLoader.getInstance().getAllMods().size();
             long startMs = System.currentTimeMillis();
             int last = -1;

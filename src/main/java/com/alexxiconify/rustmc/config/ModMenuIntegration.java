@@ -238,7 +238,18 @@ public class ModMenuIntegration implements ModMenuApi {
                 cfg::isUsePlayerPosForDhCulling, v -> cfg.setUsePlayerPosForDhCulling(v != null && v)))
             .option(buildBooleanOption("DH Culling Debug Log",
                 "Logs whether each DH section was culled and which Y source was used.",
-                cfg::isEnableDhCullingDebugLog, v -> cfg.setEnableDhCullingDebugLog(v != null && v)));
+                cfg::isEnableDhCullingDebugLog, v -> cfg.setEnableDhCullingDebugLog(v != null && v)))
+            .option(Option.<String>createBuilder()
+                .name(Text.literal("DH Culling Space Mode"))
+                .description(OptionDescription.of(Text.literal(
+                    "Controls DH AABB coordinate-space interpretation.\n" +
+                    "Values: auto | absolute | plus_camera | minus_camera\n" +
+                    "Tip: use the keybind to cycle modes quickly while testing.")))
+                .binding(RustMCConfig.DH_CULLING_SPACE_AUTO,
+                    cfg::getDhCullingSpaceMode,
+                    mode -> cfg.setDhCullingSpaceMode(RustMCConfig.normalizeDhCullingSpaceMode(mode)))
+                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
+                .build());
     }
 
     private void addBridgeOptions(ConfigCategory.Builder builder, RustMCConfig cfg) {

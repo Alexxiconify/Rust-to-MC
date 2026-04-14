@@ -160,8 +160,11 @@ public class NativeBridge {
                 rustUpdateFrustumAndCave(0, vpMatrix, ctx.fovScale(), ctx.camX(), ctx.camY(), ctx.camZ(), inCave);
                 return;
             } catch (UnsatisfiedLinkError ignored) {
-                // Fall through to separate native calls.
+                // Fall through to separate native calls using the same captured context.
             }
+            updateVanillaFrustum(vpMatrix, ctx.fovScale(), ctx.camX(), ctx.camY(), ctx.camZ());
+            updateCaveStatus(inCave);
+            return;
         }
         updateVanillaFrustum(vpMatrix);
         updateCaveStatus(inCave);
