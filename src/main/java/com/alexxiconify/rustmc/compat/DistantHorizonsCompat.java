@@ -25,9 +25,6 @@ public class DistantHorizonsCompat {
     private static float lastCameraPitch = 0.0f;
     private static double lastFov = Double.NaN;
     private static double lastAspect = Double.NaN;
-    private static final int VP_MATRIX_SIZE = 16;
-    private static final float[] lastVpArray = new float[VP_MATRIX_SIZE];
-    private static boolean hasLastVpArray = false;
 
     private static boolean isDhLoaded() {
         return !FabricLoader.getInstance ( ).isModLoaded ( DH_MOD_ID );
@@ -65,7 +62,6 @@ public class DistantHorizonsCompat {
         try {
             rustFrustumPtr = com.alexxiconify.rustmc.NativeBridge.createRustFrustum();
             if (rustFrustumPtr == 0) return;
-            hasLastVpArray = false;
             hasLastCameraState = false;
             frustumInitialized = false;
             Class<?> apiClass = Class.forName(DH_API_CLASS);
@@ -149,45 +145,21 @@ public class DistantHorizonsCompat {
             getValuesAsArrayMethod = mat.getClass().getMethod("getValuesAsArray");
         }
         float[] vpArray = (float[]) getValuesAsArrayMethod.invoke(mat);
-        if (!frustumInitialized || shouldRefreshFrustum(vpArray)) {
-            cacheVpArray(vpArray);
-            frustumInitialized = com.alexxiconify.rustmc.NativeBridge.updateRustFrustumTracked(rustFrustumPtr, vpArray);
+        if (!frustumInitialized || shouldRefreshFrustum()) {
+            boolean updated = com.alexxiconify.rustmc.NativeBridge.updateRustFrustumTracked(rustFrustumPtr, vpArray);
+            if (updated) {
+                frustumInitialized = true;
+            }
         }
         return null;
     }
 
-    private static void cacheVpArray(float[] vpArray) {
-        if (vpArray == null || vpArray.length < VP_MATRIX_SIZE) {
-            hasLastVpArray = false;
-            return;
-        }
-        System.arraycopy(vpArray, 0, lastVpArray, 0, VP_MATRIX_SIZE);
-        hasLastVpArray = true;
-    }
-
-    private static boolean matrixChanged(float[] vpArray) {
-        if (vpArray == null || vpArray.length < VP_MATRIX_SIZE) {
-            return hasLastVpArray;
-        }
-        if (!hasLastVpArray) {
-            return true;
-        }
-        for (int i = 0; i < VP_MATRIX_SIZE; i++) {
-            if (lastVpArray[i] != vpArray[i]) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean shouldRefreshFrustum(float[] vpArray) {
+    // Keep DH frustum ownership strict to player state so detached freecam camera changes
+    // do not retarget culling decisions.
+    private static boolean shouldRefreshFrustum() {
         net.minecraft.client.MinecraftClient mc2 = net.minecraft.client.MinecraftClient.getInstance();
-        boolean matrixChanged = matrixChanged(vpArray);
-        if (mc2 == null) {
-            return matrixChanged;
-        }
-        if (mc2.player == null) {
-            return matrixChanged;
+        if (mc2 == null || mc2.player == null) {
+            return false;
         }
 
         double cx = mc2.player.getX();
@@ -219,8 +191,7 @@ public class DistantHorizonsCompat {
         lastAspect = aspect;
         hasLastCameraState = true;
 
-        // Refresh when any tracked player state changes, not only when position+matrix both changed.
-        return matrixChanged || moved || rotated || opticsChanged;
+        return moved || rotated || opticsChanged;
     }
     private static Object handleFrustumIntersects(Object[] args) {
         // Keep fallback behavior: before first successful matrix update, treat sections as visible.

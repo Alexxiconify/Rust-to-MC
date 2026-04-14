@@ -29,6 +29,7 @@ Scope: active work only. Completed optimization history lives in [`docs/complete
 - DH cave-culling reference now uses player position only (no camera/entity fallback) so test behavior stays consistent under freecam-like view changes.
 - Frustum cave-status updates are now explicitly player-anchored (`client.player`) so entity-camera freecam movement does not shift DH culling state.
 - MiniHUD `RenderUtils` distance-culling hooks now use the player camera source consistently, removing entity-camera drift under detached freecam views.
+- DH frustum refresh is now strict player-state driven (position/rotation/FOV/aspect), so detached freecam camera matrix changes no longer retarget DH culling.
 - DH surface gate is now tuned to `54` (from `62`) to reduce over-culling while swimming near ocean level.
 - Fast loading screen now defaults to ON for new configs.
 - ModMenu config surface was trimmed to remove stale native/bridge toggles no longer wired to runtime behavior.
