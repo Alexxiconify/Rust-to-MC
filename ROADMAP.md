@@ -25,6 +25,9 @@ Scope: active work only. Completed optimization history lives in [`docs/complete
 - Timing overlay is now text-only (no pie graphic), and keybind category translations are aligned so all Rust-MC binds are discoverable in Controls.
 - Keybind category registration now uses a Controlling-safe namespace (`rustmc:keybinds`) so the category label resolves to `Rust-to-MC` consistently.
 - DH frustum checks now tolerate both absolute and camera-relative section AABBs (absolute-first, camera-offset fallback) to prevent coordinate-space culling regressions.
+- DH frustum compat now caches reflected method/field lookups, reuses a fixed VP matrix snapshot buffer, and learns preferred DH AABB coordinate-space mode to avoid repeated dual JNI cull calls.
+- Rust particle ticking now reuses thread-local native scratch buffers and only enables Rayon for larger batches, reducing per-tick allocations and scheduling overhead.
+- Particle spawn culling now caches squared cutoff distance at 20Hz, removing repeated per-spawn cutoff recomputation from `ParticleManagerMixin` hot paths.
 
 ## Completed Changes
 
@@ -167,4 +170,4 @@ Every optimization should satisfy at least one of these before it is considered 
 
 ---
 
-Last Updated: April 13, 2026
+Last Updated: April 14, 2026

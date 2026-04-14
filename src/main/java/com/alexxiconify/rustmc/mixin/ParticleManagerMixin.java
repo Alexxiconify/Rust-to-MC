@@ -16,6 +16,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  //  generous cutoff since IF makes each particle draw cheaper.
 @Mixin(ParticleManager.class)
 public class ParticleManagerMixin {
+    @Unique private static final long CUTOFF_CACHE_INTERVAL_NS = 50_000_000L; // 20Hz refresh
+    @Unique private static volatile long lastCutoffUpdateNs = 0L;
+    @Unique private static volatile double cachedCutoffSq = Double.POSITIVE_INFINITY;
+
     @SuppressWarnings("java:S107") // 8 params match the target method signature exactly
     @Inject(method = "addParticle(Lnet/minecraft/particle/ParticleEffect;DDDDDD)Lnet/minecraft/client/particle/Particle;",
             at = @At("HEAD"), cancellable = true)
@@ -23,14 +27,26 @@ public class ParticleManagerMixin {
             double vx, double vy, double vz, CallbackInfoReturnable<Particle> cir) {
         if (!com.alexxiconify.rustmc.RustMC.CONFIG.isEnableParticleCulling()) return;
         MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) return;
         PlayerEntity player = client.player;
         if (player == null) return;
-        // Early exit on distance check before expensive cutoff calculation
-        double baseDistance = client.options.getClampedViewDistance() / 8.0;
-        double cutoff = getCutoff(baseDistance);
-        if (player.squaredDistanceTo(x, y, z) > cutoff * cutoff) {
+        double cutoffSq = getOrUpdateCutoffSq(client);
+        if (player.squaredDistanceTo(x, y, z) > cutoffSq) {
             cir.setReturnValue(null);
         }
+    }
+
+    @Unique
+    private static double getOrUpdateCutoffSq(MinecraftClient client) {
+        long now = System.nanoTime();
+        if (now - lastCutoffUpdateNs < CUTOFF_CACHE_INTERVAL_NS) {
+            return cachedCutoffSq;
+        }
+        double baseDistance = client.options.getClampedViewDistance() / 8.0;
+        double cutoff = getCutoff(baseDistance);
+        cachedCutoffSq = cutoff * cutoff;
+        lastCutoffUpdateNs = now;
+        return cachedCutoffSq;
     }
 
     @Unique

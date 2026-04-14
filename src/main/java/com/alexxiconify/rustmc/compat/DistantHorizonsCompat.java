@@ -25,15 +25,48 @@ public class DistantHorizonsCompat {
     private static float lastCameraPitch = 0.0f;
     private static double lastFov = Double.NaN;
     private static double lastAspect = Double.NaN;
+    private static final int VP_MATRIX_SIZE = 16;
+    private static final float[] lastVpArray = new float[VP_MATRIX_SIZE];
+    private static boolean hasLastVpArray = false;
+    private static SpaceMode dhSpaceMode = SpaceMode.UNKNOWN;
+    private enum SpaceMode {
+        UNKNOWN,
+        ABSOLUTE,
+        CAMERA_RELATIVE
+    }
+
+    private enum ProxyMethodKind {
+        PRIORITY,
+        UPDATE,
+        INTERSECT,
+        EQUALS,
+        HASHCODE,
+        TOSTRING,
+        UNKNOWN
+    }
+
+    private record BoundsFields(java.lang.reflect.Field minX,
+                                java.lang.reflect.Field minY,
+                                java.lang.reflect.Field minZ,
+                                java.lang.reflect.Field maxX,
+                                java.lang.reflect.Field maxY,
+                                java.lang.reflect.Field maxZ) {
+    }
+
+    private static final java.util.concurrent.ConcurrentHashMap<java.lang.reflect.Method, ProxyMethodKind> PROXY_METHOD_KIND_CACHE =
+        new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.concurrent.ConcurrentHashMap<Class<?>, BoundsFields> BOUNDS_FIELD_CACHE =
+        new java.util.concurrent.ConcurrentHashMap<>();
     @SuppressWarnings("java:S3776")
     public static void registerFrustumCuller() {
         if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID) || !com.alexxiconify.rustmc.NativeBridge.isReady()) return;
         try {
             rustFrustumPtr = com.alexxiconify.rustmc.NativeBridge.createRustFrustum();
             if (rustFrustumPtr == 0) return;
-            lastVpArray = null;
+            hasLastVpArray = false;
             hasLastCameraState = false;
             frustumInitialized = false;
+            dhSpaceMode = SpaceMode.UNKNOWN;
             Class<?> apiClass = Class.forName(DH_API_CLASS);
             Object overridesInjector = apiClass.getField("overrides").get(null);
             java.lang.reflect.Method bindMethod = findBindMethod(overridesInjector);
@@ -64,25 +97,41 @@ public class DistantHorizonsCompat {
         }
         return null;
     }
-    private static float[] lastVpArray = null;
     @SuppressWarnings("java:S112") // Reflection methods throw many checked exception types
     private static Object handleFrustumProxy(Object proxy, java.lang.reflect.Method method, Object[] args) throws Exception {
-        String name = method.getName().toLowerCase(java.util.Locale.ROOT);
-        if ("getpriority".equals(name)) {
-            return Integer.MAX_VALUE;
-        }
-        if (name.contains("update")) {
-            return handleFrustumUpdate(args);
-        }
-        if (name.contains("intersect") || name.contains("visible") || name.contains("contain")) {
-            return handleFrustumIntersects(args);
-        }
-        return switch (name) {
-            case "equals" -> proxy == args[0];
-            case "hashcode" -> System.identityHashCode(proxy);
-            case "tostring" -> "RustMC-DH-FrustumCuller";
+        ProxyMethodKind kind = PROXY_METHOD_KIND_CACHE.computeIfAbsent(method, DistantHorizonsCompat::resolveProxyMethodKind);
+        return switch (kind) {
+            case PRIORITY -> Integer.MAX_VALUE;
+            case UPDATE -> handleFrustumUpdate(args);
+            case INTERSECT -> handleFrustumIntersects(args);
+            case EQUALS -> proxy == args[0];
+            case HASHCODE -> System.identityHashCode(proxy);
+            case TOSTRING -> "RustMC-DH-FrustumCuller";
             default -> null;
         };
+    }
+
+    private static ProxyMethodKind resolveProxyMethodKind(java.lang.reflect.Method method) {
+        String name = method.getName().toLowerCase(java.util.Locale.ROOT);
+        switch (name) {
+            case "getpriority":
+                return ProxyMethodKind.PRIORITY;
+            case "equals":
+                return ProxyMethodKind.EQUALS;
+            case "hashcode":
+                return ProxyMethodKind.HASHCODE;
+            case "tostring":
+                return ProxyMethodKind.TOSTRING;
+            default:
+                break;
+        }
+        if (name.contains("update")) {
+            return ProxyMethodKind.UPDATE;
+        }
+        if (name.contains("intersect") || name.contains("visible") || name.contains("contain")) {
+            return ProxyMethodKind.INTERSECT;
+        }
+        return ProxyMethodKind.UNKNOWN;
     }
 
     @SuppressWarnings("java:S112")
@@ -100,15 +149,40 @@ public class DistantHorizonsCompat {
         }
         float[] vpArray = (float[]) getValuesAsArrayMethod.invoke(mat);
         if (!frustumInitialized || shouldRefreshFrustum(vpArray)) {
-            lastVpArray = vpArray != null ? vpArray.clone() : null;
+            cacheVpArray(vpArray);
             frustumInitialized = com.alexxiconify.rustmc.NativeBridge.updateRustFrustumTracked(rustFrustumPtr, vpArray);
+            dhSpaceMode = SpaceMode.UNKNOWN;
         }
         return null;
     }
 
+    private static void cacheVpArray(float[] vpArray) {
+        if (vpArray == null || vpArray.length < VP_MATRIX_SIZE) {
+            hasLastVpArray = false;
+            return;
+        }
+        System.arraycopy(vpArray, 0, lastVpArray, 0, VP_MATRIX_SIZE);
+        hasLastVpArray = true;
+    }
+
+    private static boolean matrixChanged(float[] vpArray) {
+        if (vpArray == null || vpArray.length < VP_MATRIX_SIZE) {
+            return hasLastVpArray;
+        }
+        if (!hasLastVpArray) {
+            return true;
+        }
+        for (int i = 0; i < VP_MATRIX_SIZE; i++) {
+            if (lastVpArray[i] != vpArray[i]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static boolean shouldRefreshFrustum(float[] vpArray) {
         net.minecraft.client.MinecraftClient mc2 = net.minecraft.client.MinecraftClient.getInstance();
-        boolean matrixChanged = lastVpArray == null || !java.util.Arrays.equals(lastVpArray, vpArray);
+        boolean matrixChanged = matrixChanged(vpArray);
         if (mc2 == null) {
             return matrixChanged;
         }
@@ -166,13 +240,13 @@ public class DistantHorizonsCompat {
         if (args.length == 1 && args[0] != null) {
             Object box = args[0];
             try {
-                Class<?> cls = box.getClass();
-                minX = cls.getField("minX").getDouble(box);
-                minY = cls.getField("minY").getDouble(box);
-                minZ = cls.getField("minZ").getDouble(box);
-                maxX = cls.getField("maxX").getDouble(box);
-                maxY = cls.getField("maxY").getDouble(box);
-                maxZ = cls.getField("maxZ").getDouble(box);
+                BoundsFields fields = BOUNDS_FIELD_CACHE.computeIfAbsent(box.getClass(), DistantHorizonsCompat::resolveBoundsFields);
+                minX = fields.minX().getDouble(box);
+                minY = fields.minY().getDouble(box);
+                minZ = fields.minZ().getDouble(box);
+                maxX = fields.maxX().getDouble(box);
+                maxY = fields.maxY().getDouble(box);
+                maxZ = fields.maxZ().getDouble(box);
             } catch (Exception e) {
                 return true;
             }
@@ -209,20 +283,72 @@ public class DistantHorizonsCompat {
         );
     }
 
+    private static BoundsFields resolveBoundsFields(Class<?> cls) {
+        try {
+            return new BoundsFields(
+                cls.getField("minX"),
+                cls.getField("minY"),
+                cls.getField("minZ"),
+                cls.getField("maxX"),
+                cls.getField("maxY"),
+                cls.getField("maxZ")
+            );
+        } catch (NoSuchFieldException e) {
+            throw new IllegalStateException("Could not resolve DH bounds fields for " + cls.getName(), e);
+        }
+    }
+
     // DH versions may feed absolute world AABBs or camera-relative AABBs. We test
     // absolute first, then fall back to camera-offset coordinates to avoid false culls.
     private static boolean cullDhSectionInAnySpace(double minX, double minY, double minZ,
                                                    double maxX, double maxY, double maxZ) {
-        boolean visibleAbsolute = com.alexxiconify.rustmc.NativeBridge.cullDistantHorizonsSection(
+        if (dhSpaceMode == SpaceMode.ABSOLUTE) {
+            boolean visible = testAbsoluteSpace(minX, minY, minZ, maxX, maxY, maxZ);
+            if (visible) {
+                return true;
+            }
+            boolean visibleRelative = testCameraRelativeSpace(minX, minY, minZ, maxX, maxY, maxZ);
+            if (visibleRelative) {
+                dhSpaceMode = SpaceMode.CAMERA_RELATIVE;
+            }
+            return visibleRelative;
+        }
+        if (dhSpaceMode == SpaceMode.CAMERA_RELATIVE) {
+            boolean visible = testCameraRelativeSpace(minX, minY, minZ, maxX, maxY, maxZ);
+            if (visible) {
+                return true;
+            }
+            boolean visibleAbsolute = testAbsoluteSpace(minX, minY, minZ, maxX, maxY, maxZ);
+            if (visibleAbsolute) {
+                dhSpaceMode = SpaceMode.ABSOLUTE;
+            }
+            return visibleAbsolute;
+        }
+        boolean visibleAbsolute = testAbsoluteSpace(minX, minY, minZ, maxX, maxY, maxZ);
+        if (visibleAbsolute) {
+            dhSpaceMode = SpaceMode.ABSOLUTE;
+            return true;
+        }
+        boolean visibleRelative = testCameraRelativeSpace(minX, minY, minZ, maxX, maxY, maxZ);
+        if (visibleRelative) {
+            dhSpaceMode = SpaceMode.CAMERA_RELATIVE;
+        }
+        return visibleRelative;
+    }
+
+    private static boolean testAbsoluteSpace(double minX, double minY, double minZ,
+                                             double maxX, double maxY, double maxZ) {
+        return com.alexxiconify.rustmc.NativeBridge.cullDistantHorizonsSection(
             rustFrustumPtr,
             minX, minY, minZ,
             maxX, maxY, maxZ,
             DH_SURFACE_Y,
             DH_AGGRESSIVE_MARGIN
         );
-        if (visibleAbsolute) {
-            return true;
-        }
+    }
+
+    private static boolean testCameraRelativeSpace(double minX, double minY, double minZ,
+                                                   double maxX, double maxY, double maxZ) {
         net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
         if (mc == null) {
             return false;
