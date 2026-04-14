@@ -52,6 +52,15 @@ This document records optimization and stability work that has already been comp
 - Slightly less arithmetic in the vanilla lighting batch path.
 - Zero behavior change and no API surface change.
 
+## April 14, 2026 - Frustum Compat Fallback Fix
+
+**Completed this compatibility fix:**
+- `NativeBridge.invokeFrustumIntersect(...)` now runs the real native frustum test instead of returning the dead `-1` stub, so callers always get frustum culling behavior even when occlusion-based paths are unavailable or fail.
+
+**Payoff:**
+- Occlusion fallback no longer suppresses frustum culling.
+- Compatibility callers receive a real visible/culled result instead of an undefined sentinel.
+
 ## April 13, 2026 - Client-Only Mixin Refactor & Performance Optimization
 
 ### Hot-Path Telemetry & Budget Cleanup

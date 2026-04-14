@@ -490,7 +490,7 @@ public class NativeBridge {
     }
     @SuppressWarnings("unused")
     public static int invokeFrustumIntersect(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
-        return -1; // Fallback to Vanilla for now since stateful frustums are only implemented for DH
+        return testRustFrustum(0, minX, minY, minZ, maxX, maxY, maxZ) ? 1 : 0;
     }
     public static long createRustFrustum() {
         if (!libLoaded) return 0;
