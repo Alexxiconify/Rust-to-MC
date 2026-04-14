@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(targets = "fi.dy.masa.malilib.render.RenderUtils", remap = false)
 public class RenderUtilsMixin {
     private RenderUtilsMixin() {}
-    //Returns viewDist² (with +32 block pad), or -1 if no camera entity. // /
+    //Returns viewDist² (with +32 block pad), or -1 if no player camera. // /
     @Unique
     private static double cullRadiusSq(MinecraftClient mc, Entity cam) {
         if (cam == null) return -1;
@@ -33,7 +33,7 @@ public class RenderUtilsMixin {
             double maxX, double maxY, double maxZ,
             float r, float g, float b, float a, CallbackInfo ci) {
         MinecraftClient mc = MinecraftClient.getInstance();
-        Entity cam = mc.getCameraEntity();
+        Entity cam = mc.player;
                 double rSq = cullRadiusSq(mc, cam);
         if (rSq < 0) return;
         if (shouldCullCenter(cam, rSq, (minX + maxX) * 0.5, (minY + maxY) * 0.5, (minZ + maxZ) * 0.5)) {
@@ -47,7 +47,7 @@ public class RenderUtilsMixin {
             double maxX, double maxY, double maxZ,
             CallbackInfo ci) {
         MinecraftClient mc = MinecraftClient.getInstance();
-        Entity cam = mc.getCameraEntity();
+        Entity cam = mc.player;
         double rSq = cullRadiusSq(mc, cam);
         if (rSq < 0) return;
         if (shouldCullCenter(cam, rSq, (minX + maxX) * 0.5, (minY + maxY) * 0.5, (minZ + maxZ) * 0.5)) {
@@ -63,7 +63,7 @@ public class RenderUtilsMixin {
             org.joml.Matrix4f matrix, org.joml.Matrix4f normalMatrix,
             VertexConsumer buffer, CallbackInfo ci) {
         MinecraftClient mc = MinecraftClient.getInstance();
-        Entity cam = mc.getCameraEntity();
+        Entity cam = mc.player;
         double rSq = cullRadiusSq(mc, cam);
         if (rSq < 0) return;
         if (shouldCullCenter(cam, rSq, (x1 + x2) * 0.5, (y1 + y2) * 0.5, (z1 + z2) * 0.5)) {
