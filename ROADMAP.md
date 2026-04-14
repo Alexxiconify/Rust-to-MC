@@ -1,107 +1,196 @@
 # Rust to MC Roadmap
 
-Performance-focused Minecraft mod that offloads hot-paths to native Rust via JNI/FFM.
+This roadmap tracks the active plan for **Rust to MC**: move high-cost client hot-path work from Java to Rust while preserving gameplay correctness, mod compatibility, and stable frame pacing.
 
-**Goal**: Minimize Java GC pressure and CPU overhead on the **client** render/tick threads using Rust SIMD, zero-copy JNI, and parallel algorithms.
+Scope: active work only. Completed optimization history lives in [`docs/completed-changes.md`](docs/completed-changes.md).
+
+## Core Vision
+
+- Keep vanilla behavior and visual correctness first, then optimize.
+- Offload repeatable math/data-heavy work (frustum, particles, packet/data transforms) to Rust.
+- Use JNI safely with predictable fallbacks so missing symbols never hard-crash gameplay.
+
+## Current Baseline (April 2026)
+
+- Primary target: **Minecraft 1.21.11** (active Gradle module `:versions:mc1_21_11`).
+- Java side: **Client-only** with 10 optimized mixins focused on frustum, lighting, particles, and rendering.
+- Mixin count reduced from 30+ to 20 active (7 pure server-side mixins removed for vanilla server compatibility).
+- Thread usage optimized: virtual threads replaced with platform daemon threads for lower overhead.
+- Java side emphasizes compatibility gating via `MixinManager` and `ModBridge`.
+- Rust side provides frustum, particle, audio, compression, and utility paths with fallback wrappers in `NativeBridge`.
+- Distant Horizons culling path remains Rust-driven with fused/fallback behavior.
+- DH frustum fallback now stays visible until the first *confirmed native* matrix upload, preventing stale-pointer culling on world join.
+- Native metrics are now wired end-to-end (`rustGetMetrics` + hot-path counters), so HUD/Mod Menu no longer report permanent zeros when JNI is active.
+- Mod Menu + keybind coverage now includes the latest native math/debug and DH diagnostics toggles so runtime controls match config surface.
+- Timing overlay is now text-only (no pie graphic), and keybind category translations are aligned so all Rust-MC binds are discoverable in Controls.
+- Keybind category registration now uses a Controlling-safe namespace (`rustmc:keybinds`) so the category label resolves to `Rust-to-MC` consistently.
+- DH frustum checks now tolerate both absolute and camera-relative section AABBs (absolute-first, camera-offset fallback) to prevent coordinate-space culling regressions.
+- DH frustum compat now caches reflected method/field lookups, reuses a fixed VP matrix snapshot buffer, and validates DH AABBs across absolute plus signed camera-relative spaces to prevent direction/quadrant culling errors.
+- DH culling space mode is now configurable (`auto` / `absolute` / `plus_camera` / `minus_camera`), cycleable via keybind, and confirmed in-game through action-bar messages for fast live testing.
+- DH cave-culling reference now uses player position only (no camera/entity fallback) so test behavior stays consistent under freecam-like view changes.
+- DH surface gate is now tuned to `54` (from `62`) to reduce over-culling while swimming near ocean level.
+- DH LOD occlusion now runs only after frustum keep decisions, and only frustum-kept LOD chunks are submitted as occluders for other LOD chunks.
+- Camera-relative DH fallback checks now skip vertical cave gating, reducing angle-dependent low-Y chunk culling regressions.
+- Rust particle ticking now reuses thread-local native scratch buffers and only enables Rayon for larger batches, reducing per-tick allocations and scheduling overhead.
+- Particle spawn culling now caches squared cutoff distance at 20Hz, removing repeated per-spawn cutoff recomputation from `ParticleManagerMixin` hot paths.
+- Gradle/Cargo packaging now stages native outputs in `build/generated/rust-resources` and skips Rust binary staging for `sourcesJar`, reducing avoidable rebuild work.
+- DNS cache persistence now also triggers on multiplayer join/disconnect to reduce cache-loss windows between sessions.
+- Section-12 Java consolidation pass #1 is complete: duplicated JNI math fallback wrappers and repeated DH readiness guards are now centralized.
+- Section-12 Java consolidation pass #2 is complete: DNS cache enable/persist/hostname guards and connection-hook glue now share `DnsCacheUtil`, and unused per-math-call config toggles were removed from config + Mod Menu.
+- Section-12 cleanup follow-up: DNS-related mixins now live under `mixin.network`, and stale `MixinManager` entries/comments for removed mixins were pruned.
+- Section-12 Java consolidation pass #3 is complete: `MatrixMixin`, `LightingMixin`, and `ChunkBuilderMixin` moved under `mixin.performance`, with mixin config and manager mappings updated and stale classification/comment leftovers trimmed.
+- Section-12 Java consolidation pass #4 is complete: `DebugHudMixin` and `RenderBudgetMixin` moved under `mixin.hud`, with mixin config paths updated and stale comment formatting cleaned in touched files.
+- Section-12 Java consolidation pass #5 is complete: `ClientFrameMetricsMixin` and `ResourceReloadMixin` moved under `mixin.client`, and HUD mixins were merged into a single file (`DebugHudMixin.java`) with the old standalone `RenderBudgetMixin.java` removed.
+- Section-12 Java consolidation pass #6 is complete: single-mod integration mixins (`RenderUtils`, `MiniHUDLightUpdate`, `ClientRedstoneSkip`, `TickSyncCompat`, `EntityRenderCompat`) now share `mixin.integration` for a more compact structure, with mixin config and manager mappings updated.
+- Section-12 Java consolidation pass #7 is complete: the last single-file folder under `mixin.hud` was flattened by moving `DebugHudMixin` and `RenderBudgetMixin` into `mixin.client`, reducing package depth without behavior changes.
+- Section-12 Java consolidation pass #8 is complete: ELB classes were moved from `com.iafenvoy.elb.*` into `com.alexxiconify.rustmc` (`ElbConfig`, `PreLaunchWindow`), call sites were updated, and the legacy nested ELB folders were removed.
+
+## Completed Changes
+
+Completed optimization and stabilization work is documented in [`docs/completed-changes.md`](docs/completed-changes.md).
+- Rollback archive now lives in [`docs/rollback.md`](docs/rollback.md).
+
+## Active Optimization Priorities
+
+### 1) Frustum and DH Culling Reliability
+
+Goal: keep culling correct, fast, and debuggable.
+
+- Keep DH section visibility decisions in Rust.
+- Validate fused culling behavior against the fallback path and edge camera/FOV cases.
+- Add a debug toggle for culling visibility so testing can confirm what is being rejected.
+- Capture section count, rejected count, and frame-time impact for each change.
+
+### 2) JNI Hot-Path Hygiene
+
+Goal: keep native offload only where it clearly wins.
+
+- Keep wrappers safe and explicit on fallback behavior.
+- Batch adjacent native work into fewer crossings when one call can cover multiple operations.
+- Minimize JNI overhead where vanilla Java is faster.
+- Document per-path strategy: copy vs pinned, single-call vs batched, and why.
+- Profile before/after every JNI change.
+
+### 3) Config and Compat Cleanup
+
+Goal: simplify the runtime surface without losing functionality.
+
+- Keep `EntityRenderCompatMixin` as the single BBE/EMF/ETF/IF compat hook.
+- Remove dead placeholder/accessor files when no longer referenced.
+- Trim noisy inspections and stale suppressions without changing behavior.
+- Prefer one clear toggle per optimization instead of overlapping config paths.
+- Avoid new sync points in compat glue unless they replace higher-cost paths.
+
+### 4) Native Lighting, Packet, and Chunk Workloads
+
+Goal: expand native offload only where profiling shows real payoff.
+
+- Replace placeholder/bit-packed lighting propagation with a robust BFS-based Rust path.
+- Validate against ScalableLux/Starlight ownership rules to avoid contention.
+- Expand decoder/packet offload where allocation pressure is measurable.
+- Continue DH/LOD mesh and data transform improvements only when world-load and flight scenarios stay stable.
+
+### 5) Rendering Pipeline Cache Locality (Next)
+
+Goal: improve CPU cache efficiency in hot render loops.
+
+- Profile matrix buffer allocations in `MatrixMixin` for NUMA effects on multi-socket systems.
+- Validate JOML matrix data layout (row-major vs column-major) against Rust SIMD expectation.
+- Profile render-state lookups in `ParticleManagerMixin` and `RenderBudgetMixin` for cache thrashing.
+
+### 6) Debug Visibility for Profiling (Next)
+
+Goal: add internal observability hooks for performance validation.
+
+- Expose frustum check counters and culling ratios via a debug HUD overlay.
+- Add optional JNI call timing instrumentation with low overhead.
+- Log mixin exception fallbacks so silent degradation is visible in debug builds.
+- Capture particle cull decisions and `RenderState` transitions for offline analysis.
+- Keep diagnostics opt-in and cheap when disabled.
+
+### 7) Hot-Path Overhead Reduction (COMPLETE)
+
+Completed work from this pass lives in [`docs/completed-changes.md`](docs/completed-changes.md) under `Lighting & JNI Hot-Path Trim`.
+
+Remaining work:
+
+- None right now. Next live optimization focus is section 8.
+
+### 8) Screen & HUD Layer Optimization (Future)
+
+Goal: optimize splash screen, loading screen, and debug overlays.
+
+- **SplashOverlayMixin**: Profile gradient rendering and text measurement; validate GPU utilization during loads.
+- **LevelLoadingScreenMixin**: Reduce per-frame resource reload progress polling.
+- **WindowMixin**: Cache window size calculations; avoid reshape overhead on every frame.
+- **DebugHudMixin**: Batch text rendering; minimize format conversions for overlay data.
+- **RenderBudgetMixin**: Keep lazy FPS evaluation and shared metric caching.
+
+### 9) Chunk & Mesh Rendering Pipeline (Future)
+
+Goal: optimize chunk building and vertex buffer management.
+
+- **ChunkBuilderMixin**: Profile vertex data layout efficiency (interleaved vs separate buffers).
+- Explore persistent memory-mapped chunks to reduce per-load allocation.
+- Validate that chunk sort order doesn't regress under heavy mod loading.
+- Profile vertex transformation cost in EMF/ETF scenarios; evaluate caching or lazy evaluation.
+- Keep mesh reuse safe across reloads and mod state changes.
+
+### 10) JNI Call Site Optimization (Future)
+
+Goal: reduce JNI crossing overhead in high-frequency paths.
+
+- Profile JNI method lookup cost vs direct native invocation.
+- Cache stable JNI function references only if repeated crossings dominate frame time.
+- Validate that exception handling in fallback paths does not trigger costly class lookups.
+
+### 11) Lock-Free Synchronization (Future)
+
+Goal: replace synchronized blocks with lock-free alternatives in high-contention paths.
+
+- **ClientFrameMetricsMixin**: Keep frame-time history lock-free with a fixed buffer if it remains thread-safe.
+- **LightingMixin**: Replace `QUEUE_LOCK` only if profiling proves the queue path dominates.
+- **FrustumMixin**: Validate that matrix buffer reads stay single-threaded or cache-friendly.
+- Profile lock contention under heavy particle spawning or chunk loading before broad refactors.
+
+### 12) Java Structure Consolidation (Future)
+
+Goal: merge and reorder Java files for maintainability while preserving runtime behavior.
+
+- Merge tiny single-purpose helper classes where ownership is duplicated and call paths are hot.
+- Reorder packages by subsystem (`compat`, `mixin`, `config`, `util`, `core bridge`) so navigation and review are faster.
+- Consolidate overlapping wrappers in `NativeBridge`-adjacent glue only when fallback behavior remains identical.
+- Keep public API and mixin injection points stable during moves/merges (no behavior changes in the same pass).
+- Validate each consolidation with build + runtime smoke checks before/after to confirm no regressions.
+
+## Validation Gates
+
+Every optimization should satisfy at least one of these before it is considered ready:
+
+- No visible correctness regression in frustum or LOD culling.
+- Lower or unchanged frame time in the target scene.
+- Lower CPU cost or allocation pressure on the measured hot path.
+- Lower lock contention on the measured path.
+- Lower JNI crossing count or per-call overhead when native offload is involved.
+- No new crash, fallback breakage, or mod-compat regression.
+- Clear benchmark or debug evidence that the change is doing useful work.
+- No new warnings or errors in touched files.
+
+## Non-Goals / Guardrails
+
+- Do not keep JNI hooks that are slower than vanilla Java paths.
+- Do not ship optimizations that break frustum correctness or DH LOD visibility rules.
+- Do not add config surface for features that are removed/defunct.
+- Do not trade correctness for lock removal.
+- Do not widen shared mutable state unless profiling proves the reuse pays off.
+- Do not add per-frame logging in release paths.
+
+## Backlog
+
+- Fast JSON bridge (`serde_json`) for selected resource paths, only if profiling shows repeated data-transform cost.
+- ModMenu native stats surface (JNI calls, frustum checks, cache hits) if it helps diagnose culling or hot-path regressions.
+- Additional benchmark scenes for heavy particles, DH, and networking spikes.
 
 ---
 
-## ✅ Completed
-
-### Frustum Culling
-
-- **High-Precision f64 Frustum**: All plane extraction and AABB intersection math migrated to `f64`. Fixes North/East LOD unloading/culling errors far from spawn by eliminating `f32` precision loss.
-- **SIMD Point Test (SSE2 fallback)**: 6 real planes tested in `f64`.
-- **Adaptive FOV Scale**: `fov_scale` baked into margin; normalizes AABB bounds in native code to prevent aggressive culling.
-- **Shared Global Frustum**: Persistent native context synced once per frame; no per-call frustum recreation.
-- **Hierarchical Occlusion Culling**: Software-based depth/occlusion manager. Prevents rendering LODs or blocks hidden behind closer occluders. Fused with frustum culling for zero extra JNI overhead.
-
-### Lighting
-
-- **True 3D BFS (Starlight)**: Replaced 1D-decrement stub with a full neighbor-propagating BFS on a thread-local 34³ grid; fans out across all 6 faces per light source.
-- **Zero-Alloc Lighting Queue**: `ArrayBlockingQueue<int[]>` replaced with primitive `long[]` ring buffer.
-- **Atomic Lighting Queue**: `synchronized` enqueue replaced with lock-free `AtomicInteger` head/tail; virtual-thread drain thread unchanged.
-- **Parallel DH Lighting**: `rustPropagateLightDH` uses Rayon par_iter over packed `long[]` tasks.
-- **Zero-Copy Lighting**: Critical pinning (`NoCopyBack`/`CopyBack`) for `propagateLightBulk` and `propagateLightDH`.
-
-### Rendering & Math
-
-- **SIMD Matrix Math**: All `Matrix4f.mul` zero-copy, column-major SIMD-friendly layout.
-- **Native HUD Matrix Stack**: Chain multiply in Rust; minimizes JNI roundtrips for deep model hierarchies.
-- **AVX2 Vertex Transform**: `rustTransformVertices` inner loop replaced with AVX2 8-wide FMA — computes vertex + normal in a single 8-lane pass; 2× throughput on batches >512 (Rayon parallel). SSE2 scalar fallback on pre-Haswell.
-- **Hardware InvSqrt (RSQRTSS)**: One SSE instruction + Newton-Raphson; replaces magic-number approximation.
-- **Trig LUT (65536 entries)**: Pre-warmed on background thread during `JNI_OnLoad`; matches Java `MathHelper` exactly.
-- **Fast atan2**: Polynomial approximation; avoids libc call overhead.
-- **Adaptive Particle Culling**: Throttle relaxes with ImmediatelyFast, tightens with EMF/ETF. Migrated to `tick()` for 1.21.11.
-- **SIMD Particle Tick Offload**: Moved x/y/z and velocity simulation (gravity + drag) to Rust Rayon loops; eliminates per-particle Java `tick()` overhead for environmental emitters.
-- **Parallel Map Texture**: `rustProcessMapTexture` / `rustProcessMapTexturePtr` parallelize Item Frame color math.
-- **SIMD AO**: WGPU-backed ambient occlusion compute via `rustComputeAmbientOcclusion`.
-
-### PRNG & Noise
-
-- **Xoshiro256++ PRNG**: Native random offloads `Xoroshiro128PlusPlusRandom` and `LocalRandom`.
-- **Zero-Contention PRNG**: Global `Mutex<[u64;4]>` → `thread_local! RefCell`; zero lock per call.
-- **Atomic PRNG Seed Broadcast**: `rustRandomSetSeed` stores to `GLOBAL_PRNG_SEED` + increments `GLOBAL_PRNG_VERSION`; every thread reseeds lazily on next PRNG call — true cross-thread consistency, zero per-call cost on hot-path.
-- **Simplex Noise**: Thread-local Simplex auto-reseeds on global seed change; safe for Rayon workers.
-
-### Networking & Compression
-
-- **Packet Filter**: `rustProcessPacket` / `rustProcessPacketDirect` now filter KeepAlive (`0x24`), Ping (`0x1F`), Bundle Delimiter (`0x00`), Entity Velocity (`0x51`), Update Time (`0x5C`).
-- **Zero-Alloc Inflate**: `rustInflateRaw` — allocation-free world chunk decompression.
-- **Rust Zlib Compress**: `rustCompress` with adaptive level (fast for large, level-1 for small).
-- **DNS Cache**: In-memory + disk-persistent DNS resolver with background refresh; batch parallel resolve via Rayon.
-
-### Audio
-
-- **SIMD Audio Suite**: Volume + stereo pan via Rayon `par_chunks_mut(2)`; handles mono fallback.
-- **Sound Physics + Cave Reverb**: Distance attenuation and occlusion dampening. When `in_cave=true`, runs an 8-tap FIR convolution reverb kernel (ITD: 4–512 samples, decaying weights); zero allocation.
-
-### Infrastructure
-
-- **Thin LTO + Parallel Codegen**: Release build uses Thin LTO and disabled incremental to prevent cache corruption.
-- **LLD Linker**: `rust-lld` on Windows MSVC; drastically reduces link times.
-- **Persistent Lib Cache**: Native binary cached in config dir; skips extraction on subsequent launches.
-- **Virtual Threaded Init**: DH + ScalableLux compat layers initialize in parallel on virtual threads.
-- **Ultra-Fast Startup**: WGPU and DNS cache load on background threads; no blocking joins in `onInitialize`.
-- **GPU-Accelerated LOD Generation**: Compute-shader based voxelization and meshing (`lod_mesher.wgsl`) via WGPU. Offloads high-detail DH LOD construction to the GPU, significantly reducing builder thread CPU load.
-- **Maximized DH LOD Performance**: Boosted Distant Horizons threading (LOD Builder, World-Gen, File-Save) via reflection; set LOD Builder to HIGH priority via `setLodBuilderPriority(0)`. Optimizes processing of server-sourced LOD data.
-- **Chunk Builder Expansion**: `ChunkBuilderMixin` uses `max(2, cpus - 2)` workers; yields to Sodium.
-- **ModMenu Stats HUD**: Atomic counters expose JNI call volume, lighting updates, frustum tests in-game.
-- **1.21.11 Mixin Remaps**: All 5 `Cannot remap` errors fixed against yarn build.4 mappings.
-- **Zero Warnings**: All major Clippy and Java IDE warnings resolved.
-- **Fast JSON (`rustLoadJson`)**: `serde_json` parses + minifies JSON in Rust; returned as Java String. Replaces GSON for resource/language file parsing; no GC allocation on hot language-load path.
-
-1. **SIMD Particle Tick Offload** — Parallelized physics (gravity/drag/motion) for environmental particles via Rust Rayon.
-2. **JNI Scalar Avoidance** — Replaced scalar `sqrt`, `wrapDegrees`, and `fastInverseSqrt` JNI roundtrips with Java hardware intrinsified equivalents (`Math.sqrt`), avoiding ~15ns JNI boundaries and greatly accelerating scalar math.
-3. **Rust Execution Optimization** — Elevated Cargo's `opt-level` from `z` (size) to `3` (speed) inside `Cargo.toml`, deploying full `-O3` loop vectorization globally. Also injected `lto = "fat"` allowing whole-program Cross-Crate optimization.
-4. **GPU LOD Quantization (VRAM)** — Quantize `LodVertex` (32 bytes -> 8 bytes). 75% VRAM reduction for Distant Horizons.
-5. **Batch Entity Frustum Tests** — Parallelized bulk AABB testing via JNI. Eliminates per-entity JNI overhead for 200+ entities.
-6. **Rust Occlusion Culling** — Initial frustum-aware occlusion buffer implementation.
-
-**Distant Horizons & Performance Overhaul:**
-
-- **Modular Core Architecture**: Refactored `lib.rs` into specialized submodules (`frustum`, `lighting`, `math`, `net`, `particles`, `pipeline`) for better maintainability and performance.
-- **GPU-Accelerated LOD Generation**: Compute-shader mesh voxelization (`lod_mesher.wgsl`) via WGPU, reducing builder thread CPU pressure.
-- **Streamlined DH Pipeline**: Unified `LodPipeline` handling "Generate -> Shade (AO) -> Render" entirely in Rust.
-- **f64 High-Precision Frustum**: Migrated planes to `f64` world-coordinates, eliminating LOD unloading at north/east distance.
-- **Occlusion Bypass Fallback**: Integrated reflection fallback intercepting occlusion/intersect methods preventing fallback bugs from breaking DH components.
-- **Fused JNI Culling**: Halved JNI overhead by combining subterranean and frustum checks into one native call.
-- **Aggressive DH Threading**: Optimized thread pools and builder priority via reflection for peak server-sourced LOD throughput.
-- **SIMD Refines**: Fixed borrow-checker and syntax lints across the native bridge.
-
----
-
-## 🚧 In Progress
-
-### Native Chunk Meshing & Parsing
-
-- **Status**: Stub — `rustProcessChunkData` parses root compound tag header only.
-- **Goal**: Full section-level block-state decoder (palette + packed-long data) via direct ByteBuffer pointer; then vertex buffer construction bypassing Java NBT.
-- **Next**: Hook `ClientChunkMap` or `ChunkSerializer` to pass raw section bytes via `long ptr`; implement palette decoder in Rust.
-
-## 🔮 Upcoming Optimizations
-
-### Medium Priority
-
-1. **NBT Serialization Offload** — `rustNbtDecodeInt` extended to decode full compound trees for high-traffic network packets.
-2. **Distant Horizons 3D BFS** — true 3D LOD light propagation grid for DH (currently only 1D `long[]` decrement).
+Last Updated: April 14, 2026

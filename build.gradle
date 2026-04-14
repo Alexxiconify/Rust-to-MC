@@ -2,78 +2,56 @@ plugins {
     id 'fabric-loom' version '1.15.0-alpha.25' apply false
     id 'base'
 }
- 
+
 version = '1.0.3'
 group = 'com.alexxiconify.rustmc'
-// ─── Rust native library build (High-Performance & Cache-Compliant) ────────
 
-def rustSrcDir = layout.projectDirectory.dir('rust_mc_core/src')
-def cargoToml = layout.projectDirectory.file('rust_mc_core/Cargo.toml')
-def rustOutputDir = layout.projectDirectory.dir('rust_mc_core/target/release')
+// ─── Rust native library build (Incremental Support) ───────────────────────
+
+def rustProjectDir = layout.projectDirectory.dir('rust_mc_core')
+def rustLibName = System.mapLibraryName('rust_mc_core')
+def rustOutputFile = layout.projectDirectory.file("rust_mc_core/target/release/${rustLibName}")
+def generatedRustResourcesDir = layout.buildDirectory.dir('generated/rust-resources')
 
 tasks.register('rustBuild', Exec) {
     group = 'build'
-    description = 'Compiles the Rust native library with SIMD optimizations'
-    workingDir 'rust_mc_core'
-    
-    // Configuration Cache friendly inputs
-    inputs.files(fileTree(rustSrcDir) {
-        include '**/*.rs'
-        include '**/*.wgsl'
-    }).withPropertyName('rustSources').withPathSensitivity(PathSensitivity.RELATIVE)
-    
-    inputs.file(cargoToml).withPropertyName('cargoConfig').withPathSensitivity(PathSensitivity.RELATIVE)
-    inputs.property('rustFlags', '-C target-cpu=native')
-    inputs.property('incremental', '1')
+    description = 'Compiles the Rust native library'
+    workingDir = rustProjectDir.asFile
 
-    def libName = System.mapLibraryName('rust_mc_core')
-    def outputBin = rustOutputDir.file(libName).asFile
-    outputs.file(outputBin).withPropertyName('nativeBinary')
-    outputs.cacheIf { true }
+    // Track Rust source and build config inputs for accurate up-to-date checks.
+    inputs.files(fileTree('rust_mc_core/src') { include '**/*.rs' })
+    inputs.file('rust_mc_core/Cargo.toml')
+    inputs.file('rust_mc_core/Cargo.lock')
+    def rustBuildScript = file('rust_mc_core/build.rs')
+    if (rustBuildScript.exists()) {
+        inputs.file(rustBuildScript)
+    }
+    def rustCargoConfig = file('rust_mc_core/.cargo/config.toml')
+    if (rustCargoConfig.exists()) {
+        inputs.file(rustCargoConfig)
+    }
+
+    // Track build properties that influence cargo output.
+    inputs.property('rust_profile', 'release')
+    inputs.property('rust_flags', '-C target-cpu=native')
+    inputs.property('rust_lib_name', rustLibName)
+
+    outputs.file(rustOutputFile)
 
     environment 'RUSTFLAGS', '-C target-cpu=native'
-    environment 'CARGO_INCREMENTAL', '1'
-    
-    // Ensure we don't try to build if locked
+    // Disabling CARGO_INCREMENTAL for release builds to prevent potential cache corruption
+    // and ensure clean LTO optimization across all codegen units.
+    environment 'CARGO_INCREMENTAL', '0'
+    commandLine 'cargo', 'build', '--release', '--locked'
+
     doFirst {
+        File outputBin = rustOutputFile.asFile
         if (org.gradle.internal.os.OperatingSystem.current().isWindows() && outputBin.exists()) {
+            // Pre-check if the DLL is locked by a running Minecraft instance
             try {
                 outputBin.renameTo(outputBin)
             } catch (Exception ignored) {
-                throw new GradleException("[Rust-MC] Build Aborted: ${libName} is locked by Minecraft.")
-            }
-        }
-    }
-    
-    executable = org.gradle.internal.os.OperatingSystem.current().isWindows() ? 'cmd' : 'cargo'
-    if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
-        args '/c', 'cargo build --release'
-    } else {
-        args 'build', '--release'
-    }
-}
-
-tasks.register('moveRustBinaries', Copy) {
-    group = 'build'
-    description = 'Deploys latest Rust binaries to resources'
-    dependsOn 'rustBuild'
-    
-    def libName = System.mapLibraryName('rust_mc_core')
-    def sourceFile = rustOutputDir.file(libName)
-    def targetDir = layout.projectDirectory.dir('src/main/resources')
-    
-    from(sourceFile)
-    into(targetDir)
-
-    // Force refresh and check for locks without violating Configuration Cache
-    doFirst {
-        def targetFile = targetDir.file(libName).asFile
-        if (targetFile.exists()) {
-            try {
-                targetFile.renameTo(targetFile) // Quick lock check
-                targetFile.delete()
-            } catch (Exception ignored) {
-                throw new GradleException("[Rust-MC] Deploy Failed: ${libName} is locked. Close Minecraft first.")
+                throw new GradleException("[Rust-MC] Cannot build: ${rustLibName} is locked. Please close Minecraft/Loom first.")
             }
         }
     }
@@ -82,23 +60,36 @@ tasks.register('moveRustBinaries', Copy) {
 tasks.register('rustClean', Exec) {
     group = 'build'
     description = 'Cleans the Rust build artifacts'
-    workingDir 'rust_mc_core'
-    executable = org.gradle.internal.os.OperatingSystem.current().isWindows() ? 'cmd' : 'cargo'
-    if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
-        args '/c', 'cargo clean'
-    } else {
-        args 'clean'
-    }
+    workingDir = rustProjectDir.asFile
+    commandLine 'cargo', 'clean'
 }
 
 tasks.named('clean') {
     dependsOn 'rustClean'
 }
+
+tasks.register('moveRustBinaries', Copy) {
+    group = 'build'
+    description = 'Stages latest Rust binaries into generated resources'
+    dependsOn 'rustBuild'
+
+    from(rustOutputFile)
+    into(generatedRustResourcesDir)
+}
+
 // ─── Multi-project Logic ──────────────────────────────────────────────────
+
 // Ensure native lib is always updated before subprojects try to package resources
 subprojects {
     tasks.withType(ProcessResources).configureEach {
         dependsOn ':moveRustBinaries'
+        from(rootProject.layout.buildDirectory.dir('generated/rust-resources'))
     }
 }
-// Standard build tasks from the 'base' plugin will aggregate subproject results.
+
+tasks.register('buildAll') {
+    group = 'build'
+    description = 'Builds jars for both 1.21.11 and 26.1.1'
+    dependsOn ':versions:mc1_21_11:build'
+    // dependsOn ':versions:mc26_1_1:build'
+}

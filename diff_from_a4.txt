@@ -1,0 +1,10 @@
+﻿Current status
+- Historical patch log compressed into plain text.
+- Caveman-commit history removed from the visible rollback notes.
+Still-open issues
+- None recorded.
+Actionable TODOs
+- Keep any future rollback note short and tied to active roadmap work.
+Verification notes
+- Detailed history lives in `docs/completed-changes.md`.
+- Active work lives in `ROADMAP.md`.

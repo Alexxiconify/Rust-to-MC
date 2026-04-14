@@ -1,14 +1,18 @@
 package com.alexxiconify.rustmc;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-// NativeCache provides bounded LRU storage for frequently accessed data. Evicts oldest entries when capacity is exceeded to prevent unbounded RAM growth. Tracks hit/miss statistics for performance monitoring. Methods like store, has, get form the public API used by mod compat hooks.
+//
+ //  NativeCache provides bounded LRU storage for frequently accessed data.
+ //  Evicts oldest entries when capacity is exceeded to prevent unbounded RAM growth.
+ //  Tracks hit/miss statistics for performance monitoring.
+ //  <p>
+ //  Methods like {@code store}, {@code has}, {@code get} form the public API surface
+ //  used by mod compat hooks and future extensions.
+@SuppressWarnings("unused")
 public class NativeCache {
     private NativeCache() {}
-
     private static final int MAX_ENTRIES = 1024;
     private static final ReentrantReadWriteLock LOCK = new ReentrantReadWriteLock();
     private static final AtomicLong HITS = new AtomicLong(0);
@@ -19,8 +23,8 @@ public class NativeCache {
             return super.size() > MAX_ENTRIES;
         }
     };
-
-    // Stores a byte array and returns the key.
+    //
+     // Stores a byte array and returns the key.
     public static String store(String key, byte[] data) {
         LOCK.writeLock().lock();
         try {
@@ -30,7 +34,6 @@ public class NativeCache {
         }
         return key;
     }
-
     public static byte[] get(String key) {
         // Must use writeLock because accessOrder=true mutates the linked list on get()
         LOCK.writeLock().lock();
@@ -46,7 +49,6 @@ public class NativeCache {
             LOCK.writeLock().unlock();
         }
     }
-
     public static boolean has(String key) {
         LOCK.readLock().lock();
         try {
@@ -55,7 +57,6 @@ public class NativeCache {
             LOCK.readLock().unlock();
         }
     }
-
     public static void clear() {
         LOCK.writeLock().lock();
         try {
@@ -66,7 +67,6 @@ public class NativeCache {
             LOCK.writeLock().unlock();
         }
     }
-
     public static int size() {
         LOCK.readLock().lock();
         try {
@@ -75,14 +75,11 @@ public class NativeCache {
             LOCK.readLock().unlock();
         }
     }
-
-    // Returns cache hit count since last clear.
+    //Returns cache hit count since last clear. // /
     public static long getHits() { return HITS.get(); }
-
-    // Returns cache miss count since last clear.
+    //Returns cache miss count since last clear. // /
     public static long getMisses() { return MISSES.get(); }
-
-    // Returns the cache hit ratio (0.0 - 1.0).
+    //Returns the cache hit ratio (0.0 - 1.0). // /
     public static float getHitRatio() {
         long h = HITS.get();
         long m = MISSES.get();
