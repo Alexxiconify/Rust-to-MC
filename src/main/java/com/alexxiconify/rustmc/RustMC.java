@@ -89,7 +89,7 @@ public class RustMC implements ModInitializer {
         try {
             String rawJson = Files.readString(CONFIG_PATH);
             RustMCConfig loaded = GSON.fromJson(rawJson, RustMCConfig.class);
-            if (loaded != null && loaded.getConfigVersion() == RustMCConfig.CURRENT_CONFIG_VERSION) {
+            if (loaded != null && RustMCConfig.CURRENT_CONFIG_VERSION.equals(loaded.getConfigVersion())) {
                 CONFIG.copyFrom(loaded);
             } else {
                 backupAndResetConfig(loaded == null ? "missing-body" : "schema-mismatch");

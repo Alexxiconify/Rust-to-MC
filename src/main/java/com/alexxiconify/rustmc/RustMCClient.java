@@ -13,12 +13,10 @@ import org.lwjgl.glfw.GLFW;
  //  Client-side initializer for Rust-MC.
  //  Registers keybinds for toggling overlays:
  //    F6 — Native metrics HUD
- //    F7 — Timing info overlay
  //    F8 — Frame-time sparkline graph
  //    F9 — DH culling debug log
 public class RustMCClient implements ClientModInitializer {
     private KeyBinding toggleNativeMetrics;
-    private KeyBinding togglePieChart;
     private KeyBinding toggleFrameGraph;
     private KeyBinding toggleDhCullingDebugLog;
     private KeyBinding cycleDhCullingSpaceMode;
@@ -33,9 +31,6 @@ public class RustMCClient implements ClientModInitializer {
         toggleNativeMetrics = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.rustmc.toggle_ram_bar",
                 InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_F6, rustCategory));
-        togglePieChart = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.rustmc.toggle_pie_chart",
-                InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_F7, rustCategory));
         toggleFrameGraph = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.rustmc.toggle_frame_graph",
                 InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_F8, rustCategory));
@@ -54,13 +49,6 @@ public class RustMCClient implements ClientModInitializer {
             String state = cfg.isEnableNativeMetricsHud() ? "ON" : "OFF";
             RustMC.LOGGER.info("[Rust-MC] Native metrics HUD: {}", state);
             showActionBar(client, "Rust-MC Native Metrics HUD: " + state);
-            changed = true;
-        }
-        while (togglePieChart.wasPressed()) {
-            cfg.setEnablePieChart(!cfg.isEnablePieChart());
-            String state = cfg.isEnablePieChart() ? "ON" : "OFF";
-            RustMC.LOGGER.info("[Rust-MC] Timing info overlay: {}", state);
-            showActionBar(client, "Rust-MC Timing Overlay: " + state);
             changed = true;
         }
         while (toggleFrameGraph.wasPressed()) {

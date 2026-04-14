@@ -229,22 +229,17 @@ public class ModMenuIntegration implements ModMenuApi {
                 "Skip client-side redstone neighbor updates (server handles logic).",
                 cfg::isEnableClientRedstoneSkip, v -> cfg.setEnableClientRedstoneSkip(v != null && v)))
 
-            .option(buildSectionHeader("DH Cave Culling Debug", "Controls how DH cave culling decides reference Y and optional logs."))
+            .option(buildSectionHeader("DH Cave Culling Debug", "Controls player-based DH cave culling and optional logs."))
             .option(buildBooleanOption("Enable DH Cave Culling",
-                "When ON, DH LOD loading is disabled below surface threshold.",
+                "When ON, DH LOD loading is disabled below the player-based surface threshold.",
                 cfg::isEnableDhCaveCulling, v -> cfg.setEnableDhCaveCulling(v != null && v)))
-            .option(buildBooleanOption("Use Player Position For DH Culling",
-                "When ON, cave culling uses player Y instead of camera Y (useful with freecam).",
-                cfg::isUsePlayerPosForDhCulling, v -> cfg.setUsePlayerPosForDhCulling(v != null && v)))
             .option(buildBooleanOption("DH Culling Debug Log",
-                "Logs whether each DH section was culled and which Y source was used.",
+                "Logs whether each DH section was culled and which player Y was used.",
                 cfg::isEnableDhCullingDebugLog, v -> cfg.setEnableDhCullingDebugLog(v != null && v)))
             .option(Option.<String>createBuilder()
                 .name(Text.literal("DH Culling Space Mode"))
                 .description(OptionDescription.of(Text.literal(
-                    "Controls DH AABB coordinate-space interpretation.\n" +
-                    "Values: auto | absolute | plus_camera | minus_camera\n" +
-                    "Tip: use the keybind to cycle modes quickly while testing.")))
+                    "Controls DH AABB coordinate-space interpretation.\n Values: auto | absolute | plus_camera | minus_camera\n Tip: use the keybind to cycle modes quickly while testing.")))
                 .binding(RustMCConfig.DH_CULLING_SPACE_AUTO,
                     cfg::getDhCullingSpaceMode,
                     mode -> cfg.setDhCullingSpaceMode(RustMCConfig.normalizeDhCullingSpaceMode(mode)))

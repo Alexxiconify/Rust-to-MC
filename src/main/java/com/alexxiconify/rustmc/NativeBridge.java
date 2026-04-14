@@ -551,19 +551,15 @@ public class NativeBridge {
     private static double getDhReferenceY() {
         try {
             MinecraftClient client = MinecraftClient.getInstance();
-            if (client == null) return Double.NaN;
-            if (RustMC.CONFIG.isUsePlayerPosForDhCulling() && client.player != null) {
-                return client.player.getY();
-            }
-            Entity cam = client.getCameraEntity();
-            return cam != null ? cam.getY() : Double.NaN;
+            if (client == null || client.player == null) return Double.NaN;
+            return client.player.getY();
         } catch (Exception ignored) {
             return Double.NaN;
         }
     }
 
     private static String getDhReferenceSource() {
-        return RustMC.CONFIG.isUsePlayerPosForDhCulling() ? "player" : "camera";
+        return "player";
     }
 
     private static ClientFrustumContext getClientFrustumContext() {
@@ -681,7 +677,7 @@ public class NativeBridge {
             return Optional.empty();
         }
     }
-    // DH section visibility: reject below-surface camera, then run Rust frustum + vertical checks.
+    // DH section visibility: reject below-surface player position, then run Rust frustum + vertical checks.
     public static boolean cullDistantHorizonsSection(long ptr,
                                                      double minX, double minY, double minZ,
                                                      double maxX, double maxY, double maxZ,

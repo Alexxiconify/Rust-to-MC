@@ -5,6 +5,5 @@
   "key.rustmc.toggle_frame_graph": "Toggle Frame Graph",
   "key.rustmc.toggle_dh_culling_log": "Toggle DH Culling Debug Log",
   "key.rustmc.cycle_dh_culling_space": "Cycle DH Culling Space Mode",
-  "key.rustmc.toggle_ram_bar": "Toggle RAM Bar Overlay",
-  "key.rustmc.toggle_pie_chart": "Toggle Timing Info Overlay"
+  "key.rustmc.toggle_ram_bar": "Toggle RAM Bar Overlay"
 }

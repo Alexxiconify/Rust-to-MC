@@ -3,8 +3,9 @@ package com.alexxiconify.rustmc.config;
  //  Configuration POJO for Rust-MC. All fields are serialized/deserialized by Gson,
  //  and getters/setters are referenced by ModMenu (YACL) via method references.
 public class RustMCConfig {
-    public static final int CURRENT_CONFIG_VERSION = 2;
-    private int configVersion = CURRENT_CONFIG_VERSION;
+    // Bump this whenever the ModMenu config surface changes so old saved values are reset.
+    public static final String CURRENT_CONFIG_VERSION = "2.1.0";
+    private String configVersion = CURRENT_CONFIG_VERSION;
 
     // Math optimizations
     private boolean useNativeSine     = true;
@@ -34,7 +35,6 @@ public class RustMCConfig {
     private boolean enableImmediatelyFastCompat = true;
     private boolean enableClientRedstoneSkip   = true;
     private boolean enableDhCaveCulling        = true;
-    private boolean usePlayerPosForDhCulling   = false;
     private boolean enableDhCullingDebugLog    = false;
     private String dhCullingSpaceMode          = DH_CULLING_SPACE_AUTO;
     private boolean enableDebugHudGraph        = false;
@@ -91,7 +91,6 @@ public class RustMCConfig {
         this.enableImmediatelyFastCompat = o.enableImmediatelyFastCompat;
         this.enableClientRedstoneSkip = o.enableClientRedstoneSkip;
         this.enableDhCaveCulling = o.enableDhCaveCulling;
-        this.usePlayerPosForDhCulling = o.usePlayerPosForDhCulling;
         this.enableDhCullingDebugLog = o.enableDhCullingDebugLog;
         this.dhCullingSpaceMode = normalizeDhCullingSpaceMode(o.dhCullingSpaceMode);
         this.enableDebugHudGraph = o.enableDebugHudGraph;
@@ -114,7 +113,7 @@ public class RustMCConfig {
         this.experimentalCoexistEnabled = o.experimentalCoexistEnabled;
     }
     // Getters
-    public int getConfigVersion()           { return configVersion; }
+    public String getConfigVersion()        { return configVersion; }
     public boolean isUseNativeSine()        { return useNativeSine; }
     public boolean isUseNativeCos()         { return useNativeCos; }
     public boolean isUseNativeSqrt()        { return useNativeSqrt; }
@@ -141,7 +140,6 @@ public class RustMCConfig {
     public boolean isEnableImmediatelyFastCompat() { return enableImmediatelyFastCompat; }
     public boolean isEnableClientRedstoneSkip()   { return enableClientRedstoneSkip; }
     public boolean isEnableDhCaveCulling()        { return enableDhCaveCulling; }
-    public boolean isUsePlayerPosForDhCulling()   { return usePlayerPosForDhCulling; }
     public boolean isEnableDhCullingDebugLog()    { return enableDhCullingDebugLog; }
     public String getDhCullingSpaceMode()         { return normalizeDhCullingSpaceMode(dhCullingSpaceMode); }
     public boolean isEnableDebugHudGraph()        { return enableDebugHudGraph; }
@@ -164,7 +162,7 @@ public class RustMCConfig {
     public boolean isNativeReady()          { return nativeReady; }
     public boolean isExperimentalCoexistEnabled() { return experimentalCoexistEnabled; }
     // Setters
-    public void setConfigVersion(int v)          { configVersion = v; }
+    public void setConfigVersion(String v)       { configVersion = v; }
     public void setUseNativeSine(boolean v)        { useNativeSine = v; }
     public void setUseNativeCos(boolean v)         { useNativeCos = v; }
     public void setUseNativeSqrt(boolean v)        { useNativeSqrt = v; }
@@ -191,7 +189,6 @@ public class RustMCConfig {
     public void setEnableImmediatelyFastCompat(boolean v) { enableImmediatelyFastCompat = v; }
     public void setEnableClientRedstoneSkip(boolean v)   { enableClientRedstoneSkip = v; }
     public void setEnableDhCaveCulling(boolean v)        { enableDhCaveCulling = v; }
-    public void setUsePlayerPosForDhCulling(boolean v)   { usePlayerPosForDhCulling = v; }
     public void setEnableDhCullingDebugLog(boolean v)    { enableDhCullingDebugLog = v; }
     public void setDhCullingSpaceMode(String mode)       { dhCullingSpaceMode = normalizeDhCullingSpaceMode(mode); }
     public void setEnableDebugHudGraph(boolean v)        { enableDebugHudGraph = v; }

@@ -61,6 +61,19 @@ This document records optimization and stability work that has already been comp
 - Occlusion fallback no longer suppresses frustum culling.
 - Compatibility callers receive a real visible/culled result instead of an undefined sentinel.
 
+## April 14, 2026 - DH Test Path + Config Version Refresh
+
+**Completed this compatibility pass:**
+- `RustMCClient.java` no longer registers the dead pie-chart keybind; the timing overlay now lives in ModMenu only.
+- `RustMCConfig` and `RustMC` now use semantic config versions (`2.x.y`) so ModMenu/config surface changes force a clean client refresh instead of manual file deletion.
+- `DistantHorizonsCompat.java` now uses player position only for DH culling/testing and lowers the surface gate to `54.0` to avoid over-culling while swimming.
+- `ModMenuIntegration.java` now reflects the player-only DH culling behavior and no longer exposes the obsolete player/camera toggle.
+
+**Payoff:**
+- No dead keybind path for the timing overlay.
+- Saved config values reset automatically when the schema changes.
+- DH testing stays player-based and less aggressive near ocean level.
+
 ## April 13, 2026 - Client-Only Mixin Refactor & Performance Optimization
 
 ### Hot-Path Telemetry & Budget Cleanup

@@ -9,7 +9,7 @@ import net.fabricmc.loader.api.FabricLoader;
 public class DistantHorizonsCompat {
     private static final String DH_MOD_ID = "distanthorizons";
     private static final String DH_API_CLASS = "com.seibel.distanthorizons.api.DhApi";
-    private static final double DH_SURFACE_Y = 62.0;
+    private static final double DH_SURFACE_Y = 54.0;
     private static final double DH_AGGRESSIVE_MARGIN = -2.0;
     private DistantHorizonsCompat() {}
     private static long rustFrustumPtr = 0;
@@ -333,13 +333,12 @@ public class DistantHorizonsCompat {
         if (mc == null) {
             return false;
         }
-        net.minecraft.entity.Entity camera = mc.getCameraEntity();
-        if (camera == null) {
+        if (mc.player == null) {
             return false;
         }
-        double cx = camera.getX() * cameraSign;
-        double cy = camera.getY() * cameraSign;
-        double cz = camera.getZ() * cameraSign;
+        double cx = mc.player.getX() * cameraSign;
+        double cy = mc.player.getY() * cameraSign;
+        double cz = mc.player.getZ() * cameraSign;
         return com.alexxiconify.rustmc.NativeBridge.cullDistantHorizonsSection(
             rustFrustumPtr,
             minX + cx, minY + cy, minZ + cz,
