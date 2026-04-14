@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 //
- //  Updates native cave-status hints from the active camera position.
+ //  Updates native cave-status hints from the player position (not active camera entity).
 @Mixin(net.minecraft.client.render.Frustum.class)
 public class FrustumMixin {
     @Inject(method = "init", at = @At("RETURN"))
@@ -17,9 +17,9 @@ public class FrustumMixin {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null) return;
         var world = client.world;
-        var cameraEntity = client.getCameraEntity();
-        if (world != null && cameraEntity != null) {
-            BlockPos pos = cameraEntity.getBlockPos();
+        var player = client.player;
+        if (world != null && player != null) {
+            BlockPos pos = player.getBlockPos();
             boolean inCave = world.getLightLevel(LightType.SKY, pos) == 0 && pos.getY() < 50;
             NativeBridge.updateCaveStatus(inCave);
         } else {

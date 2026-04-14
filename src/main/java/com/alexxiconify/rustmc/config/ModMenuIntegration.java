@@ -64,28 +64,32 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildDetectOption("ImmediatelyFast Detected", () -> ModBridge.IMMEDIATELYFAST))
             .option(buildDetectOption("Distant Horizons Detected", () -> ModBridge.DISTANT_HORIZONS))
             .option(buildDetectOption("AppleSkin Detected",       () -> ModBridge.APPLESKIN))
-            .option(Option.<Long>createBuilder()
+            .option(Option.<String>createBuilder()
                 .name(Text.literal("Total JNI Calls"))
                 .description(OptionDescription.of(Text.literal("Lifetime count of Java -> Rust calls via the NativeBridge.")))
-                .binding(0L, () -> getCachedMetric(0), val -> {})
-                .controller(opt -> dev.isxander.yacl3.api.controller.LongFieldControllerBuilder.create(opt)
-                    .formatValue(val -> Text.literal("§e" + getCachedMetric(0))))
+                .binding("0", () -> metricText(0), val -> {})
+                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
                 .available(false)
                 .build())
-            .option(Option.<Long>createBuilder()
+            .option(Option.<String>createBuilder()
                 .name(Text.literal("Lighting Updates"))
                 .description(OptionDescription.of(Text.literal("Total 3D voxel light updates processed by Rust.")))
-                .binding(0L, () -> getCachedMetric(1), val -> {})
-                .controller(opt -> dev.isxander.yacl3.api.controller.LongFieldControllerBuilder.create(opt)
-                    .formatValue(val -> Text.literal("§a" + getCachedMetric(1))))
+                .binding("0", () -> metricText(1), val -> {})
+                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
                 .available(false)
                 .build())
-            .option(Option.<Long>createBuilder()
+            .option(Option.<String>createBuilder()
                 .name(Text.literal("Frustum Tests"))
                 .description(OptionDescription.of(Text.literal("Total AABB visibility tests performed by Rust.")))
-                .binding(0L, () -> getCachedMetric(2), val -> {})
-                .controller(opt -> dev.isxander.yacl3.api.controller.LongFieldControllerBuilder.create(opt)
-                    .formatValue(val -> Text.literal("§b" + getCachedMetric(2))))
+                .binding("0", () -> metricText(2), val -> {})
+                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
+                .available(false)
+                .build())
+            .option(Option.<String>createBuilder()
+                .name(Text.literal("JNI Metrics Status"))
+                .description(OptionDescription.of(Text.literal("Quick status of JNI metric availability for this session.")))
+                .binding("unavailable", ModMenuIntegration::getMetricsStatusText, val -> {})
+                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
                 .available(false)
                 .build())
             .option(Option.<String>createBuilder()
@@ -110,6 +114,10 @@ public class ModMenuIntegration implements ModMenuApi {
         refreshMetricsCache();
         if (index < 0 || index >= cachedMetrics.length) return 0L;
         return cachedMetrics[index];
+    }
+
+    private static String metricText(int index) {
+        return Long.toString(getCachedMetric(index));
     }
 
     private static void refreshMetricsCache() {
@@ -146,18 +154,9 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildBooleanOption("Native F3 Hooks",
                 "Enable Rust-backed F3/debug calculations where available.",
                 cfg::isUseNativeF3, v -> cfg.setUseNativeF3(v != null && v)))
-            .option(buildBooleanOption("Native Compression",
-                "Replaces packet Zlib compression with Rust zlib-ng encoder.",
-                cfg::isUseNativeCompression, v -> cfg.setUseNativeCompression(v != null && v)))
             .option(buildBooleanOption("Native Lighting (Experimental)",
                 "Hooks lighting engine for Rust-parallel updates.\nDisabled when Sodium/Starlight/C2ME/Iris Bridge is ON.",
                 cfg::isUseNativeLighting, v -> cfg.setUseNativeLighting(v != null && v)))
-            .option(buildBooleanOption("Native Pathfinding (Experimental)",
-                "Rust A// pre-computes mob path distances; cancels vanilla only when mob is at target.\nDisabled when Lithium Bridge is ON.",
-                cfg::isUseNativePathfinding, v -> cfg.setUseNativePathfinding(v != null && v)))
-            .option(buildBooleanOption("Native Commands (Experimental)",
-                "Passes server commands to Rust before Brigadier. Currently a no-op — leave OFF.",
-                cfg::isUseNativeCommands, v -> cfg.setUseNativeCommands(v != null && v)))
             .option(buildBooleanOption("Native Metrics HUD",
                 "Shows native performance metrics. Toggle with the Rust-MC keybind.",
                 cfg::isEnableNativeMetricsHud, v -> cfg.setEnableNativeMetricsHud(v != null && v)))
@@ -220,14 +219,19 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildSectionHeader("Mod Bridges", "Subsystem ownership handoff to other mods."))
             .option(buildBooleanOption("Sodium Bridge", "Defer rendering-related math to Sodium when present.",
                 cfg::isBridgeSodium, v -> cfg.setBridgeSodium(v != null && v)))
-            .option(buildBooleanOption("Starlight Bridge", "Disable native lighting when Starlight is installed.",
-                cfg::isBridgeStarlight, v -> cfg.setBridgeStarlight(v != null && v)))
             .option(buildBooleanOption("C2ME Bridge", "Disable native math/noise/lighting hooks when C2ME is installed.",
                 cfg::isBridgeC2ME, v -> cfg.setBridgeC2ME(v != null && v)))
-            .option(buildBooleanOption("Iris Bridge", "Disable native lighting hook when Iris is installed.",
-                cfg::isBridgeIris, v -> cfg.setBridgeIris(v != null && v)))
             .option(buildBooleanOption("Lithium Bridge", "Disable native pathfinding when Lithium is installed.",
                 cfg::isBridgeLithium, v -> cfg.setBridgeLithium(v != null && v)));
+    }
+
+    private static String getMetricsStatusText() {
+        if (!NativeBridge.isReady()) {
+            return "native-off";
+        }
+        refreshMetricsCache();
+        long total = cachedMetrics[0] + cachedMetrics[1] + cachedMetrics[2];
+        return total > 0 ? "active" : "no-data";
     }
 
     private void addLoadingScreenOptions(ConfigCategory.Builder builder, RustMCConfig cfg) {

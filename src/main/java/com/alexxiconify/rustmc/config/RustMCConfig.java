@@ -4,17 +4,14 @@ package com.alexxiconify.rustmc.config;
  //  and getters/setters are referenced by ModMenu (YACL) via method references.
 public class RustMCConfig {
     // Bump this whenever the ModMenu config surface changes so old saved values are reset.
-    public static final String CURRENT_CONFIG_VERSION = "2.3.0";
+    public static final String CURRENT_CONFIG_VERSION = "2.4.0";
     private String configVersion = CURRENT_CONFIG_VERSION;
 
     // Math/debug overlays
     private boolean useNativeF3       = true;
     // World / system features
     private boolean useNativeLighting    = true;
-    private boolean useNativeCompression = true;
-    private boolean useNativePathfinding = true;
     private boolean useFastLoadingScreen = false;
-    private boolean useNativeCommands    = false;
     // Mod compat toggles
     private boolean enableParticleCulling      = true;
     private boolean enableChunkBuilderExpand   = true;
@@ -35,9 +32,7 @@ public class RustMCConfig {
     private boolean enableDnsCache             = true;
     // Mod bridges
     private boolean bridgeSodium    = true;
-    private boolean bridgeStarlight = true;
     private boolean bridgeC2ME      = true;
-    private boolean bridgeIris      = true;
     private boolean bridgeLithium   = true;
     // Loading screen colors
     private int loadingBarBgColor      = 0xFF1A1A1A;
@@ -55,10 +50,7 @@ public class RustMCConfig {
         this.configVersion = o.configVersion;
         this.useNativeF3 = o.useNativeF3;
         this.useNativeLighting = o.useNativeLighting;
-        this.useNativeCompression = o.useNativeCompression;
-        this.useNativePathfinding = o.useNativePathfinding;
         this.useFastLoadingScreen = o.useFastLoadingScreen;
-        this.useNativeCommands = o.useNativeCommands;
         this.enableParticleCulling = o.enableParticleCulling;
         this.enableChunkBuilderExpand = o.enableChunkBuilderExpand;
         this.enableTickSyncCompat = o.enableTickSyncCompat;
@@ -76,9 +68,7 @@ public class RustMCConfig {
         this.enableNativeMetricsHud = o.enableNativeMetricsHud;
         this.enableDnsCache = o.enableDnsCache;
         this.bridgeSodium = o.bridgeSodium;
-        this.bridgeStarlight = o.bridgeStarlight;
         this.bridgeC2ME = o.bridgeC2ME;
-        this.bridgeIris = o.bridgeIris;
         this.bridgeLithium = o.bridgeLithium;
         this.loadingBarBgColor = o.loadingBarBgColor;
         this.loadingBarLowColor = o.loadingBarLowColor;
@@ -94,10 +84,7 @@ public class RustMCConfig {
     public String getConfigVersion()        { return configVersion; }
     public boolean isUseNativeF3()          { return useNativeF3; }
     public boolean isUseNativeLighting()    { return useNativeLighting; }
-    public boolean isUseNativeCompression() { return useNativeCompression; }
-    public boolean isUseNativePathfinding() { return useNativePathfinding; }
     public boolean isUseFastLoadingScreen() { return useFastLoadingScreen; }
-    public boolean isUseNativeCommands()    { return useNativeCommands; }
     public boolean isEnableParticleCulling()      { return enableParticleCulling; }
     public boolean isEnableChunkBuilderExpand()   { return enableChunkBuilderExpand; }
     public boolean isEnableTickSyncCompat()       { return enableTickSyncCompat; }
@@ -115,9 +102,7 @@ public class RustMCConfig {
     public boolean isEnableNativeMetricsHud()     { return enableNativeMetricsHud; }
     public boolean isEnableDnsCache()             { return enableDnsCache; }
     public boolean isBridgeSodium()         { return bridgeSodium; }
-    public boolean isBridgeStarlight()      { return bridgeStarlight; }
     public boolean isBridgeC2ME()           { return bridgeC2ME; }
-    public boolean isBridgeIris()           { return bridgeIris; }
     public boolean isBridgeLithium()        { return bridgeLithium; }
     public int getLoadingBarBgColor()       { return loadingBarBgColor; }
     public int getLoadingBarLowColor()      { return loadingBarLowColor; }
@@ -133,10 +118,7 @@ public class RustMCConfig {
     public void setConfigVersion(String v)       { configVersion = v; }
     public void setUseNativeF3(boolean v)          { useNativeF3 = v; }
     public void setUseNativeLighting(boolean v)    { useNativeLighting = v; }
-    public void setUseNativeCompression(boolean v) { useNativeCompression = v; }
-    public void setUseNativePathfinding(boolean v) { useNativePathfinding = v; }
     public void setUseFastLoadingScreen(boolean v) { useFastLoadingScreen = v; }
-    public void setUseNativeCommands(boolean v)    { useNativeCommands = v; }
     public void setEnableParticleCulling(boolean v)      { enableParticleCulling = v; }
     public void setEnableChunkBuilderExpand(boolean v)   { enableChunkBuilderExpand = v; }
     public void setEnableTickSyncCompat(boolean v)       { enableTickSyncCompat = v; }
@@ -154,9 +136,7 @@ public class RustMCConfig {
     public void setEnableNativeMetricsHud(boolean v)     { enableNativeMetricsHud = v; }
     public void setEnableDnsCache(boolean v)             { enableDnsCache = v; }
     public void setBridgeSodium(boolean v)         { bridgeSodium = v; }
-    public void setBridgeStarlight(boolean v)      { bridgeStarlight = v; }
     public void setBridgeC2ME(boolean v)           { bridgeC2ME = v; }
-    public void setBridgeIris(boolean v)           { bridgeIris = v; }
     public void setBridgeLithium(boolean v)        { bridgeLithium = v; }
     public void setLoadingBarBgColor(int v)        { loadingBarBgColor = v; }
     public void setLoadingBarLowColor(int v)       { loadingBarLowColor = v; }
