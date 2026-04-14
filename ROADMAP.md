@@ -37,6 +37,7 @@ Scope: active work only. Completed optimization history lives in [`docs/complete
 - DNS cache persistence now also triggers on multiplayer join/disconnect to reduce cache-loss windows between sessions.
 - Section-12 Java consolidation pass #1 is complete: duplicated JNI math fallback wrappers and repeated DH readiness guards are now centralized.
 - Section-12 Java consolidation pass #2 is complete: DNS cache enable/persist/hostname guards and connection-hook glue now share `DnsCacheUtil`, and unused per-math-call config toggles were removed from config + Mod Menu.
+- Section-12 cleanup follow-up: DNS-related mixins now live under `mixin.network`, and stale `MixinManager` entries/comments for removed mixins were pruned.
 
 ## Completed Changes
 

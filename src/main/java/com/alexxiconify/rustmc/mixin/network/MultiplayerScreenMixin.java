@@ -1,4 +1,4 @@
-package com.alexxiconify.rustmc.mixin.screen;
+package com.alexxiconify.rustmc.mixin.network;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
 import com.alexxiconify.rustmc.util.DnsCacheUtil;
@@ -10,10 +10,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.ArrayList;
 import java.util.List;
-//
- //  When the multiplayer server list screen opens, batch-resolve all server hostnames
- //  in parallel via Rust's rayon-backed DNS resolver.  Pre-warms the DNS cache so
- //  individual server pings don't block on DNS lookups.
+
+// Batch-resolves saved server hostnames when the multiplayer screen opens.
 @Mixin(MultiplayerScreen.class)
 public class MultiplayerScreenMixin {
     @Inject(method = "init", at = @At("TAIL"), require = 0)

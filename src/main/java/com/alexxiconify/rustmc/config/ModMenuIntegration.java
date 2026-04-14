@@ -311,7 +311,6 @@ public class ModMenuIntegration implements ModMenuApi {
             .controller(ColorControllerBuilder::create)
             .build();
     }
-    //Same as buildColorOption but for Swing java.awt.Color (ELB colors). // /
     private Option<Color> buildColorOptionSwing(String name, String desc, Supplier<Color> getter, Consumer<Color> setter) {
         return buildColorOption(name, desc, getter, setter);
     }
@@ -432,13 +431,11 @@ public class ModMenuIntegration implements ModMenuApi {
                 .build());
         }
     }
-    //Color code for mixin timing entries. // /
     private static String mixinBlameColor(long ms) {
         if (ms > 100) return "§c";
         if (ms > 30) return "§e";
         return "§a";
     }
-    //Builds an ASCII bar like [████████░░░░] for the given percentage. // /
     private static String buildAsciiBar(float pct) {
         int filled = Math.clamp(Math.round(pct / 5f), 0, 20);
         return "[" + "█".repeat(filled) + "░".repeat(20 - filled) + "] " +
