@@ -1,6 +1,7 @@
 package com.alexxiconify.rustmc.mixin.screen;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
+import com.alexxiconify.rustmc.util.DnsCacheUtil;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -21,7 +22,7 @@ public class MultiplayerScreenMixin {
     }
     @Unique
     private static void triggerBatchResolve() {
-        if (!NativeBridge.isReady() || !RustMC.CONFIG.isEnableDnsCache()) return;
+        if (!DnsCacheUtil.isDnsCacheEnabled()) return;
         try {
             Thread.ofPlatform().name("rustmc-dns-batch-prewarm").daemon(true).start(MultiplayerScreenMixin::resolveAllServers);
         } catch (Exception e) {
@@ -56,9 +57,8 @@ public class MultiplayerScreenMixin {
         for (int i = 0; i < serverList.size(); i++) {
             net.minecraft.client.network.ServerInfo info = serverList.get(i);
             if (info == null || info.address == null || info.address.isEmpty()) continue;
-            String addr = info.address;
-            String hostname = addr.contains(":") ? addr.substring(0, addr.lastIndexOf(':')) : addr;
-            if (!hostname.isEmpty() && !Character.isDigit(hostname.charAt(0))) {
+            String hostname = DnsCacheUtil.extractResolvableHostname(info.address);
+            if (!hostname.isEmpty()) {
                 hostnames.add(hostname);
             }
         }

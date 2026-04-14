@@ -29,6 +29,14 @@ public class DistantHorizonsCompat {
     private static final float[] lastVpArray = new float[VP_MATRIX_SIZE];
     private static boolean hasLastVpArray = false;
 
+    private static boolean isDhLoaded() {
+        return !FabricLoader.getInstance ( ).isModLoaded ( DH_MOD_ID );
+    }
+
+    private static boolean isDhNativeReady() {
+        return isDhLoaded ( ) || !com.alexxiconify.rustmc.NativeBridge.isReady ( );
+    }
+
     private enum ProxyMethodKind {
         PRIORITY,
         UPDATE,
@@ -53,7 +61,7 @@ public class DistantHorizonsCompat {
         new java.util.concurrent.ConcurrentHashMap<>();
     @SuppressWarnings("java:S3776")
     public static void registerFrustumCuller() {
-        if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID) || !com.alexxiconify.rustmc.NativeBridge.isReady()) return;
+        if ( isDhNativeReady ( ) ) return;
         try {
             rustFrustumPtr = com.alexxiconify.rustmc.NativeBridge.createRustFrustum();
             if (rustFrustumPtr == 0) return;
@@ -353,7 +361,7 @@ public class DistantHorizonsCompat {
      // calculations to the Rust wgpu Compute Shader pipeline.
      // Expects vertices formatted as contiguous floats: [posX, posY, posZ, pad, normX, normY, normZ, pad].
     public static float[] computeRustAmbientOcclusion(float[] vertexData) {
-        if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID) || !com.alexxiconify.rustmc.NativeBridge.isReady()) {
+        if ( isDhNativeReady ( ) ) {
             return new float[0];
         }
         int vertexCount = vertexData.length / 8; // 8 floats per vertex struct in WGSL
@@ -361,7 +369,7 @@ public class DistantHorizonsCompat {
         return com.alexxiconify.rustmc.NativeBridge.invokeComputeAmbientOcclusion(vertexData, vertexCount);
     }
     public static float[] computeRustAmbientOcclusionDirect(java.nio.ByteBuffer vertexData, int vertexCount) {
-        if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID) || !com.alexxiconify.rustmc.NativeBridge.isReady()) {
+        if ( isDhNativeReady ( ) ) {
             return new float[0];
         }
         if (vertexCount == 0) return new float[0];
@@ -373,7 +381,7 @@ public class DistantHorizonsCompat {
      // Called during init. DH's default thread count is conservative — on modern
      // CPUs we can afford more threads for disk I/O and LOD meshing.
     public static void optimizeLodThreading() {
-        if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID)) return;
+        if ( isDhLoaded ( ) ) return;
         try {
             Class<?> apiClass = Class.forName(DH_API_CLASS);
             Object dhApi = apiClass.getField("Inst").get(null);
@@ -414,7 +422,7 @@ public class DistantHorizonsCompat {
      // Pre-warms DH's LOD file cache for the current world on a platform daemon thread.
      // Called when connecting to a world/server to reduce initial LOD pop-in.
     public static void prefetchLodData() {
-        if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID)) return;
+        if ( isDhLoaded ( ) ) return;
         Thread.ofPlatform().daemon(true).name("rustmc-dh-prefetch").start(() -> {
             try {
                 // Trigger DH's internal data cache warmup by touching the API
@@ -434,7 +442,7 @@ public class DistantHorizonsCompat {
      // without touching vanilla world state.
     public static void optimizeLighting(long[] lightTasks) {
         if (lightTasks == null || lightTasks.length == 0) return;
-        if (!FabricLoader.getInstance().isModLoaded(DH_MOD_ID) || !com.alexxiconify.rustmc.NativeBridge.isReady()) return;
+        if ( isDhNativeReady ( ) ) return;
         com.alexxiconify.rustmc.NativeBridge.propagateLightDH(lightTasks, lightTasks.length);
     }
     //

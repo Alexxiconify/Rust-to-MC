@@ -337,61 +337,61 @@ public class NativeBridge {
             // Optional native method; fallback to doing nothing if not linked
         }
     }
+
+    private static float callNativeFloatOrFallback(java.util.function.Supplier<Float> nativeCall, float fallback) {
+        if (!libLoaded) return fallback;
+        try { return nativeCall.get(); }
+        catch (UnsatisfiedLinkError e) { return fallback; }
+    }
+
+    private static double callNativeDoubleOrFallback(java.util.function.DoubleSupplier nativeCall, double fallback) {
+        if (!libLoaded) return fallback;
+        try { return nativeCall.getAsDouble(); }
+        catch (UnsatisfiedLinkError e) { return fallback; }
+    }
+
+    private static float wrapDegreesJava(float value) {
+        float v = value % 360.0f;
+        if (v >= 180.0f) v -= 360.0f;
+        else if (v < -180.0f) v += 360.0f;
+        return v;
+    }
+
     public static float fastInvSqrt(float x) {
         if (!libLoaded) return 1.0f / (float) Math.sqrt(x);
         try { return rustFastInvSqrt(x); }
         catch (UnsatisfiedLinkError e) { return 1.0f / (float) Math.sqrt(x); }
     }
     public static float invokeSin(float x) {
-        if (!libLoaded) return (float) Math.sin(x);
-        try { return rustSin(x); }
-        catch (UnsatisfiedLinkError e) { return (float) Math.sin(x); }
+        float fallback = (float) Math.sin(x);
+        return callNativeFloatOrFallback(() -> rustSin(x), fallback);
     }
     public static float invokeCos(float x) {
-        if (!libLoaded) return (float) Math.cos(x);
-        try { return rustCos(x); }
-        catch (UnsatisfiedLinkError e) { return (float) Math.cos(x); }
+        float fallback = (float) Math.cos(x);
+        return callNativeFloatOrFallback(() -> rustCos(x), fallback);
     }
     public static float invokeSqrt(float x) {
-        if (!libLoaded) return (float) Math.sqrt(x);
-        try { return rustSqrt(x); }
-        catch (UnsatisfiedLinkError e) { return (float) Math.sqrt(x); }
+        float fallback = (float) Math.sqrt(x);
+        return callNativeFloatOrFallback(() -> rustSqrt(x), fallback);
     }
     public static double invokeAtan2(double y, double x) {
-        if (!libLoaded) return Math.atan2(y, x);
-        try { return rustAtan2(y, x); }
-        catch (UnsatisfiedLinkError e) { return Math.atan2(y, x); }
+        double fallback = Math.atan2(y, x);
+        return callNativeDoubleOrFallback(() -> rustAtan2(y, x), fallback);
     }
     public static float invokeClamp(float value, float min, float max) {
-        if (!libLoaded) return Math.clamp(value, min, max);
-        try { return rustClamp(value, min, max); }
-        catch (UnsatisfiedLinkError e) { return Math.clamp(value, min, max); }
+        float fallback = Math.clamp(value, min, max);
+        return callNativeFloatOrFallback(() -> rustClamp(value, min, max), fallback);
     }
     public static double invokeLerp(double delta, double start, double end) {
-        if (!libLoaded) return start + delta * (end - start);
-        try { return rustLerp(delta, start, end); }
-        catch (UnsatisfiedLinkError e) { return start + delta * (end - start); }
+        double fallback = start + delta * (end - start);
+        return callNativeDoubleOrFallback(() -> rustLerp(delta, start, end), fallback);
     }
     public static double invokeAbsMax(double a, double b) {
         double max = Math.max(Math.abs(a), Math.abs(b));
-        if (!libLoaded) return max;
-        try { return rustAbsMax(a, b); }
-        catch (UnsatisfiedLinkError e) { return max; }
+        return callNativeDoubleOrFallback(() -> rustAbsMax(a, b), max);
     }
     public static float invokeWrapDegrees(float value) {
-        if (!libLoaded) {
-            float v = value % 360.0f;
-            if (v >= 180.0f) v -= 360.0f;
-            else if (v < -180.0f) v += 360.0f;
-            return v;
-        }
-        try { return rustWrapDegrees(value); }
-        catch (UnsatisfiedLinkError e) {
-            float v = value % 360.0f;
-            if (v >= 180.0f) v -= 360.0f;
-            else if (v < -180.0f) v += 360.0f;
-            return v;
-        }
+        return callNativeFloatOrFallback(() -> rustWrapDegrees(value), wrapDegreesJava(value));
     }
     public static double noise2d(double x, double y) {
         if (!libLoaded) return 0.0;

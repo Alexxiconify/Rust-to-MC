@@ -4,6 +4,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.alexxiconify.rustmc.config.RustMCConfig;
+import com.alexxiconify.rustmc.util.DnsCacheUtil;
 import com.alexxiconify.rustmc.util.BlameLog;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -57,7 +58,7 @@ public class RustMC implements ModInitializer {
             ServerWorldEvents.UNLOAD.register((server, world) -> {
                 BlameLog.begin("World Unload Cleanup");
                 NativeCache.clear();
-                NativeBridge.dnsCacheSave(); // Persist DNS IPs to disk
+                DnsCacheUtil.persistDnsCache("world-unload");
                 LOGGER.debug("[Rust-MC] Cache stats at unload: hits={}, misses={}, ratio={}%",
                         NativeCache.getHits(), NativeCache.getMisses(),
                         String.format("%.1f", NativeCache.getHitRatio() / 100));
@@ -65,7 +66,7 @@ public class RustMC implements ModInitializer {
                 LOGGER.info("[Rust-MC] {}", BlameLog.summary());
             });
             // Save DNS cache on game exit
-            Runtime.getRuntime().addShutdownHook(new Thread( NativeBridge :: dnsCacheSave , "rustmc-dns-save"));
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> DnsCacheUtil.persistDnsCache("shutdown"), "rustmc-dns-save"));
         } else {
             LOGGER.warn("[Rust-MC] Native library not available – running in vanilla-fallback mode.");
         }

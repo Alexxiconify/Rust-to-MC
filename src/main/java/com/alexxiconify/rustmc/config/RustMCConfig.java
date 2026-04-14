@@ -4,17 +4,10 @@ package com.alexxiconify.rustmc.config;
  //  and getters/setters are referenced by ModMenu (YACL) via method references.
 public class RustMCConfig {
     // Bump this whenever the ModMenu config surface changes so old saved values are reset.
-    public static final String CURRENT_CONFIG_VERSION = "2.1.0";
+    public static final String CURRENT_CONFIG_VERSION = "2.2.0";
     private String configVersion = CURRENT_CONFIG_VERSION;
 
-    // Math optimizations
-    private boolean useNativeSine     = true;
-    private boolean useNativeCos      = true;
-    private boolean useNativeSqrt     = true;
-    private boolean useNativeInvSqrt  = true;
-    private boolean useNativeAtan2    = true;
-    private boolean useNativeFloor    = true;
-    private boolean useNativeNoise    = true;
+    // Math/debug overlays
     private boolean useNativeF3       = true;
     // World / system features
     private boolean useNativeLighting    = true;
@@ -66,13 +59,6 @@ public class RustMCConfig {
     public static final String DH_CULLING_SPACE_MINUS_CAMERA = "minus_camera";
     public void copyFrom(RustMCConfig o) {
         this.configVersion = o.configVersion;
-        this.useNativeSine = o.useNativeSine;
-        this.useNativeCos = o.useNativeCos;
-        this.useNativeSqrt = o.useNativeSqrt;
-        this.useNativeInvSqrt = o.useNativeInvSqrt;
-        this.useNativeAtan2 = o.useNativeAtan2;
-        this.useNativeFloor = o.useNativeFloor;
-        this.useNativeNoise = o.useNativeNoise;
         this.useNativeF3 = o.useNativeF3;
         this.useNativeLighting = o.useNativeLighting;
         this.useNativeCompression = o.useNativeCompression;
@@ -114,14 +100,6 @@ public class RustMCConfig {
     }
     // Getters
     public String getConfigVersion()        { return configVersion; }
-    public boolean isUseNativeSine()        { return useNativeSine; }
-    public boolean isUseNativeCos()         { return useNativeCos; }
-    public boolean isUseNativeSqrt()        { return useNativeSqrt; }
-
-    public boolean isUseNativeInvSqrt()     { return useNativeInvSqrt; }
-    public boolean isUseNativeAtan2()       { return useNativeAtan2; }
-    public boolean isUseNativeFloor()       { return useNativeFloor; }
-    public boolean isUseNativeNoise()       { return useNativeNoise; }
     public boolean isUseNativeF3()          { return useNativeF3; }
     public boolean isUseNativeLighting()    { return useNativeLighting; }
     public boolean isUseNativeCompression() { return useNativeCompression; }
@@ -163,14 +141,6 @@ public class RustMCConfig {
     public boolean isExperimentalCoexistEnabled() { return experimentalCoexistEnabled; }
     // Setters
     public void setConfigVersion(String v)       { configVersion = v; }
-    public void setUseNativeSine(boolean v)        { useNativeSine = v; }
-    public void setUseNativeCos(boolean v)         { useNativeCos = v; }
-    public void setUseNativeSqrt(boolean v)        { useNativeSqrt = v; }
-
-    public void setUseNativeInvSqrt(boolean v)     { useNativeInvSqrt = v; }
-    public void setUseNativeAtan2(boolean v)       { useNativeAtan2 = v; }
-    public void setUseNativeFloor(boolean v)       { useNativeFloor = v; }
-    public void setUseNativeNoise(boolean v)       { useNativeNoise = v; }
     public void setUseNativeF3(boolean v)          { useNativeF3 = v; }
     public void setUseNativeLighting(boolean v)    { useNativeLighting = v; }
     public void setUseNativeCompression(boolean v) { useNativeCompression = v; }

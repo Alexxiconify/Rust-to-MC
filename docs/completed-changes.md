@@ -88,6 +88,17 @@ This document records optimization and stability work that has already been comp
 - Fewer angle-dependent low-Y DH culling regressions in camera-relative modes.
 - Better DNS cache persistence across multiplayer transitions.
 
+## April 14, 2026 - Java Structure Consolidation Pass #1
+
+**Completed this section-12 pass:**
+- `NativeBridge` math JNI wrappers now share common fallback helpers instead of duplicating per-method `libLoaded`/`UnsatisfiedLinkError` logic.
+- `DistantHorizonsCompat` now centralizes DH readiness checks through `isDhLoaded()` / `isDhNativeReady()` and reuses them across frustum registration, AO, lighting, threading, and prefetch paths.
+
+**Payoff:**
+- Smaller Java surface area for wrapper glue.
+- Fewer duplicated guard paths to maintain.
+- Lower risk of fallback drift between related compat entry points.
+
 ## April 13, 2026 - Client-Only Mixin Refactor & Performance Optimization
 
 ### Hot-Path Telemetry & Budget Cleanup

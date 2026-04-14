@@ -35,6 +35,8 @@ Scope: active work only. Completed optimization history lives in [`docs/complete
 - Particle spawn culling now caches squared cutoff distance at 20Hz, removing repeated per-spawn cutoff recomputation from `ParticleManagerMixin` hot paths.
 - Gradle/Cargo packaging now stages native outputs in `build/generated/rust-resources` and skips Rust binary staging for `sourcesJar`, reducing avoidable rebuild work.
 - DNS cache persistence now also triggers on multiplayer join/disconnect to reduce cache-loss windows between sessions.
+- Section-12 Java consolidation pass #1 is complete: duplicated JNI math fallback wrappers and repeated DH readiness guards are now centralized.
+- Section-12 Java consolidation pass #2 is complete: DNS cache enable/persist/hostname guards and connection-hook glue now share `DnsCacheUtil`, and unused per-math-call config toggles were removed from config + Mod Menu.
 
 ## Completed Changes
 
@@ -143,6 +145,16 @@ Goal: replace synchronized blocks with lock-free alternatives in high-contention
 - **LightingMixin**: Replace `QUEUE_LOCK` only if profiling proves the queue path dominates.
 - **FrustumMixin**: Validate that matrix buffer reads stay single-threaded or cache-friendly.
 - Profile lock contention under heavy particle spawning or chunk loading before broad refactors.
+
+### 12) Java Structure Consolidation (Future)
+
+Goal: merge and reorder Java files for maintainability while preserving runtime behavior.
+
+- Merge tiny single-purpose helper classes where ownership is duplicated and call paths are hot.
+- Reorder packages by subsystem (`compat`, `mixin`, `config`, `util`, `core bridge`) so navigation and review are faster.
+- Consolidate overlapping wrappers in `NativeBridge`-adjacent glue only when fallback behavior remains identical.
+- Keep public API and mixin injection points stable during moves/merges (no behavior changes in the same pass).
+- Validate each consolidation with build + runtime smoke checks before/after to confirm no regressions.
 
 ## Validation Gates
 

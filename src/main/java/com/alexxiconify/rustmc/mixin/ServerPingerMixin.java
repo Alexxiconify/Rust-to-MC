@@ -1,6 +1,6 @@
 package com.alexxiconify.rustmc.mixin;
 import com.alexxiconify.rustmc.NativeBridge;
-import com.alexxiconify.rustmc.RustMC;
+import com.alexxiconify.rustmc.util.DnsCacheUtil;
 import net.minecraft.client.network.MultiplayerServerListPinger;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.network.NetworkingBackend;
@@ -16,12 +16,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class ServerPingerMixin {
     @Inject(method = "add", at = @At("HEAD"), require = 0)
     private void prewarmDns( ServerInfo entry , Runnable saver , Runnable pingCallback , NetworkingBackend backend , CallbackInfo ci ) {
-        if (!NativeBridge.isReady() || !RustMC.CONFIG.isEnableDnsCache()) return;
+        if (!DnsCacheUtil.isDnsCacheEnabled()) return;
         if (entry == null || entry.address == null || entry.address.isEmpty()) return;
-        String address = entry.address.trim();
-        // Strip port if present for DNS resolution
-        String hostname = address.contains(":") ? address.substring(0, address.lastIndexOf(':')) : address;
-        if (hostname.isEmpty() || Character.isDigit(hostname.charAt(0))) return;
+        String hostname = DnsCacheUtil.extractResolvableHostname(entry.address);
+        if (hostname.isEmpty()) return;
         // Fire-and-forget DNS pre-warm on a platform daemon thread — each server resolves in parallel
         Thread.ofPlatform().daemon(true).name("rustmc-dns-" + hostname).start(() -> {
             try {

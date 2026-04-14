@@ -130,7 +130,6 @@ public class ModMenuIntegration implements ModMenuApi {
         ConfigCategory.Builder builder = ConfigCategory.createBuilder()
             .name(Text.literal("Config"))
             .tooltip(Text.literal("All user-configurable settings in one tab."));
-        addMathAndNoiseOptions(builder, cfg);
         addNativeFeatureOptions(builder, cfg);
         addCompatibilityOptions(builder, cfg);
         addBridgeOptions(builder, cfg);
@@ -140,32 +139,12 @@ public class ModMenuIntegration implements ModMenuApi {
         return builder.build();
     }
 
-    private void addMathAndNoiseOptions(ConfigCategory.Builder builder, RustMCConfig cfg) {
-        builder
-            .option(buildSectionHeader("Math and Noise", "Active math/noise hooks."))
-            .option(buildBooleanOption("Native Sine", "Use Rust sine math implementation.",
-                cfg::isUseNativeSine, v -> cfg.setUseNativeSine(v != null && v)))
-            .option(buildBooleanOption("Native Cosine", "Use Rust cosine math implementation.",
-                cfg::isUseNativeCos, v -> cfg.setUseNativeCos(v != null && v)))
-            .option(buildBooleanOption("Native Square Root", "Use Rust sqrt implementation.",
-                cfg::isUseNativeSqrt, v -> cfg.setUseNativeSqrt(v != null && v)))
-            .option(buildBooleanOption("Native Fast InvSqrt", "Use Rust fast inverse square root.",
-                cfg::isUseNativeInvSqrt, v -> cfg.setUseNativeInvSqrt(v != null && v)))
-            .option(buildBooleanOption("Native Atan2", "Use Rust atan2 implementation.",
-                cfg::isUseNativeAtan2, v -> cfg.setUseNativeAtan2(v != null && v)))
-            .option(buildBooleanOption("Native Floor", "Use Rust floor implementation.",
-                cfg::isUseNativeFloor, v -> cfg.setUseNativeFloor(v != null && v)))
-            .option(buildBooleanOption("Native Noise (World Gen)",
-                "Replaces SimplexNoiseSampler with Rust Simplex, seeded by world seed.\nDisabled automatically when C2ME Bridge is ON.",
-                cfg::isUseNativeNoise, v -> cfg.setUseNativeNoise(v != null && v)))
-            .option(buildBooleanOption("Native F3 Hooks",
-                "Enable Rust-backed F3/debug calculations where available.",
-                cfg::isUseNativeF3, v -> cfg.setUseNativeF3(v != null && v)));
-    }
-
     private void addNativeFeatureOptions(ConfigCategory.Builder builder, RustMCConfig cfg) {
         builder
             .option(buildSectionHeader("Native Features", "Core native feature toggles."))
+            .option(buildBooleanOption("Native F3 Hooks",
+                "Enable Rust-backed F3/debug calculations where available.",
+                cfg::isUseNativeF3, v -> cfg.setUseNativeF3(v != null && v)))
             .option(buildBooleanOption("Native Compression",
                 "Replaces packet Zlib compression with Rust zlib-ng encoder.",
                 cfg::isUseNativeCompression, v -> cfg.setUseNativeCompression(v != null && v)))

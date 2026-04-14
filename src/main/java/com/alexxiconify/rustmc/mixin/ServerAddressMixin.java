@@ -1,5 +1,6 @@
 package com.alexxiconify.rustmc.mixin;
 import com.alexxiconify.rustmc.NativeBridge;
+import com.alexxiconify.rustmc.util.DnsCacheUtil;
 import net.minecraft.client.network.ServerAddress;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -18,12 +19,12 @@ public class ServerAddressMixin {
      // This hooks the static parse method which is called for every server connection.
     @Inject(method = "parse", at = @At("HEAD"), require = 0)
     private static void onParse(String address, CallbackInfoReturnable<ServerAddress> cir) {
-        if (!NativeBridge.isReady() || address == null) return;
+        if (!DnsCacheUtil.isDnsCacheEnabled()) return;
         // Pre-warm DNS in background — the actual connection will benefit
         // from the warmed system DNS cache or our Rust-side cache
-        String hostname = address.contains(":") ? address.substring(0, address.lastIndexOf(':')) : address;
+        String hostname = DnsCacheUtil.extractResolvableHostname(address);
         // Only resolve hostnames, not raw IPs
-        if (!hostname.isEmpty() && !Character.isDigit(hostname.charAt(0))) {
+        if (!hostname.isEmpty()) {
             NativeBridge.dnsResolve(hostname);
         }
     }
