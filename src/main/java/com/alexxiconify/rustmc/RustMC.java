@@ -33,9 +33,7 @@ public class RustMC implements ModInitializer {
             com.alexxiconify.rustmc.compat.ScalableLuxCompat::initialize,
             r -> Thread.ofPlatform().daemon(true).name("rustmc-compat-slx").start(r));
         java.util.concurrent.CompletableFuture.runAsync(() -> {
-            if (CONFIG.isUseNativeCulling()) {
-                com.alexxiconify.rustmc.compat.DistantHorizonsCompat.registerFrustumCuller();
-            }
+            com.alexxiconify.rustmc.compat.DistantHorizonsCompat.registerFrustumCuller();
             com.alexxiconify.rustmc.compat.DistantHorizonsCompat.optimizeLodThreading();
         }, r -> Thread.ofPlatform().daemon(true).name("rustmc-compat-dh").start(r));
         // Reflect real native status into config so ModMenu Status screen is accurate

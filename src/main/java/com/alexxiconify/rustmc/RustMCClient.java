@@ -21,7 +21,6 @@ public class RustMCClient implements ClientModInitializer {
     private KeyBinding toggleNativeMetrics;
     private KeyBinding toggleFrameGraph;
     private KeyBinding toggleDhCullingDebugLog;
-    private KeyBinding cycleDhCullingSpaceMode;
     @Override
     public void onInitializeClient() {
         registerKeybinds();
@@ -45,9 +44,6 @@ public class RustMCClient implements ClientModInitializer {
         toggleDhCullingDebugLog = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.rustmc.toggle_dh_culling_log",
                 InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_F9, rustCategory));
-        cycleDhCullingSpaceMode = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.rustmc.cycle_dh_culling_space",
-                InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_F10, rustCategory));
     }
     private void handleKeybinds(MinecraftClient client) {
         RustMCConfig cfg = RustMC.CONFIG;
@@ -73,28 +69,12 @@ public class RustMCClient implements ClientModInitializer {
             showActionBar(client, "Rust-MC DH Culling Log: " + state);
             changed = true;
         }
-        while (cycleDhCullingSpaceMode.wasPressed()) {
-            String nextMode = RustMCConfig.nextDhCullingSpaceMode(cfg.getDhCullingSpaceMode());
-            cfg.setDhCullingSpaceMode(nextMode);
-            String modeLabel = formatDhMode(nextMode);
-            RustMC.LOGGER.info("[Rust-MC] DH culling space mode: {}", nextMode);
-            showActionBar(client, "Rust-MC DH Culling Space: " + modeLabel);
-            changed = true;
-        }
         // Persist to disk so the toggle survives restarts
         if (changed) {
             RustMC.saveConfig();
         }
     }
 
-    private static String formatDhMode(String mode) {
-        return switch (RustMCConfig.normalizeDhCullingSpaceMode(mode)) {
-            case RustMCConfig.DH_CULLING_SPACE_ABSOLUTE -> "Absolute";
-            case RustMCConfig.DH_CULLING_SPACE_PLUS_CAMERA -> "+Camera";
-            case RustMCConfig.DH_CULLING_SPACE_MINUS_CAMERA -> "-Camera";
-            default -> "Auto";
-        };
-    }
 
     private static void showActionBar(MinecraftClient client, String message) {
         if (client == null || client.player == null) {

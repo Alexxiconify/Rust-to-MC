@@ -24,9 +24,8 @@ Scope: active work only. Completed optimization history lives in [`docs/complete
 - Mod Menu + keybind coverage now includes the latest native math/debug and DH diagnostics toggles so runtime controls match config surface.
 - Timing overlay is now text-only (no pie graphic), and keybind category translations are aligned so all Rust-MC binds are discoverable in Controls.
 - Keybind category registration now uses a Controlling-safe namespace (`rustmc:keybinds`) so the category label resolves to `Rust-to-MC` consistently.
-- DH frustum checks now tolerate both absolute and camera-relative section AABBs (absolute-first, camera-offset fallback) to prevent coordinate-space culling regressions.
-- DH frustum compat now caches reflected method/field lookups, reuses a fixed VP matrix snapshot buffer, and validates DH AABBs across absolute plus signed camera-relative spaces to prevent direction/quadrant culling errors.
-- DH culling space mode is now configurable (`auto` / `absolute` / `plus_camera` / `minus_camera`), cycleable via keybind, and confirmed in-game through action-bar messages for fast live testing.
+- DH frustum checks are now locked to the camera-minus coordinate transform path (the most reliable of the tested variants), with culling-space mode cycling removed from keybinds and Mod Menu.
+- Native dripstone culling plumbing has been removed from config/UI and vanilla frustum updates now only publish cave-status signals.
 - DH cave-culling reference now uses player position only (no camera/entity fallback) so test behavior stays consistent under freecam-like view changes.
 - DH surface gate is now tuned to `54` (from `62`) to reduce over-culling while swimming near ocean level.
 - DH LOD occlusion now runs only after frustum keep decisions, and only frustum-kept LOD chunks are submitted as occluders for other LOD chunks.

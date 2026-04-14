@@ -4,6 +4,5 @@
   "key.categories.rustmc.keybinds": "Rust to MC",
   "key.rustmc.toggle_frame_graph": "Toggle Frame Graph",
   "key.rustmc.toggle_dh_culling_log": "Toggle DH Culling Debug Log",
-  "key.rustmc.cycle_dh_culling_space": "Cycle DH Culling Space Mode",
   "key.rustmc.toggle_ram_bar": "Toggle RAM Bar Overlay"
 }

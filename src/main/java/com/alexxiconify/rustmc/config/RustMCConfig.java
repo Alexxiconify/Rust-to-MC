@@ -4,7 +4,7 @@ package com.alexxiconify.rustmc.config;
  //  and getters/setters are referenced by ModMenu (YACL) via method references.
 public class RustMCConfig {
     // Bump this whenever the ModMenu config surface changes so old saved values are reset.
-    public static final String CURRENT_CONFIG_VERSION = "2.2.0";
+    public static final String CURRENT_CONFIG_VERSION = "2.3.0";
     private String configVersion = CURRENT_CONFIG_VERSION;
 
     // Math/debug overlays
@@ -13,7 +13,6 @@ public class RustMCConfig {
     private boolean useNativeLighting    = true;
     private boolean useNativeCompression = true;
     private boolean useNativePathfinding = true;
-    private boolean useNativeCulling     = true;
     private boolean useFastLoadingScreen = false;
     private boolean useNativeCommands    = false;
     // Mod compat toggles
@@ -29,7 +28,6 @@ public class RustMCConfig {
     private boolean enableClientRedstoneSkip   = true;
     private boolean enableDhCaveCulling        = true;
     private boolean enableDhCullingDebugLog    = false;
-    private String dhCullingSpaceMode          = DH_CULLING_SPACE_AUTO;
     private boolean enableDebugHudGraph        = false;
     private boolean enablePieChart             = false;
     private boolean enableNativeMetricsHud     = false;
@@ -53,17 +51,12 @@ public class RustMCConfig {
     private boolean nativeReady = false;
     private boolean experimentalCoexistEnabled = true;
 
-    public static final String DH_CULLING_SPACE_AUTO = "auto";
-    public static final String DH_CULLING_SPACE_ABSOLUTE = "absolute";
-    public static final String DH_CULLING_SPACE_PLUS_CAMERA = "plus_camera";
-    public static final String DH_CULLING_SPACE_MINUS_CAMERA = "minus_camera";
     public void copyFrom(RustMCConfig o) {
         this.configVersion = o.configVersion;
         this.useNativeF3 = o.useNativeF3;
         this.useNativeLighting = o.useNativeLighting;
         this.useNativeCompression = o.useNativeCompression;
         this.useNativePathfinding = o.useNativePathfinding;
-        this.useNativeCulling = o.useNativeCulling;
         this.useFastLoadingScreen = o.useFastLoadingScreen;
         this.useNativeCommands = o.useNativeCommands;
         this.enableParticleCulling = o.enableParticleCulling;
@@ -78,7 +71,6 @@ public class RustMCConfig {
         this.enableClientRedstoneSkip = o.enableClientRedstoneSkip;
         this.enableDhCaveCulling = o.enableDhCaveCulling;
         this.enableDhCullingDebugLog = o.enableDhCullingDebugLog;
-        this.dhCullingSpaceMode = normalizeDhCullingSpaceMode(o.dhCullingSpaceMode);
         this.enableDebugHudGraph = o.enableDebugHudGraph;
         this.enablePieChart = o.enablePieChart;
         this.enableNativeMetricsHud = o.enableNativeMetricsHud;
@@ -104,7 +96,6 @@ public class RustMCConfig {
     public boolean isUseNativeLighting()    { return useNativeLighting; }
     public boolean isUseNativeCompression() { return useNativeCompression; }
     public boolean isUseNativePathfinding() { return useNativePathfinding; }
-    public boolean isUseNativeCulling()     { return useNativeCulling; }
     public boolean isUseFastLoadingScreen() { return useFastLoadingScreen; }
     public boolean isUseNativeCommands()    { return useNativeCommands; }
     public boolean isEnableParticleCulling()      { return enableParticleCulling; }
@@ -119,7 +110,6 @@ public class RustMCConfig {
     public boolean isEnableClientRedstoneSkip()   { return enableClientRedstoneSkip; }
     public boolean isEnableDhCaveCulling()        { return enableDhCaveCulling; }
     public boolean isEnableDhCullingDebugLog()    { return enableDhCullingDebugLog; }
-    public String getDhCullingSpaceMode()         { return normalizeDhCullingSpaceMode(dhCullingSpaceMode); }
     public boolean isEnableDebugHudGraph()        { return enableDebugHudGraph; }
     public boolean isEnablePieChart()             { return enablePieChart; }
     public boolean isEnableNativeMetricsHud()     { return enableNativeMetricsHud; }
@@ -145,7 +135,6 @@ public class RustMCConfig {
     public void setUseNativeLighting(boolean v)    { useNativeLighting = v; }
     public void setUseNativeCompression(boolean v) { useNativeCompression = v; }
     public void setUseNativePathfinding(boolean v) { useNativePathfinding = v; }
-    public void setUseNativeCulling(boolean v)     { useNativeCulling = v; }
     public void setUseFastLoadingScreen(boolean v) { useFastLoadingScreen = v; }
     public void setUseNativeCommands(boolean v)    { useNativeCommands = v; }
     public void setEnableParticleCulling(boolean v)      { enableParticleCulling = v; }
@@ -160,7 +149,6 @@ public class RustMCConfig {
     public void setEnableClientRedstoneSkip(boolean v)   { enableClientRedstoneSkip = v; }
     public void setEnableDhCaveCulling(boolean v)        { enableDhCaveCulling = v; }
     public void setEnableDhCullingDebugLog(boolean v)    { enableDhCullingDebugLog = v; }
-    public void setDhCullingSpaceMode(String mode)       { dhCullingSpaceMode = normalizeDhCullingSpaceMode(mode); }
     public void setEnableDebugHudGraph(boolean v)        { enableDebugHudGraph = v; }
     public void setEnablePieChart(boolean v)             { enablePieChart = v; }
     public void setEnableNativeMetricsHud(boolean v)     { enableNativeMetricsHud = v; }
@@ -182,24 +170,4 @@ public class RustMCConfig {
     @SuppressWarnings("unused")
     public void setExperimentalCoexistEnabled(boolean v) { experimentalCoexistEnabled = v; }
 
-    public static String normalizeDhCullingSpaceMode(String mode) {
-        if (mode == null) {
-            return DH_CULLING_SPACE_AUTO;
-        }
-        return switch (mode.trim().toLowerCase(java.util.Locale.ROOT)) {
-            case DH_CULLING_SPACE_ABSOLUTE -> DH_CULLING_SPACE_ABSOLUTE;
-            case DH_CULLING_SPACE_PLUS_CAMERA -> DH_CULLING_SPACE_PLUS_CAMERA;
-            case DH_CULLING_SPACE_MINUS_CAMERA -> DH_CULLING_SPACE_MINUS_CAMERA;
-            default -> DH_CULLING_SPACE_AUTO;
-        };
-    }
-
-    public static String nextDhCullingSpaceMode(String current) {
-        return switch (normalizeDhCullingSpaceMode(current)) {
-            case DH_CULLING_SPACE_AUTO -> DH_CULLING_SPACE_ABSOLUTE;
-            case DH_CULLING_SPACE_ABSOLUTE -> DH_CULLING_SPACE_PLUS_CAMERA;
-            case DH_CULLING_SPACE_PLUS_CAMERA -> DH_CULLING_SPACE_MINUS_CAMERA;
-            default -> DH_CULLING_SPACE_AUTO;
-        };
-    }
 }

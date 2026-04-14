@@ -297,46 +297,15 @@ public class DistantHorizonsCompat {
         }
     }
 
-    // DH versions may feed absolute world AABBs or camera-relative AABBs. We test
-    // absolute first, then signed camera-relative variants to avoid direction-space mismatches.
+    // Force the single camera-minus transform path (best-performing/most-correct mode in testing).
     private static boolean cullDhSectionInAnySpace(double minX, double minY, double minZ,
                                                    double maxX, double maxY, double maxZ) {
-        String mode = com.alexxiconify.rustmc.RustMC.CONFIG.getDhCullingSpaceMode();
-        if (com.alexxiconify.rustmc.config.RustMCConfig.DH_CULLING_SPACE_ABSOLUTE.equals(mode)) {
-            return testAbsoluteSpace(minX, minY, minZ, maxX, maxY, maxZ);
-        }
-        if (com.alexxiconify.rustmc.config.RustMCConfig.DH_CULLING_SPACE_PLUS_CAMERA.equals(mode)) {
-            return testCameraRelativeSpace(minX, minY, minZ, maxX, maxY, maxZ, 1.0);
-        }
-        if (com.alexxiconify.rustmc.config.RustMCConfig.DH_CULLING_SPACE_MINUS_CAMERA.equals(mode)) {
-            return testCameraRelativeSpace(minX, minY, minZ, maxX, maxY, maxZ, -1.0);
-        }
-        boolean visibleAbsolute = testAbsoluteSpace(minX, minY, minZ, maxX, maxY, maxZ);
-        if (visibleAbsolute) {
-            return true;
-        }
-        boolean visibleCameraPlus = testCameraRelativeSpace(minX, minY, minZ, maxX, maxY, maxZ, 1.0);
-        if (visibleCameraPlus) {
-            return true;
-        }
-        return testCameraRelativeSpace(minX, minY, minZ, maxX, maxY, maxZ, -1.0);
+        return testCameraMinusSpace(minX, minY, minZ, maxX, maxY, maxZ);
     }
 
-    private static boolean testAbsoluteSpace(double minX, double minY, double minZ,
-                                             double maxX, double maxY, double maxZ) {
-        return com.alexxiconify.rustmc.NativeBridge.cullDistantHorizonsSection(
-            rustFrustumPtr,
-            minX, minY, minZ,
-            maxX, maxY, maxZ,
-            DH_SURFACE_Y,
-            DH_AGGRESSIVE_MARGIN,
-            true
-        );
-    }
 
-    private static boolean testCameraRelativeSpace(double minX, double minY, double minZ,
-                                                   double maxX, double maxY, double maxZ,
-                                                   double cameraSign) {
+    private static boolean testCameraMinusSpace(double minX, double minY, double minZ,
+                                                double maxX, double maxY, double maxZ) {
         net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
         if (mc == null) {
             return false;
@@ -344,9 +313,9 @@ public class DistantHorizonsCompat {
         if (mc.player == null) {
             return false;
         }
-        double cx = mc.player.getX() * cameraSign;
-        double cy = mc.player.getY() * cameraSign;
-        double cz = mc.player.getZ() * cameraSign;
+        double cx = -mc.player.getX();
+        double cy = -mc.player.getY();
+        double cz = -mc.player.getZ();
         return com.alexxiconify.rustmc.NativeBridge.cullDistantHorizonsSection(
             rustFrustumPtr,
             minX + cx, minY + cy, minZ + cz,
