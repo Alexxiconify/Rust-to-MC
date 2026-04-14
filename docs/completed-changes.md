@@ -43,6 +43,15 @@ This document records optimization and stability work that has already been comp
 - Faster Gradle task graph execution by avoiding source-tree copy invalidation.
 - Better incremental behavior across repeated `processResources` / `build` runs.
 
+## April 14, 2026 - Lighting Hot-Path Micro-Trim
+
+**Completed this Rust micro-pass:**
+- `rust_mc_core/src/lighting.rs` now reuses the precomputed `plane` stride in the final writeback loop instead of recomputing `DIM * DIM` for every task.
+
+**Payoff:**
+- Slightly less arithmetic in the vanilla lighting batch path.
+- Zero behavior change and no API surface change.
+
 ## April 13, 2026 - Client-Only Mixin Refactor & Performance Optimization
 
 ### Hot-Path Telemetry & Budget Cleanup
