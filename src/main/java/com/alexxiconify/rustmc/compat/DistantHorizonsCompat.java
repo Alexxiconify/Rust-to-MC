@@ -56,6 +56,8 @@ public class DistantHorizonsCompat {
         new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.concurrent.ConcurrentHashMap<Class<?>, BoundsFields> BOUNDS_FIELD_CACHE =
         new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.concurrent.atomic.AtomicBoolean dhApiShapeLogged = new java.util.concurrent.atomic.AtomicBoolean(false);
+    private static final java.util.concurrent.atomic.AtomicInteger unknownProxyMethodCount = new java.util.concurrent.atomic.AtomicInteger(0);
     @SuppressWarnings("java:S3776")
     public static void registerFrustumCuller() {
         if ( isDhNativeReady ( ) ) return;
@@ -68,6 +70,7 @@ public class DistantHorizonsCompat {
             Object overridesInjector = apiClass.getField("overrides").get(null);
             java.lang.reflect.Method bindMethod = findBindMethod(overridesInjector);
             Class<?> cullingFrustumClass = Class.forName("com.seibel.distanthorizons.api.interfaces.override.rendering.IDhApiCullingFrustum");
+            logDhApiMethodShapes(cullingFrustumClass);
             Object proxyInstance = java.lang.reflect.Proxy.newProxyInstance(
                 DistantHorizonsCompat.class.getClassLoader(),
                 new Class<?>[]{cullingFrustumClass},
@@ -104,8 +107,32 @@ public class DistantHorizonsCompat {
             case EQUALS -> proxy == args[0];
             case HASHCODE -> System.identityHashCode(proxy);
             case TOSTRING -> "RustMC-DH-FrustumCuller";
-            default -> null;
+            default -> {
+                int misses = unknownProxyMethodCount.incrementAndGet();
+                if (misses <= 3) {
+                    RustMC.LOGGER.debug("[Rust-MC] DH proxy method unresolved: {} (params={})", method.getName(), method.getParameterCount());
+                }
+                yield null;
+            }
         };
+    }
+
+    private static void logDhApiMethodShapes(Class<?> cullingFrustumClass) {
+        if (!dhApiShapeLogged.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            java.lang.reflect.Method[] methods = cullingFrustumClass.getMethods();
+            RustMC.LOGGER.debug("[Rust-MC] DH culling API methods detected: {}", methods.length);
+            for (java.lang.reflect.Method m : methods) {
+                String params = java.util.Arrays.stream(m.getParameterTypes())
+                    .map(Class::getSimpleName)
+                    .collect(java.util.stream.Collectors.joining(","));
+                RustMC.LOGGER.debug("[Rust-MC]   {}({}) -> {}", m.getName(), params, m.getReturnType().getSimpleName());
+            }
+        } catch (Exception e) {
+            RustMC.LOGGER.debug("[Rust-MC] Failed to introspect DH culling API: {}", e.getMessage());
+        }
     }
 
     private static ProxyMethodKind resolveProxyMethodKind(java.lang.reflect.Method method) {

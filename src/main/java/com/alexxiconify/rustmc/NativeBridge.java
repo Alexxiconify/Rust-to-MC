@@ -33,6 +33,12 @@ public class NativeBridge {
     private static int frameHistoryCount;
     private static final AtomicInteger frameHistoryVersion = new AtomicInteger(0);
     private static final AtomicReference<FrameHistorySnapshot> cachedFrameHistorySnapshot = new AtomicReference<>(FrameHistorySnapshot.empty());
+    // Cache optional native symbol availability to avoid repeated exception fallbacks in hot culling paths.
+    private static volatile boolean supportsFrustumMarginTest = true;
+    private static volatile boolean supportsDhVerticalCull = true;
+    private static volatile boolean supportsDhFusedCull = true;
+    private static volatile boolean supportsDhOcclusionTest = true;
+    private static volatile boolean supportsDhOcclusionSubmit = true;
 
     public static final class FrameHistorySnapshot {
         private final float[] history;
@@ -270,18 +276,21 @@ public class NativeBridge {
      // Conservative frustum test with margin (useful for DH chunks/LODs).
     public static boolean frustumTest(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin) {
         if (!libLoaded) return true;
-        try {
-              boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
-              recordFrustumResult(visible);
-              return visible;
-        } catch (UnsatisfiedLinkError e) {
+        if (supportsFrustumMarginTest) {
             try {
-                  boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ);
-                  recordFrustumResult(visible);
-                  return visible;
-            } catch (UnsatisfiedLinkError ignored) {
-                return true;
+                boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
+                recordFrustumResult(visible);
+                return visible;
+            } catch (UnsatisfiedLinkError e) {
+                supportsFrustumMarginTest = false;
             }
+        }
+        try {
+            boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ);
+            recordFrustumResult(visible);
+            return visible;
+        } catch (UnsatisfiedLinkError ignored) {
+            return true;
         }
     }
     //
@@ -533,18 +542,21 @@ public class NativeBridge {
     }
     public static boolean testRustFrustum(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin) {
         if (!libLoaded || ptr == 0) return true; // Default to visible if Rust is not available or ptr is 0
-        try {
-            boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
-            recordFrustumResult(visible);
-            return visible;
-        } catch (UnsatisfiedLinkError e) {
+        if (supportsFrustumMarginTest) {
             try {
-                boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ);
+                boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
                 recordFrustumResult(visible);
                 return visible;
-            } catch (UnsatisfiedLinkError ignored) {
-                return true;
+            } catch (UnsatisfiedLinkError e) {
+                supportsFrustumMarginTest = false;
             }
+        }
+        try {
+            boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ);
+            recordFrustumResult(visible);
+            return visible;
+        } catch (UnsatisfiedLinkError ignored) {
+            return true;
         }
     }
     private record ClientFrustumContext(double fovScale, double camX, double camY, double camZ) {}
@@ -655,29 +667,42 @@ public class NativeBridge {
     }
     public static boolean invokeDHCull(double minY, double maxY, double surfaceY) {
         if (!libLoaded) return true;
-        try { return rustDHCull(minY, maxY, surfaceY); }
-        catch (UnsatisfiedLinkError e) { return true; }
+        if (!supportsDhVerticalCull) return true;
+        try {
+            return rustDHCull(minY, maxY, surfaceY);
+        } catch (UnsatisfiedLinkError e) {
+            supportsDhVerticalCull = false;
+            return true;
+        }
     }
     public static boolean invokeDHCullFused(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double surfaceY) {
         if (!libLoaded || ptr == 0) return false;
-        try { return rustDHCullFused(ptr, minX, minY, minZ, maxX, maxY, maxZ, surfaceY); }
-        catch (UnsatisfiedLinkError e) { return false; }
+        if (!supportsDhFusedCull) return false;
+        try {
+            return rustDHCullFused(ptr, minX, minY, minZ, maxX, maxY, maxZ, surfaceY);
+        } catch (UnsatisfiedLinkError e) {
+            supportsDhFusedCull = false;
+            return false;
+        }
     }
     // Same as invokeDHCullFused but returns empty when native symbol is unavailable, allowing fallback logic.
     public static Optional<Boolean> tryDHCullFused(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double surfaceY) {
-        if (!libLoaded || ptr == 0) return Optional.empty();
+        if (!libLoaded || ptr == 0 || !supportsDhFusedCull) return Optional.empty();
         try {
             return Optional.of(rustDHCullFused(ptr, minX, minY, minZ, maxX, maxY, maxZ, surfaceY));
         } catch (UnsatisfiedLinkError e) {
+            supportsDhFusedCull = false;
             return Optional.empty();
         }
     }
     private static boolean isDHOccluded(double minX, double minY, double minZ,
                                         double maxX, double maxY, double maxZ) {
         if (!libLoaded) return false;
+        if (!supportsDhOcclusionTest) return false;
         try {
             return rustOcclusionTest(minX, minY, minZ, maxX, maxY, maxZ);
         } catch (UnsatisfiedLinkError ignored) {
+            supportsDhOcclusionTest = false;
             return false;
         }
     }
@@ -685,10 +710,11 @@ public class NativeBridge {
     private static void submitDHOccluder(double minX, double minY, double minZ,
                                          double maxX, double maxY, double maxZ) {
         if (!libLoaded) return;
+        if (!supportsDhOcclusionSubmit) return;
         try {
             rustOcclusionSubmit(minX, minY, minZ, maxX, maxY, maxZ);
         } catch (UnsatisfiedLinkError ignored) {
-            // Optional occlusion symbol; fail open.
+            supportsDhOcclusionSubmit = false;
         }
     }
 
