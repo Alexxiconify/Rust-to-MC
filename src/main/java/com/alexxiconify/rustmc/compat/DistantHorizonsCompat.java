@@ -178,16 +178,15 @@ public class DistantHorizonsCompat {
         if (mc2 == null) {
             return matrixChanged;
         }
-        net.minecraft.entity.Entity camera = mc2.getCameraEntity();
-        if (camera == null) {
+        if (mc2.player == null) {
             return matrixChanged;
         }
 
-        double cx = camera.getX();
-        double cy = camera.getY();
-        double cz = camera.getZ();
-        float yaw = camera.getYaw();
-        float pitch = camera.getPitch();
+        double cx = mc2.player.getX();
+        double cy = mc2.player.getY();
+        double cz = mc2.player.getZ();
+        float yaw = mc2.player.getYaw();
+        float pitch = mc2.player.getPitch();
         double fov = mc2.options.getFov().getValue();
         double aspect = mc2.getWindow().getFramebufferWidth() / Math.max(1.0, mc2.getWindow().getFramebufferHeight());
 
@@ -212,7 +211,7 @@ public class DistantHorizonsCompat {
         lastAspect = aspect;
         hasLastCameraState = true;
 
-        // Refresh when any camera state changes, not only when position+matrix both changed.
+        // Refresh when any tracked player state changes, not only when position+matrix both changed.
         return matrixChanged || moved || rotated || opticsChanged;
     }
     private static Object handleFrustumIntersects(Object[] args) {

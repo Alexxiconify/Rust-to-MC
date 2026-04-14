@@ -1,6 +1,5 @@
 package com.alexxiconify.rustmc;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.Entity;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -562,14 +561,12 @@ public class NativeBridge {
     private static ClientFrustumContext getClientFrustumContext() {
         try {
             MinecraftClient client = MinecraftClient.getInstance();
-            if (client == null) return null;
-            Entity cam = client.getCameraEntity();
-            if (cam == null) return null;
+            if (client == null || client.player == null) return null;
             double fov = client.options.getFov().getValue();
             double aspect = client.getWindow().getFramebufferWidth() / Math.max(1.0, client.getWindow().getFramebufferHeight());
             double aspectBoost = Math.max(1.0, aspect / (16.0 / 9.0));
             double fovScale = Math.clamp(1.15 * (fov / 70.0) * Math.sqrt(aspectBoost), 0.8, 2.5);
-            return new ClientFrustumContext(fovScale, cam.getX(), cam.getEyeY(), cam.getZ());
+            return new ClientFrustumContext(fovScale, client.player.getX(), client.player.getEyeY(), client.player.getZ());
         } catch (Exception ignored) {
             return null;
         }

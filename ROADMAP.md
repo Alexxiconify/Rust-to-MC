@@ -27,6 +27,8 @@ Scope: active work only. Completed optimization history lives in [`docs/complete
 - DH frustum checks now tolerate both absolute and camera-relative section AABBs (absolute-first, camera-offset fallback) to prevent coordinate-space culling regressions.
 - DH frustum compat now caches reflected method/field lookups, reuses a fixed VP matrix snapshot buffer, and validates DH AABBs across absolute plus signed camera-relative spaces to prevent direction/quadrant culling errors.
 - DH culling space mode is now configurable (`auto` / `absolute` / `plus_camera` / `minus_camera`), cycleable via keybind, and confirmed in-game through action-bar messages for fast live testing.
+- DH cave-culling reference now uses player position only (no camera/entity fallback) so test behavior stays consistent under freecam-like view changes.
+- DH surface gate is now tuned to `54` (from `62`) to reduce over-culling while swimming near ocean level.
 - Rust particle ticking now reuses thread-local native scratch buffers and only enables Rayon for larger batches, reducing per-tick allocations and scheduling overhead.
 - Particle spawn culling now caches squared cutoff distance at 20Hz, removing repeated per-spawn cutoff recomputation from `ParticleManagerMixin` hot paths.
 - Gradle/Cargo packaging now stages native outputs in `build/generated/rust-resources` and skips Rust binary staging for `sourcesJar`, reducing avoidable rebuild work.
