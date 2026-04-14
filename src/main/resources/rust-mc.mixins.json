@@ -16,7 +16,7 @@
     "ParticleManagerMixin",
     "performance.ChunkBuilderMixin",
     "BoxMixin",
-    "client.MinecraftClientMixin",
+    "client.ClientFrameMetricsMixin",
     "hud.DebugHudMixin",
     "client.ResourceReloadMixin",
     "hud.RenderBudgetMixin",

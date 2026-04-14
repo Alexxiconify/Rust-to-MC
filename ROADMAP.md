@@ -40,7 +40,7 @@ Scope: active work only. Completed optimization history lives in [`docs/complete
 - Section-12 cleanup follow-up: DNS-related mixins now live under `mixin.network`, and stale `MixinManager` entries/comments for removed mixins were pruned.
 - Section-12 Java consolidation pass #3 is complete: `MatrixMixin`, `LightingMixin`, and `ChunkBuilderMixin` moved under `mixin.performance`, with mixin config and manager mappings updated and stale classification/comment leftovers trimmed.
 - Section-12 Java consolidation pass #4 is complete: `DebugHudMixin` and `RenderBudgetMixin` moved under `mixin.hud`, with mixin config paths updated and stale comment formatting cleaned in touched files.
-- Section-12 Java consolidation pass #5 is complete: `MinecraftClientMixin` and `ResourceReloadMixin` moved under `mixin.client`, and HUD mixins were merged into a single file (`DebugHudMixin.java`) with the old standalone `RenderBudgetMixin.java` removed.
+- Section-12 Java consolidation pass #5 is complete: `ClientFrameMetricsMixin` and `ResourceReloadMixin` moved under `mixin.client`, and HUD mixins were merged into a single file (`DebugHudMixin.java`) with the old standalone `RenderBudgetMixin.java` removed.
 
 ## Completed Changes
 
@@ -145,7 +145,7 @@ Goal: reduce JNI crossing overhead in high-frequency paths.
 
 Goal: replace synchronized blocks with lock-free alternatives in high-contention paths.
 
-- **MinecraftClientMixin**: Keep frame-time history lock-free with a fixed buffer if it remains thread-safe.
+- **ClientFrameMetricsMixin**: Keep frame-time history lock-free with a fixed buffer if it remains thread-safe.
 - **LightingMixin**: Replace `QUEUE_LOCK` only if profiling proves the queue path dominates.
 - **FrustumMixin**: Validate that matrix buffer reads stay single-threaded or cache-friendly.
 - Profile lock contention under heavy particle spawning or chunk loading before broad refactors.

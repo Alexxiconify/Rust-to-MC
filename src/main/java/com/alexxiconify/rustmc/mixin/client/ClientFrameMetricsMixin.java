@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(MinecraftClient.class)
-public class MinecraftClientMixin {
+public class ClientFrameMetricsMixin {
     @org.spongepowered.asm.mixin.Shadow public net.minecraft.client.world.ClientWorld world;
     @Unique private long lastFrameTimeNanos = System.nanoTime();
 
