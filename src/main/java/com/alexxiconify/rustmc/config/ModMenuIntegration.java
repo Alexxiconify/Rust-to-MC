@@ -2,6 +2,7 @@ package com.alexxiconify.rustmc.config;
 import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
+import com.alexxiconify.rustmc.ElbConfig;
 import com.alexxiconify.rustmc.util.BlameLog;
 import com.terraformersmc.modmenu.api.ConfigScreenFactory;
 import com.terraformersmc.modmenu.api.ModMenuApi;
@@ -126,7 +127,7 @@ public class ModMenuIntegration implements ModMenuApi {
     }
 
     private ConfigCategory buildUnifiedConfigCategory(RustMCConfig cfg) {
-        com.iafenvoy.elb.config.ElbConfig elb = com.iafenvoy.elb.config.ElbConfig.getInstance();
+        ElbConfig elb = ElbConfig.getInstance();
         ConfigCategory.Builder builder = ConfigCategory.createBuilder()
             .name(Text.literal("Config"))
             .tooltip(Text.literal("All user-configurable settings in one tab."));
@@ -255,7 +256,7 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildColorOption("Mod Count Text", "Color of the Rust-MC mod count label.", () -> new Color(cfg.getLoadingBarSubtextColor(), true), c -> cfg.setLoadingBarSubtextColor(c.getRGB())));
     }
 
-    private void addEarlyLoadingBarOptions(ConfigCategory.Builder builder, com.iafenvoy.elb.config.ElbConfig elb) {
+    private void addEarlyLoadingBarOptions(ConfigCategory.Builder builder, ElbConfig elb) {
         builder
             .option(buildSectionHeader("Early Loading Bar", "Pre-launch Swing window appearance."))
             .option(Option.<String>createBuilder().name(Text.literal("Window Title")).description(OptionDescription.of(Text.literal("Title text. Use %version% for MC version."))).binding("Early Loading Bar %version%", elb::getBarTitle, elb::setBarTitle).controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create).build())

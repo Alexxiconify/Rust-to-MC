@@ -74,7 +74,7 @@ public class RustMC implements ModInitializer {
         // Note: blame log finalization happens in detectGameReady() when "Game took" log fires
         if (FabricLoader.getInstance().getEnvironmentType() == net.fabricmc.api.EnvType.CLIENT) {
             net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STARTED.register(client ->
-                com.iafenvoy.elb.gui.PreLaunchWindow.remove());
+                PreLaunchWindow.remove());
         }
         LOGGER.info("[Rust-MC] Ready.");
     }
@@ -127,7 +127,7 @@ public class RustMC implements ModInitializer {
         try {
             CONFIG.setConfigVersion(RustMCConfig.CURRENT_CONFIG_VERSION);
             Files.writeString(CONFIG_PATH, GSON.toJson(CONFIG));
-            com.iafenvoy.elb.config.ElbConfig.getInstance().save();
+            ElbConfig.getInstance().save();
         } catch (IOException e) {
             LOGGER.error("[Rust-MC] Failed to save config", e);
         }

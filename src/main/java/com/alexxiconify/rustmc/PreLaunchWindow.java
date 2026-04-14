@@ -1,5 +1,4 @@
-package com.iafenvoy.elb.gui;
-import com.iafenvoy.elb.config.ElbConfig;
+package com.alexxiconify.rustmc;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;

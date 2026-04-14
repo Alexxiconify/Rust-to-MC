@@ -32,7 +32,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
         triggerEarlyNativeLoad();
         installLiveAppender(); // must be before ELB thread so it captures events immediately
         if (isWindows() && FabricLoader.getInstance().getEnvironmentType() == net.fabricmc.api.EnvType.CLIENT) {
-            com.iafenvoy.elb.gui.PreLaunchWindow.display();
+            PreLaunchWindow.display();
             startModLoadingProgressThread();
         }
         installSpamFilter();
@@ -245,14 +245,14 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
                 int progress = computeProgress(startMs);
                 if (progress != last) {
                     last = progress;
-                    com.iafenvoy.elb.gui.PreLaunchWindow.updateProgress(progress, progressLabel(progress, modCount));
+                    PreLaunchWindow.updateProgress(progress, progressLabel(progress, modCount));
                 }
                 java.util.concurrent.locks.LockSupport.parkNanos(100_000_000L); // 100ms — smooth ELB bar
                 if (Thread.currentThread().isInterrupted()) return;
             }
             // Push to 100% when game is ready so the user sees completion
             if (stageGameReady) {
-                com.iafenvoy.elb.gui.PreLaunchWindow.updateProgress(100, "Done!");
+                PreLaunchWindow.updateProgress(100, "Done!");
             }
         });
     }

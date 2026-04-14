@@ -1,5 +1,4 @@
-package com.iafenvoy.elb.config;
-import com.alexxiconify.rustmc.RustMC;
+package com.alexxiconify.rustmc;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
