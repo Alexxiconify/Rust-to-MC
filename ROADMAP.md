@@ -24,6 +24,7 @@ Scope: active work only. Completed optimization history lives in [`docs/complete
 - Mod Menu + keybind coverage now includes the latest native math/debug and DH diagnostics toggles so runtime controls match config surface.
 - Timing overlay is now text-only (no pie graphic), and keybind category translations are aligned so all Rust-MC binds are discoverable in Controls.
 - Keybind category registration now uses a Controlling-safe namespace (`rustmc:keybinds`) so the category label resolves to `Rust-to-MC` consistently.
+- DH frustum checks now tolerate both absolute and camera-relative section AABBs (absolute-first, camera-offset fallback) to prevent coordinate-space culling regressions.
 
 ## Completed Changes
 

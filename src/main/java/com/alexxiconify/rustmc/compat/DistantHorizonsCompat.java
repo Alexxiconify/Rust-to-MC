@@ -203,10 +203,38 @@ public class DistantHorizonsCompat {
         } else {
             return true;
         }
+        return cullDhSectionInAnySpace(
+            Math.min(minX, maxX), Math.min(minY, maxY), Math.min(minZ, maxZ),
+            Math.max(minX, maxX), Math.max(minY, maxY), Math.max(minZ, maxZ)
+        );
+    }
+
+    // DH versions may feed absolute world AABBs or camera-relative AABBs. We test
+    // absolute first, then fall back to camera-offset coordinates to avoid false culls.
+    private static boolean cullDhSectionInAnySpace(double minX, double minY, double minZ,
+                                                   double maxX, double maxY, double maxZ) {
+        boolean visibleAbsolute = com.alexxiconify.rustmc.NativeBridge.cullDistantHorizonsSection(
+            rustFrustumPtr,
+            minX, minY, minZ,
+            maxX, maxY, maxZ,
+            DH_SURFACE_Y,
+            DH_AGGRESSIVE_MARGIN
+        );
+        if (visibleAbsolute) {
+            return true;
+        }
+        net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+        if (mc == null) {
+            return false;
+        }
+        net.minecraft.entity.Entity camera = mc.getCameraEntity();
+        if (camera == null) {
+            return false;
+        }
         return com.alexxiconify.rustmc.NativeBridge.cullDistantHorizonsSection(
             rustFrustumPtr,
-            Math.min(minX, maxX), Math.min(minY, maxY), Math.min(minZ, maxZ),
-            Math.max(minX, maxX), Math.max(minY, maxY), Math.max(minZ, maxZ),
+            minX + camera.getX(), minY + camera.getY(), minZ + camera.getZ(),
+            maxX + camera.getX(), maxY + camera.getY(), maxZ + camera.getZ(),
             DH_SURFACE_Y,
             DH_AGGRESSIVE_MARGIN
         );
