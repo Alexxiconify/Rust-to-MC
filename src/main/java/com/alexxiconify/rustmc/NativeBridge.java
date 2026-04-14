@@ -547,6 +547,7 @@ public class NativeBridge {
         }
     }
     private record ClientFrustumContext(double fovScale, double camX, double camY, double camZ) {}
+    private static final String DH_REFERENCE_SOURCE = "player";
 
     private static double getDhReferenceY() {
         try {
@@ -556,10 +557,6 @@ public class NativeBridge {
         } catch (Exception ignored) {
             return Double.NaN;
         }
-    }
-
-    private static String getDhReferenceSource() {
-        return "player";
     }
 
     private static ClientFrustumContext getClientFrustumContext() {
@@ -687,7 +684,7 @@ public class NativeBridge {
         if (RustMC.CONFIG.isEnableDhCaveCulling() && !Double.isNaN(refY) && refY < surfaceY) {
             if (RustMC.CONFIG.isEnableDhCullingDebugLog()) {
                 RustMC.LOGGER.debug("[Rust-MC] DH culled (below surface): src={} y={} < {} box=({}, {}, {})..({}, {}, {})",
-                    getDhReferenceSource(), refY, surfaceY,
+                    DH_REFERENCE_SOURCE, refY, surfaceY,
                     minX, minY, minZ, maxX, maxY, maxZ);
             }
             return false;
@@ -698,7 +695,7 @@ public class NativeBridge {
         if (RustMC.CONFIG.isEnableDhCullingDebugLog()) {
             RustMC.LOGGER.debug("[Rust-MC] DH {}: src={} y={} frustum={} vertical={} box=({}, {}, {})..({}, {}, {})",
                 visible ? "visible" : "culled",
-                getDhReferenceSource(),
+                DH_REFERENCE_SOURCE,
                 Double.isNaN(refY) ? "NaN" : String.format("%.2f", refY),
                 visibleByFrustum, visibleByVertical,
                 minX, minY, minZ, maxX, maxY, maxZ);
