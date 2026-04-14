@@ -38,6 +38,9 @@ Scope: active work only. Completed optimization history lives in [`docs/complete
 - Section-12 Java consolidation pass #1 is complete: duplicated JNI math fallback wrappers and repeated DH readiness guards are now centralized.
 - Section-12 Java consolidation pass #2 is complete: DNS cache enable/persist/hostname guards and connection-hook glue now share `DnsCacheUtil`, and unused per-math-call config toggles were removed from config + Mod Menu.
 - Section-12 cleanup follow-up: DNS-related mixins now live under `mixin.network`, and stale `MixinManager` entries/comments for removed mixins were pruned.
+- Section-12 Java consolidation pass #3 is complete: `MatrixMixin`, `LightingMixin`, and `ChunkBuilderMixin` moved under `mixin.performance`, with mixin config and manager mappings updated and stale classification/comment leftovers trimmed.
+- Section-12 Java consolidation pass #4 is complete: `DebugHudMixin` and `RenderBudgetMixin` moved under `mixin.hud`, with mixin config paths updated and stale comment formatting cleaned in touched files.
+- Section-12 Java consolidation pass #5 is complete: `MinecraftClientMixin` and `ResourceReloadMixin` moved under `mixin.client`, and HUD mixins were merged into a single file (`DebugHudMixin.java`) with the old standalone `RenderBudgetMixin.java` removed.
 
 ## Completed Changes
 

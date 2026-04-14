@@ -1,4 +1,4 @@
-package com.alexxiconify.rustmc.mixin;
+package com.alexxiconify.rustmc.mixin.client;
 import com.alexxiconify.rustmc.NativeBridge;
 import net.minecraft.client.MinecraftClient;
 import org.spongepowered.asm.mixin.Mixin;

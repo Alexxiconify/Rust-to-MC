@@ -1,4 +1,4 @@
-package com.alexxiconify.rustmc.mixin;
+package com.alexxiconify.rustmc.mixin.performance;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.ModBridge;
 import org.joml.Matrix4f;
@@ -7,9 +7,8 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-//
- //  Supplements the rendering engine by offloading JOML matrix multiplications to Rust SIMD.
- //  This benefits both Vanilla and Sodium (which uses JOML internally).
+
+// Offloads JOML matrix multiplications to Rust SIMD where native path is active.
 @Mixin(value = Matrix4f.class, remap = false)
 public abstract class MatrixMixin {
     @Unique

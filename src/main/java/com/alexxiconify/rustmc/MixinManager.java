@@ -28,7 +28,6 @@ public class MixinManager implements IMixinConfigPlugin {
         m.put("ChunkBuilder", "Chunk Builder Threads");
         m.put("Resource", "Resource Reload");
         m.put("Bootstrap", "Bootstrap/DFU");
-        m.put("Schemas", "Bootstrap/DFU");
         m.put("ServerPinger", dnsGroup);
         m.put("ServerAddress", dnsGroup);
         m.put("Multiplayer", dnsGroup);
@@ -39,9 +38,9 @@ public class MixinManager implements IMixinConfigPlugin {
     }
     static {
         MIXIN_CONDITIONS = Map.ofEntries(
-            Map.entry(PKG + "MatrixMixin", ModBridge :: isMathOwned),
-            Map.entry( PKG + "LightingMixin", ModBridge :: isLightingOwned ),
-            Map.entry(PKG + "ChunkBuilderMixin", () -> RustMC.CONFIG.isEnableChunkBuilderExpand() && !ModBridge.SODIUM),
+            Map.entry(PKG + "performance.MatrixMixin", ModBridge :: isMathOwned),
+            Map.entry(PKG + "performance.LightingMixin", ModBridge :: isLightingOwned),
+            Map.entry(PKG + "performance.ChunkBuilderMixin", () -> RustMC.CONFIG.isEnableChunkBuilderExpand() && !ModBridge.SODIUM),
             Map.entry(PKG + "compat.ClientRedstoneSkipMixin", RustMC.CONFIG :: isEnableClientRedstoneSkip),
             Map.entry(PKG + "compat.TickSyncCompatMixin", RustMC.CONFIG :: isEnableTickSyncCompat),
             Map.entry(PKG + "compat.EntityRenderCompatMixin", () ->
@@ -95,9 +94,7 @@ public class MixinManager implements IMixinConfigPlugin {
         int dot = mixinClassName.lastIndexOf('.');
         return dot >= 0 ? mixinClassName.substring(dot + 1) : mixinClassName;
     }
-    //
-     // Flushes per-group mixin timings into the BlameLog.
-     // Called once from mod init after all mixins are applied.
+    // Flushes per-group mixin timings into the BlameLog after startup.
     public static void flushBlameTimings() {
         if (groupTimings.isEmpty()) return;
         List<Map.Entry<String, Long>> sorted = new ArrayList<>(groupTimings.entrySet());

@@ -1,11 +1,13 @@
-package com.alexxiconify.rustmc.mixin;
+package com.alexxiconify.rustmc.mixin.hud;
 import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
 import com.alexxiconify.rustmc.util.PieChartRenderer;
+import com.alexxiconify.rustmc.util.RenderState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.DebugHud;
+import net.minecraft.client.render.WorldRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -98,6 +100,43 @@ public class DebugHudMixin {
             context.drawTextWithShadow(mc.textRenderer, "30-60", x0 + 46, legendY, 0xFFCCAA00);
             context.fill(x0 + 88, legendY + 1, x0 + 94, legendY + 7, 0xFFCC2222);
             context.drawTextWithShadow(mc.textRenderer, "<30", x0 + 96, legendY, 0xFFCC2222);
+        }
+    }
+}
+
+@Mixin(WorldRenderer.class)
+class RenderBudgetMixin {
+    @Unique private static long lastBudgetCheckNs = 0;
+    @Unique private static final long BUDGET_CHECK_INTERVAL_NS = 250_000_000L; // 4 Hz
+
+    @SuppressWarnings("java:S2696") // @Inject methods can't be static in Mixin
+    @Inject(method = "render", at = @At("HEAD"), require = 0)
+    private void adjustRenderBudget(CallbackInfo ci) {
+        long now = System.nanoTime();
+        if (now - lastBudgetCheckNs < BUDGET_CHECK_INTERVAL_NS) return;
+        lastBudgetCheckNs = now;
+        updateBudget();
+    }
+
+    @Unique
+    private static void updateBudget() {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.world == null) {
+            RenderState.renderBudgetTier = 0;
+            return;
+        }
+        float rustAvg = NativeBridge.invokeGetAvgFps();
+        int fps = rustAvg > 0 ? (int) rustAvg : mc.getCurrentFps();
+        int newTier;
+        if (fps < 60) {
+            newTier = 1;
+        } else if (fps > 90) {
+            newTier = 2;
+        } else {
+            newTier = 0;
+        }
+        if (RenderState.renderBudgetTier != newTier) {
+            RenderState.renderBudgetTier = newTier;
         }
     }
 }

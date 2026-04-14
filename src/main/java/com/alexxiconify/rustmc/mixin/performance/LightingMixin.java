@@ -1,4 +1,4 @@
-package com.alexxiconify.rustmc.mixin;
+package com.alexxiconify.rustmc.mixin.performance;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
 import net.minecraft.world.chunk.light.LightingProvider;
@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 // Routes pending light tasks through Rust's propagation pool when native lighting is active.
-@SuppressWarnings ( "ALL" )
+@SuppressWarnings("ALL")
 @Mixin(LightingProvider.class)
 public class LightingMixin {
     @Unique

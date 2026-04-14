@@ -1,4 +1,4 @@
-package com.alexxiconify.rustmc.mixin;
+package com.alexxiconify.rustmc.mixin.client;
 import com.alexxiconify.rustmc.RustMC;
 import net.minecraft.resource.ReloadableResourceManagerImpl;
 import org.spongepowered.asm.mixin.Mixin;
@@ -7,13 +7,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
-//
- //  Increases the parallelism of resource reloading by replacing the prepare executor
- //  with a higher-parallelism ForkJoinPool. Vanilla uses a small thread pool which
- //  under-utilizes modern multicore CPUs during resource pack loading.
- //  <p>
- //  The pool is eagerly created as a static singleton to avoid creation latency at
- //  first reload. Uses asyncMode=true (FIFO) for better throughput on I/O-heavy tasks.
+
+// Replaces the prepare executor with a higher-parallelism reload pool.
 @Mixin(ReloadableResourceManagerImpl.class)
 public class ResourceReloadMixin {
     @Unique
