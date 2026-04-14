@@ -1,4 +1,4 @@
-package com.alexxiconify.rustmc.mixin.hud;
+package com.alexxiconify.rustmc.mixin.client;
 import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;

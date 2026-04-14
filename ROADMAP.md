@@ -42,6 +42,7 @@ Scope: active work only. Completed optimization history lives in [`docs/complete
 - Section-12 Java consolidation pass #4 is complete: `DebugHudMixin` and `RenderBudgetMixin` moved under `mixin.hud`, with mixin config paths updated and stale comment formatting cleaned in touched files.
 - Section-12 Java consolidation pass #5 is complete: `ClientFrameMetricsMixin` and `ResourceReloadMixin` moved under `mixin.client`, and HUD mixins were merged into a single file (`DebugHudMixin.java`) with the old standalone `RenderBudgetMixin.java` removed.
 - Section-12 Java consolidation pass #6 is complete: single-mod integration mixins (`RenderUtils`, `MiniHUDLightUpdate`, `ClientRedstoneSkip`, `TickSyncCompat`, `EntityRenderCompat`) now share `mixin.integration` for a more compact structure, with mixin config and manager mappings updated.
+- Section-12 Java consolidation pass #7 is complete: the last single-file folder under `mixin.hud` was flattened by moving `DebugHudMixin` and `RenderBudgetMixin` into `mixin.client`, reducing package depth without behavior changes.
 
 ## Completed Changes
 
