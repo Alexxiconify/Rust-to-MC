@@ -162,7 +162,7 @@ public class ModMenuIntegration implements ModMenuApi {
                 cfg::isEnableNativeMetricsHud, v -> cfg.setEnableNativeMetricsHud(v != null && v)))
             .option(buildBooleanOption("Debug HUD Frame Graph",
                 "Shows frame-time graph overlay for quick pacing checks.",
-                cfg::isEnableDebugHudGraph, v -> cfg.setEnableDebugHudGraph(v != null && v)))
+                cfg::isDebugHudGraphEnabled, v -> cfg.setDebugHudGraphEnabled(v != null && v)))
             .option(buildBooleanOption("Timing Info Overlay",
                 "Shows text-only render/load timing summary overlay.",
                 cfg::isEnablePieChart, v -> cfg.setEnablePieChart(v != null && v)))
@@ -205,13 +205,10 @@ public class ModMenuIntegration implements ModMenuApi {
                 "Skip client-side redstone neighbor updates (server handles logic).",
                 cfg::isEnableClientRedstoneSkip, v -> cfg.setEnableClientRedstoneSkip(v != null && v)))
 
-            .option(buildSectionHeader("DH Cave Culling Debug", "Controls player-based DH cave culling and optional logs."))
+            .option(buildSectionHeader("DH Cave Culling", "Controls player-based DH cave culling."))
             .option(buildBooleanOption("Enable DH Cave Culling",
                 "When ON, DH LOD loading is disabled below the player-based surface threshold.",
-                cfg::isEnableDhCaveCulling, v -> cfg.setEnableDhCaveCulling(v != null && v)))
-            .option(buildBooleanOption("DH Culling Debug Log",
-                "Logs whether each DH section was culled and which player Y was used.",
-                cfg::isEnableDhCullingDebugLog, v -> cfg.setEnableDhCullingDebugLog(v != null && v)));
+                cfg::isEnableDhCaveCulling, v -> cfg.setEnableDhCaveCulling(v != null && v)));
     }
 
     private void addBridgeOptions(ConfigCategory.Builder builder, RustMCConfig cfg) {

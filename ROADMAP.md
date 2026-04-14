@@ -29,8 +29,10 @@ Scope: active work only. Completed optimization history lives in [`docs/complete
 - DH cave-culling reference now uses player position only (no camera/entity fallback) so test behavior stays consistent under freecam-like view changes.
 - Frustum cave-status updates are now explicitly player-anchored (`client.player`) so entity-camera freecam movement does not shift DH culling state.
 - DH surface gate is now tuned to `54` (from `62`) to reduce over-culling while swimming near ocean level.
+- Fast loading screen now defaults to ON for new configs.
 - ModMenu config surface was trimmed to remove stale native/bridge toggles no longer wired to runtime behavior.
 - ModMenu JNI counters now render via live read-only text suppliers with an explicit metric-status line (`active` / `no-data` / `native-off`).
+- DH culling debug-log controls were removed from ModMenu + keybinds, and runtime DH culling logs were dropped from release path.
 - DH LOD occlusion now runs only after frustum keep decisions, and only frustum-kept LOD chunks are submitted as occluders for other LOD chunks.
 - Camera-relative DH fallback checks now skip vertical cave gating, reducing angle-dependent low-Y chunk culling regressions.
 - Rust particle ticking now reuses thread-local native scratch buffers and only enables Rayon for larger batches, reducing per-tick allocations and scheduling overhead.

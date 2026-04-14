@@ -1,17 +1,15 @@
 package com.alexxiconify.rustmc.config;
-//
- //  Configuration POJO for Rust-MC. All fields are serialized/deserialized by Gson,
- //  and getters/setters are referenced by ModMenu (YACL) via method references.
+//  Configuration POJO for Rust-MC. All fields are serialized/deserialized by Gson,
+//  and getters/setters are referenced by ModMenu (YACL) via method references.
 public class RustMCConfig {
     // Bump this whenever the ModMenu config surface changes so old saved values are reset.
-    public static final String CURRENT_CONFIG_VERSION = "2.4.0";
+    public static final String CURRENT_CONFIG_VERSION = "2.5.0";
     private String configVersion = CURRENT_CONFIG_VERSION;
-
     // Math/debug overlays
     private boolean useNativeF3       = true;
     // World / system features
     private boolean useNativeLighting    = true;
-    private boolean useFastLoadingScreen = false;
+    private boolean useFastLoadingScreen = true;
     // Mod compat toggles
     private boolean enableParticleCulling      = true;
     private boolean enableChunkBuilderExpand   = true;
@@ -24,7 +22,6 @@ public class RustMCConfig {
     private boolean enableImmediatelyFastCompat = true;
     private boolean enableClientRedstoneSkip   = true;
     private boolean enableDhCaveCulling        = true;
-    private boolean enableDhCullingDebugLog    = false;
     private boolean enableDebugHudGraph        = false;
     private boolean enablePieChart             = false;
     private boolean enableNativeMetricsHud     = false;
@@ -62,7 +59,6 @@ public class RustMCConfig {
         this.enableImmediatelyFastCompat = o.enableImmediatelyFastCompat;
         this.enableClientRedstoneSkip = o.enableClientRedstoneSkip;
         this.enableDhCaveCulling = o.enableDhCaveCulling;
-        this.enableDhCullingDebugLog = o.enableDhCullingDebugLog;
         this.enableDebugHudGraph = o.enableDebugHudGraph;
         this.enablePieChart = o.enablePieChart;
         this.enableNativeMetricsHud = o.enableNativeMetricsHud;
@@ -96,8 +92,7 @@ public class RustMCConfig {
     public boolean isEnableImmediatelyFastCompat() { return enableImmediatelyFastCompat; }
     public boolean isEnableClientRedstoneSkip()   { return enableClientRedstoneSkip; }
     public boolean isEnableDhCaveCulling()        { return enableDhCaveCulling; }
-    public boolean isEnableDhCullingDebugLog()    { return enableDhCullingDebugLog; }
-    public boolean isEnableDebugHudGraph()        { return enableDebugHudGraph; }
+    public boolean isDebugHudGraphEnabled()       { return enableDebugHudGraph; }
     public boolean isEnablePieChart()             { return enablePieChart; }
     public boolean isEnableNativeMetricsHud()     { return enableNativeMetricsHud; }
     public boolean isEnableDnsCache()             { return enableDnsCache; }
@@ -111,10 +106,8 @@ public class RustMCConfig {
     public int getLoadingBarTextColor()     { return loadingBarTextColor; }
     public int getLoadingBarSubtextColor()  { return loadingBarSubtextColor; }
     public boolean isSilenceLogs()          { return silenceLogs; }
-    @SuppressWarnings("unused")
     public boolean isNativeReady()          { return nativeReady; }
     public boolean isExperimentalCoexistEnabled() { return experimentalCoexistEnabled; }
-    // Setters
     public void setConfigVersion(String v)       { configVersion = v; }
     public void setUseNativeF3(boolean v)          { useNativeF3 = v; }
     public void setUseNativeLighting(boolean v)    { useNativeLighting = v; }
@@ -130,8 +123,7 @@ public class RustMCConfig {
     public void setEnableImmediatelyFastCompat(boolean v) { enableImmediatelyFastCompat = v; }
     public void setEnableClientRedstoneSkip(boolean v)   { enableClientRedstoneSkip = v; }
     public void setEnableDhCaveCulling(boolean v)        { enableDhCaveCulling = v; }
-    public void setEnableDhCullingDebugLog(boolean v)    { enableDhCullingDebugLog = v; }
-    public void setEnableDebugHudGraph(boolean v)        { enableDebugHudGraph = v; }
+    public void setDebugHudGraphEnabled(boolean v)       { enableDebugHudGraph = v; }
     public void setEnablePieChart(boolean v)             { enablePieChart = v; }
     public void setEnableNativeMetricsHud(boolean v)     { enableNativeMetricsHud = v; }
     public void setEnableDnsCache(boolean v)             { enableDnsCache = v; }
@@ -145,9 +137,6 @@ public class RustMCConfig {
     public void setLoadingBarTextColor(int v)      { loadingBarTextColor = v; }
     public void setLoadingBarSubtextColor(int v)   { loadingBarSubtextColor = v; }
     public void setSilenceLogs(boolean v)          { silenceLogs = v; }
-    @SuppressWarnings("unused")
     public void setNativeReady(boolean v)          { nativeReady = v; }
-    @SuppressWarnings("unused")
     public void setExperimentalCoexistEnabled(boolean v) { experimentalCoexistEnabled = v; }
-
 }

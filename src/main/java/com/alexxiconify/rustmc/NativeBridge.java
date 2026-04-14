@@ -548,7 +548,6 @@ public class NativeBridge {
         }
     }
     private record ClientFrustumContext(double fovScale, double camX, double camY, double camZ) {}
-    private static final String DH_REFERENCE_SOURCE = "player";
 
     private static double getDhReferenceY() {
         try {
@@ -699,18 +698,13 @@ public class NativeBridge {
 
     private static boolean passesDhVerticalGate(boolean applyVerticalGate,
                                                 double refY,
-                                                double minX, double minY, double minZ,
-                                                double maxX, double maxY, double maxZ,
+                                                double minY,
+                                                double maxY,
                                                 double surfaceY) {
         if (!applyVerticalGate) {
             return true;
         }
         if (shouldCullDhBelowSurface(refY, surfaceY)) {
-            if (RustMC.CONFIG.isEnableDhCullingDebugLog()) {
-                RustMC.LOGGER.debug("[Rust-MC] DH culled (below surface): src={} y={} < {} box=({}, {}, {})..({}, {}, {})",
-                    DH_REFERENCE_SOURCE, refY, surfaceY,
-                    minX, minY, minZ, maxX, maxY, maxZ);
-            }
             return false;
         }
         return invokeDHCull(minY, maxY, surfaceY);
@@ -733,8 +727,8 @@ public class NativeBridge {
         boolean visibleByVertical = passesDhVerticalGate(
             applyVerticalGate,
             refY,
-            minX, minY, minZ,
-            maxX, maxY, maxZ,
+            minY,
+            maxY,
             surfaceY
         );
         if (!visibleByVertical) {
@@ -746,14 +740,6 @@ public class NativeBridge {
             return false;
         }
         submitDHOccluder(minX, minY, minZ, maxX, maxY, maxZ);
-
-        if (RustMC.CONFIG.isEnableDhCullingDebugLog()) {
-            RustMC.LOGGER.debug("[Rust-MC] DH visible: src={} y={} absGate={} box=({}, {}, {})..({}, {}, {})",
-                DH_REFERENCE_SOURCE,
-                Double.isNaN(refY) ? "NaN" : String.format("%.2f", refY),
-                applyVerticalGate,
-                minX, minY, minZ, maxX, maxY, maxZ);
-        }
         return true;
     }
     public static void updateCaveStatus(boolean inCave) {

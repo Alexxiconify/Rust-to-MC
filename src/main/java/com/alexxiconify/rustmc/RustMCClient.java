@@ -16,11 +16,9 @@ import org.lwjgl.glfw.GLFW;
  //  Registers keybinds for toggling overlays:
  //    F6 — Native metrics HUD
  //    F8 — Frame-time sparkline graph
- //    F9 — DH culling debug log
 public class RustMCClient implements ClientModInitializer {
     private KeyBinding toggleNativeMetrics;
     private KeyBinding toggleFrameGraph;
-    private KeyBinding toggleDhCullingDebugLog;
     @Override
     public void onInitializeClient() {
         registerKeybinds();
@@ -41,9 +39,6 @@ public class RustMCClient implements ClientModInitializer {
         toggleFrameGraph = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.rustmc.toggle_frame_graph",
                 InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_F8, rustCategory));
-        toggleDhCullingDebugLog = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.rustmc.toggle_dh_culling_log",
-                InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_F9, rustCategory));
     }
     private void handleKeybinds(MinecraftClient client) {
         RustMCConfig cfg = RustMC.CONFIG;
@@ -56,17 +51,10 @@ public class RustMCClient implements ClientModInitializer {
             changed = true;
         }
         while (toggleFrameGraph.wasPressed()) {
-            cfg.setEnableDebugHudGraph(!cfg.isEnableDebugHudGraph());
-            String state = cfg.isEnableDebugHudGraph() ? "ON" : "OFF";
+            cfg.setDebugHudGraphEnabled(!cfg.isDebugHudGraphEnabled());
+            String state = cfg.isDebugHudGraphEnabled() ? "ON" : "OFF";
             RustMC.LOGGER.info("[Rust-MC] Frame graph: {}", state);
             showActionBar(client, "Rust-MC Frame Graph: " + state);
-            changed = true;
-        }
-        while (toggleDhCullingDebugLog.wasPressed()) {
-            cfg.setEnableDhCullingDebugLog(!cfg.isEnableDhCullingDebugLog());
-            String state = cfg.isEnableDhCullingDebugLog() ? "ON" : "OFF";
-            RustMC.LOGGER.info("[Rust-MC] DH culling debug log: {}", state);
-            showActionBar(client, "Rust-MC DH Culling Log: " + state);
             changed = true;
         }
         // Persist to disk so the toggle survives restarts

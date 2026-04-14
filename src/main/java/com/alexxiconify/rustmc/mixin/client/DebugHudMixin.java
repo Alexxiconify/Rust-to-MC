@@ -27,8 +27,8 @@ public class DebugHudMixin {
         // Only render overlays when actually in a world.
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.world == null || mc.player == null) return;
-        if (!RustMC.CONFIG.isEnableDebugHudGraph() && !RustMC.CONFIG.isEnablePieChart()) return;
-        if (RustMC.CONFIG.isEnableDebugHudGraph() && RustMC.CONFIG.isUseNativeF3() && !ModBridge.isHudOwned()) {
+        if (!RustMC.CONFIG.isDebugHudGraphEnabled() && !RustMC.CONFIG.isEnablePieChart()) return;
+        if (RustMC.CONFIG.isDebugHudGraphEnabled() && RustMC.CONFIG.isUseNativeF3() && !ModBridge.isHudOwned()) {
             drawSparkline(context, mc);
         }
         if (RustMC.CONFIG.isEnablePieChart() && mc.textRenderer != null) {
