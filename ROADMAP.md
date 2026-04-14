@@ -1,7 +1,5 @@
 # Rust to MC Roadmap
 
-Test 
-
 This roadmap tracks the active plan for **Rust to MC**: move high-cost client hot-path work from Java to Rust while preserving gameplay correctness, mod compatibility, and stable frame pacing.
 
 Scope: active work only. Completed optimization history lives in [`docs/completed-changes.md`](docs/completed-changes.md).
