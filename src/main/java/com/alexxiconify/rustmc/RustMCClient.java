@@ -2,6 +2,7 @@ package com.alexxiconify.rustmc;
 import com.alexxiconify.rustmc.config.RustMCConfig;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
@@ -23,7 +24,25 @@ public class RustMCClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         registerKeybinds();
+        registerConnectionHooks();
         ClientTickEvents.END_CLIENT_TICK.register(this::handleKeybinds);
+    }
+
+    private static void registerConnectionHooks() {
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> persistDnsCache("join"));
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> persistDnsCache("disconnect"));
+    }
+
+    private static void persistDnsCache(String reason) {
+        if (!NativeBridge.isReady() || !RustMC.CONFIG.isEnableDnsCache()) {
+            return;
+        }
+        try {
+            NativeBridge.dnsCacheSave();
+            RustMC.LOGGER.debug("[Rust-MC] DNS cache persisted on {}.", reason);
+        } catch (Exception e) {
+            RustMC.LOGGER.debug("[Rust-MC] DNS cache persist failed on {}: {}", reason, e.getMessage());
+        }
     }
     private void registerKeybinds() {
         // Use a stable alphanumeric namespace for category translation compatibility with Controlling.

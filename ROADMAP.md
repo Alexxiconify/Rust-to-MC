@@ -29,9 +29,12 @@ Scope: active work only. Completed optimization history lives in [`docs/complete
 - DH culling space mode is now configurable (`auto` / `absolute` / `plus_camera` / `minus_camera`), cycleable via keybind, and confirmed in-game through action-bar messages for fast live testing.
 - DH cave-culling reference now uses player position only (no camera/entity fallback) so test behavior stays consistent under freecam-like view changes.
 - DH surface gate is now tuned to `54` (from `62`) to reduce over-culling while swimming near ocean level.
+- DH LOD occlusion now runs only after frustum keep decisions, and only frustum-kept LOD chunks are submitted as occluders for other LOD chunks.
+- Camera-relative DH fallback checks now skip vertical cave gating, reducing angle-dependent low-Y chunk culling regressions.
 - Rust particle ticking now reuses thread-local native scratch buffers and only enables Rayon for larger batches, reducing per-tick allocations and scheduling overhead.
 - Particle spawn culling now caches squared cutoff distance at 20Hz, removing repeated per-spawn cutoff recomputation from `ParticleManagerMixin` hot paths.
 - Gradle/Cargo packaging now stages native outputs in `build/generated/rust-resources` and skips Rust binary staging for `sourcesJar`, reducing avoidable rebuild work.
+- DNS cache persistence now also triggers on multiplayer join/disconnect to reduce cache-loss windows between sessions.
 
 ## Completed Changes
 

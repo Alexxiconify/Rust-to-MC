@@ -321,7 +321,8 @@ public class DistantHorizonsCompat {
             minX, minY, minZ,
             maxX, maxY, maxZ,
             DH_SURFACE_Y,
-            DH_AGGRESSIVE_MARGIN
+            DH_AGGRESSIVE_MARGIN,
+            true
         );
     }
 
@@ -343,7 +344,8 @@ public class DistantHorizonsCompat {
             minX + cx, minY + cy, minZ + cz,
             maxX + cx, maxY + cy, maxZ + cz,
             DH_SURFACE_Y,
-            DH_AGGRESSIVE_MARGIN
+            DH_AGGRESSIVE_MARGIN,
+            false
         );
     }
     //

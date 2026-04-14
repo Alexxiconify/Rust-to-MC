@@ -306,6 +306,8 @@ public class NativeBridge {
     private static native double rustAbsMax(double a, double b);
     private static native float rustWrapDegrees(float value);
     private static native boolean rustRayIntersectsBox(double rx, double ry, double rz, double dx, double dy, double dz, double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
+    private static native boolean rustOcclusionTest(double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
+    private static native void rustOcclusionSubmit(double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
     private static native float[] rustComputeAmbientOcclusion(float[] vertexData, int vertexCount);
     private static native float[] rustComputeAmbientOcclusionDirect(java.nio.ByteBuffer vertexData, int vertexCount);
     // DNS cache
@@ -418,9 +420,9 @@ public class NativeBridge {
         }
     }
     public static int propagateLightBulk(int[] data, int len) {
-        if (data == null || len <= 0) return -1;
+        if (data == null || len == 0) return -1;
         int safeLen = Math.min(len, data.length);
-        if (safeLen <= 0) return -1;
+        if (safeLen == 0) return -1;
         int context = CONTEXT_VANILLA;
         if (ModBridge.SCALABLELUX) {
             context = CONTEXT_LUX;
@@ -435,7 +437,7 @@ public class NativeBridge {
     public static int propagateLightBulk(int[] data, int len, int context) {
         if (!libLoaded || data == null || len <= 0) return -1;
         int safeLen = Math.min(len, data.length);
-        if (safeLen <= 0) return -1;
+        if ( safeLen == 0 ) return -1;
         try { return rustPropagateLightBulk(data, safeLen, context); }
         catch (UnsatisfiedLinkError e) { return -1; }
     }
@@ -592,7 +594,7 @@ public class NativeBridge {
             return new byte[0];
         }
         int safeCount = Math.min(count, aabbs.length / 6);
-        if (safeCount <= 0) {
+        if (safeCount == 0) {
             return new byte[0];
         }
         if (!libLoaded || ptr == 0) {
@@ -671,14 +673,39 @@ public class NativeBridge {
             return Optional.empty();
         }
     }
-    // DH section visibility: reject below-surface player position, then run Rust frustum + vertical checks.
-    public static boolean cullDistantHorizonsSection(long ptr,
-                                                     double minX, double minY, double minZ,
-                                                     double maxX, double maxY, double maxZ,
-                                                     double surfaceY, double margin) {
-        if (!libLoaded || ptr == 0) return true;
-        double refY = getDhReferenceY();
-        if (RustMC.CONFIG.isEnableDhCaveCulling() && !Double.isNaN(refY) && refY < surfaceY) {
+    private static boolean isDHOccluded(double minX, double minY, double minZ,
+                                        double maxX, double maxY, double maxZ) {
+        if (!libLoaded) return false;
+        try {
+            return rustOcclusionTest(minX, minY, minZ, maxX, maxY, maxZ);
+        } catch (UnsatisfiedLinkError ignored) {
+            return false;
+        }
+    }
+
+    private static void submitDHOccluder(double minX, double minY, double minZ,
+                                         double maxX, double maxY, double maxZ) {
+        if (!libLoaded) return;
+        try {
+            rustOcclusionSubmit(minX, minY, minZ, maxX, maxY, maxZ);
+        } catch (UnsatisfiedLinkError ignored) {
+            // Optional occlusion symbol; fail open.
+        }
+    }
+
+    private static boolean shouldCullDhBelowSurface(double refY, double surfaceY) {
+        return RustMC.CONFIG.isEnableDhCaveCulling() && !Double.isNaN(refY) && refY < surfaceY;
+    }
+
+    private static boolean passesDhVerticalGate(boolean applyVerticalGate,
+                                                double refY,
+                                                double minX, double minY, double minZ,
+                                                double maxX, double maxY, double maxZ,
+                                                double surfaceY) {
+        if (!applyVerticalGate) {
+            return true;
+        }
+        if (shouldCullDhBelowSurface(refY, surfaceY)) {
             if (RustMC.CONFIG.isEnableDhCullingDebugLog()) {
                 RustMC.LOGGER.debug("[Rust-MC] DH culled (below surface): src={} y={} < {} box=({}, {}, {})..({}, {}, {})",
                     DH_REFERENCE_SOURCE, refY, surfaceY,
@@ -686,18 +713,48 @@ public class NativeBridge {
             }
             return false;
         }
+        return invokeDHCull(minY, maxY, surfaceY);
+    }
+
+    // DH section visibility: frustum first, optional vertical gate for absolute space,
+    // then DH-only occlusion where only frustum-kept chunks can occlude other DH chunks.
+    public static boolean cullDistantHorizonsSection(long ptr,
+                                                     double minX, double minY, double minZ,
+                                                     double maxX, double maxY, double maxZ,
+                                                     double surfaceY, double margin,
+                                                     boolean applyVerticalGate) {
+        if (!libLoaded || ptr == 0) return true;
         boolean visibleByFrustum = testRustFrustum(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
-        boolean visibleByVertical = invokeDHCull(minY, maxY, surfaceY);
-        boolean visible = visibleByFrustum && visibleByVertical;
+        if (!visibleByFrustum) {
+            return false;
+        }
+
+        double refY = applyVerticalGate ? getDhReferenceY() : Double.NaN;
+        boolean visibleByVertical = passesDhVerticalGate(
+            applyVerticalGate,
+            refY,
+            minX, minY, minZ,
+            maxX, maxY, maxZ,
+            surfaceY
+        );
+        if (!visibleByVertical) {
+            return false;
+        }
+
+        boolean occluded = isDHOccluded(minX, minY, minZ, maxX, maxY, maxZ);
+        if (occluded) {
+            return false;
+        }
+        submitDHOccluder(minX, minY, minZ, maxX, maxY, maxZ);
+
         if (RustMC.CONFIG.isEnableDhCullingDebugLog()) {
-            RustMC.LOGGER.debug("[Rust-MC] DH {}: src={} y={} frustum={} vertical={} box=({}, {}, {})..({}, {}, {})",
-                visible ? "visible" : "culled",
+            RustMC.LOGGER.debug("[Rust-MC] DH visible: src={} y={} absGate={} box=({}, {}, {})..({}, {}, {})",
                 DH_REFERENCE_SOURCE,
                 Double.isNaN(refY) ? "NaN" : String.format("%.2f", refY),
-                visibleByFrustum, visibleByVertical,
+                applyVerticalGate,
                 minX, minY, minZ, maxX, maxY, maxZ);
         }
-        return visible;
+        return true;
     }
     public static void updateCaveStatus(boolean inCave) {
         if (!libLoaded) return;
@@ -857,6 +914,8 @@ public class NativeBridge {
                 java.nio.file.Files.writeString(DNS_CACHE_PATH, json);
                 RustMC.LOGGER.debug("[Rust-MC] DNS cache saved: {} entries", dnsCacheSize());
             }
+        } catch (UnsatisfiedLinkError e) {
+            RustMC.LOGGER.debug("[Rust-MC] DNS cache export not linked: {}", e.getMessage());
         } catch (Exception e) {
             RustMC.LOGGER.debug("[Rust-MC] Failed to save DNS cache: {}", e.getMessage());
         }
@@ -874,6 +933,8 @@ public class NativeBridge {
                     RustMC.LOGGER.info("[Rust-MC] DNS cache loaded from disk ({} entries)", dnsCacheSize());
                 }
             }
+        } catch (UnsatisfiedLinkError e) {
+            RustMC.LOGGER.debug("[Rust-MC] DNS cache import not linked: {}", e.getMessage());
         } catch (Exception e) {
             RustMC.LOGGER.debug("[Rust-MC] Failed to load DNS cache: {}", e.getMessage());
         }

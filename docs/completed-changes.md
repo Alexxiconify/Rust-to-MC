@@ -74,6 +74,20 @@ This document records optimization and stability work that has already been comp
 - Saved config values reset automatically when the schema changes.
 - DH testing stays player-based and less aggressive near ocean level.
 
+## April 14, 2026 - DH LOD Occlusion Ordering + DNS Persist Hooks
+
+**Completed this reliability pass:**
+- `NativeBridge.cullDistantHorizonsSection(...)` now enforces frustum-first evaluation and only runs DH occlusion on chunks already kept by frustum.
+- DH occlusion now submits only visible DH LOD chunks as occluders, so LOD chunks only block other LOD chunks in the DH path.
+- Vertical/cave gating is now mode-aware: absolute-space checks keep vertical gating while camera-relative fallback checks skip it, reducing low-Y angle false culls.
+- `rust_mc_core/src/lib.rs` now exports `rustOcclusionTest(...)` JNI for DH-only occlusion testing parity.
+- `RustMCClient` now persists DNS cache on client JOIN and DISCONNECT events in addition to existing unload/exit paths.
+
+**Payoff:**
+- Occlusion can no longer cull DH chunks that never passed frustum.
+- Fewer angle-dependent low-Y DH culling regressions in camera-relative modes.
+- Better DNS cache persistence across multiplayer transitions.
+
 ## April 13, 2026 - Client-Only Mixin Refactor & Performance Optimization
 
 ### Hot-Path Telemetry & Budget Cleanup
