@@ -1,4 +1,4 @@
-package com.alexxiconify.rustmc.mixin.compat;
+package com.alexxiconify.rustmc.mixin.integration;
 import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.RustMC;
 import com.alexxiconify.rustmc.util.RenderState;
@@ -16,6 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  //  <p>
  //  Sets shared flags in {@link RenderState} at the start of each render pass
  //  that our particle culling and other hooks read to decide culling thresholds.
+//noinspection MixinClassReference
 @Mixin(WorldRenderer.class)
 public class EntityRenderCompatMixin {
     private EntityRenderCompatMixin() {}

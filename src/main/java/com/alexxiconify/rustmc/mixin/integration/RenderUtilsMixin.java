@@ -1,4 +1,4 @@
-package com.alexxiconify.rustmc.mixin.minihud;
+package com.alexxiconify.rustmc.mixin.integration;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.util.math.MatrixStack;

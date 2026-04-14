@@ -26,11 +26,11 @@
     "screen.LevelLoadingScreenMixin",
     "screen.WindowMixin",
     "network.MultiplayerScreenMixin",
-    "minihud.RenderUtilsMixin",
-    "compat.MiniHUDLightUpdateMixin",
-    "compat.ClientRedstoneSkipMixin",
-    "compat.TickSyncCompatMixin",
-    "compat.EntityRenderCompatMixin"
+    "integration.RenderUtilsMixin",
+    "integration.MiniHUDLightUpdateMixin",
+    "integration.ClientRedstoneSkipMixin",
+    "integration.TickSyncCompatMixin",
+    "integration.EntityRenderCompatMixin"
   ],
   "injectors": {
     "defaultRequire": 0

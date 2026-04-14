@@ -15,11 +15,11 @@ public class MixinManager implements IMixinConfigPlugin {
     private static Map<String, String> buildGroupPrefixes() {
         String dnsGroup = "DNS/Server List";
         Map<String, String> m = new LinkedHashMap<>();
-        m.put("compat.EntityRender", "Entity Rendering (EMF/ETF/IF)");
-        m.put("compat.ClientRedstone", "Redstone Optimization");
-        m.put("compat.TickSync", "Tick Sync");
-        m.put("compat.MiniHUD", "MiniHUD/Lighty");
-        m.put("minihud.", "MiniHUD Culling");
+        m.put("integration.EntityRender", "Entity Rendering (EMF/ETF/IF)");
+        m.put("integration.ClientRedstone", "Redstone Optimization");
+        m.put("integration.TickSync", "Tick Sync");
+        m.put("integration.MiniHUD", "MiniHUD/Lighty");
+        m.put("integration.RenderUtils", "MiniHUD Culling");
         m.put("screen.", "Screen Overlays");
         m.put("Lighting", "Lighting Engine");
         m.put("Frustum", "Frustum/Raycast Culling");
@@ -41,9 +41,9 @@ public class MixinManager implements IMixinConfigPlugin {
             Map.entry(PKG + "performance.MatrixMixin", ModBridge :: isMathOwned),
             Map.entry(PKG + "performance.LightingMixin", ModBridge :: isLightingOwned),
             Map.entry(PKG + "performance.ChunkBuilderMixin", () -> RustMC.CONFIG.isEnableChunkBuilderExpand() && !ModBridge.SODIUM),
-            Map.entry(PKG + "compat.ClientRedstoneSkipMixin", RustMC.CONFIG :: isEnableClientRedstoneSkip),
-            Map.entry(PKG + "compat.TickSyncCompatMixin", RustMC.CONFIG :: isEnableTickSyncCompat),
-            Map.entry(PKG + "compat.EntityRenderCompatMixin", () ->
+            Map.entry(PKG + "integration.ClientRedstoneSkipMixin", RustMC.CONFIG :: isEnableClientRedstoneSkip),
+            Map.entry(PKG + "integration.TickSyncCompatMixin", RustMC.CONFIG :: isEnableTickSyncCompat),
+            Map.entry(PKG + "integration.EntityRenderCompatMixin", () ->
                 RustMC.CONFIG.isEnableBBECompat()
                 ||
                 RustMC.CONFIG.isEnableEMFCompat()

@@ -1,4 +1,4 @@
-package com.alexxiconify.rustmc.mixin.compat;
+package com.alexxiconify.rustmc.mixin.integration;
 import com.alexxiconify.rustmc.ModBridge;
 import net.minecraft.client.world.ClientChunkManager;
 import net.minecraft.util.math.ChunkSectionPos;
@@ -14,6 +14,7 @@ import java.lang.reflect.Method;
 //
  //  Notifies MiniHUD and Lighty that server-side light data is stale.
  //  Reflection is cached once via ensureInit().
+//noinspection MixinClassReference
 @Mixin(ClientChunkManager.class)
 public class MiniHUDLightUpdateMixin {
     @Unique
@@ -34,7 +35,6 @@ public class MiniHUDLightUpdateMixin {
             Object inst = cls.getDeclaredField("INSTANCE").get(null);
             if (inst != null) {
                 Method method = cls.getMethod("setNeedsUpdate");
-                method.setAccessible(true);
                 minihudSetNeedsUpdate = MethodHandles.lookup().unreflect(method);
                 minihudInstance = inst;
             }
@@ -48,7 +48,6 @@ public class MiniHUDLightUpdateMixin {
             Class<?> compute = Class.forName("dev.schmarrn.lighty.core.Compute");
             Method method = probeMethod(compute );
             if (method != null) {
-                method.setAccessible(true);
                 lightyInvalidate = MethodHandles.lookup().unreflect(method);
             }
         } catch (Exception | LinkageError ignored) { // Lighty absent or incompatible
@@ -73,6 +72,7 @@ public class MiniHUDLightUpdateMixin {
         tryBindLighty();
     }
     @Inject(method = "onLightUpdate", at = @At("TAIL"))
+    @SuppressWarnings("java:S2696") // Mixin @Inject has to be instance method while updating static dispatch timestamp.
     private void rustmcOnLightUpdate(LightType type, ChunkSectionPos pos, CallbackInfo ci) {
         ensureInit();
         // Use a fast time-based rate limit of min 16ms between dispatches

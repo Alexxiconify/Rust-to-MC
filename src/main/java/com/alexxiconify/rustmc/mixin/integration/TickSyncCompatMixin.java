@@ -1,4 +1,4 @@
-package com.alexxiconify.rustmc.mixin.compat;
+package com.alexxiconify.rustmc.mixin.integration;
 import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.RustMC;
 import net.minecraft.client.MinecraftClient;
