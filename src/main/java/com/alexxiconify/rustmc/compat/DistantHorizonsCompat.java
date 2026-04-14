@@ -173,7 +173,9 @@ public class DistantHorizonsCompat {
         }
         float[] vpArray = (float[]) getValuesAsArrayMethod.invoke(mat);
         if (!frustumInitialized || shouldRefreshFrustum()) {
-            boolean updated = com.alexxiconify.rustmc.NativeBridge.updateRustFrustumTracked(rustFrustumPtr, vpArray);
+            // Keep DH camera/cache-owned matrix data immutable across JNI boundaries.
+            float[] vpSnapshot = (vpArray == null) ? null : java.util.Arrays.copyOf(vpArray, vpArray.length);
+            boolean updated = com.alexxiconify.rustmc.NativeBridge.updateRustFrustumTracked(rustFrustumPtr, vpSnapshot);
             if (updated) {
                 frustumInitialized = true;
             }
@@ -410,7 +412,9 @@ public class DistantHorizonsCompat {
     public static void optimizeLighting(long[] lightTasks) {
         if (lightTasks == null || lightTasks.length == 0) return;
         if ( isDhNativeReady ( ) ) return;
-        com.alexxiconify.rustmc.NativeBridge.propagateLightDH(lightTasks, lightTasks.length);
+        // Never mutate DH/user cache-owned task buffers in native relight paths.
+        long[] taskSnapshot = java.util.Arrays.copyOf(lightTasks, lightTasks.length);
+        com.alexxiconify.rustmc.NativeBridge.propagateLightDH(taskSnapshot, taskSnapshot.length);
     }
     //
      // Offloads DH LOD meshing to Rust GPU path when detail level is high-value for batching.
@@ -418,6 +422,8 @@ public class DistantHorizonsCompat {
         if (!com.alexxiconify.rustmc.NativeBridge.isReady() || detail > 2 || blocks == null || blocks.length == 0) {
             return new int[0];
         }
-        return com.alexxiconify.rustmc.NativeBridge.generateLodMeshGpu(blocks, chunkX, chunkZ, detail);
+        // Copy source blocks so native meshing cannot alter DH/user LOD cache arrays.
+        int[] blockSnapshot = java.util.Arrays.copyOf(blocks, blocks.length);
+        return com.alexxiconify.rustmc.NativeBridge.generateLodMeshGpu(blockSnapshot, chunkX, chunkZ, detail);
     }
 }
