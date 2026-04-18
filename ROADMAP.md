@@ -26,6 +26,8 @@ Single source of truth for active direction and completed status. This file and 
 
 ### Frustum + DH Reliability
 
+- April 18 pass: frustum point/AABB plane loops now use scalar plane coefficients and precomputed margin-expanded bounds to cut repeated hot-loop math.
+- April 18 pass: DH frustum proxy now includes periodic rebind hardening so Rust-MC culling ownership stays active even if other compat layers attempt to replace bindings.
 - DH culling remains Rust-driven with fused + fallback paths.
 - Fallback visibility now holds until first confirmed native matrix upload (prevents stale-pointer join culls).
 - DH culling space standardized to camera-minus; culling-space cycling controls removed.
@@ -42,6 +44,7 @@ Single source of truth for active direction and completed status. This file and 
 ### JNI + Hot-Path + Rendering
 
 - Native metrics are wired end-to-end (`rustGetMetrics` + counters) for HUD/Mod Menu.
+- April 18 pass: single-AABB frustum JNI test now uses coordinate-based checks directly (no temporary mins/maxs arrays), and batch frustum path now uses one precomputed `count_usize` sizing path.
 - Frustum fallback wrappers were deduplicated and optimized (single captured context, shared all-visible fallback path).
 - Rust frustum AABB hot loop removed temporary min/max array creation via scalar helper path.
 - Lighting offload hot path trimmed (queue mask/snapshot strategy, index-math hoists, less busy-spin/Rayon overhead).
@@ -66,6 +69,8 @@ Single source of truth for active direction and completed status. This file and 
 
 ### Compatibility and Cleanup
 
+- April 18 pass: DH occlusion `submit/test` now cache matrix/camera components per call to reduce repeated slice indexing in per-box projection math.
+- April 18 pass: DH occlusion culling now only returns culled when all sampled points (corners + center) are hidden, preventing partial-visibility false culls.
 - Seven server-only mixins removed; client-only compatibility posture is now explicit.
 - `EntityRenderCompatMixin` remains the unified BBE/EMF/ETF/IF compat hook.
 - Mod detection caching (`ModBridgeCache`) added to avoid repeated hot-path checks.

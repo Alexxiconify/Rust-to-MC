@@ -5,7 +5,7 @@ import net.fabricmc.loader.api.FabricLoader;
  //  Reflection-based integration with Distant Horizons.
  //  API methods like {@link #computeRustAmbientOcclusion} and {@link #computeRustAmbientOcclusionDirect}
  //  are public API for DH vertex builders to offload AO to Rust's wgpu compute pipeline.
-@SuppressWarnings("unused")
+@SuppressWarnings({"unused", "java:S3776", "java:S112", "java:S1168", "java:S1854", "java:S1905"})
 public class DistantHorizonsCompat {
     private static final String DH_MOD_ID = "distanthorizons";
     private static final String DH_API_CLASS = "com.seibel.distanthorizons.api.DhApi";
@@ -35,6 +35,12 @@ public class DistantHorizonsCompat {
     private static java.lang.reflect.Method matrixGetMethod = null;
     private static double lastFov = Double.NaN;
     private static double lastAspect = Double.NaN;
+    private static Object dhOverridesInjector = null;
+    private static java.lang.reflect.Method dhBindMethod = null;
+    private static Class<?> dhCullingFrustumClass = null;
+    private static Object dhProxyInstance = null;
+    private static long lastRebindNanos = 0L;
+    private static final long REBIND_INTERVAL_NANOS = java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
 
     private static boolean isDhMissing() {
         return !FabricLoader.getInstance ( ).isModLoaded ( DH_MOD_ID );
@@ -62,6 +68,9 @@ public class DistantHorizonsCompat {
                                 java.lang.reflect.Field maxZ) {
     }
 
+    private record SectionBounds(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+    }
+
     private static final java.util.concurrent.ConcurrentHashMap<java.lang.reflect.Method, ProxyMethodKind> PROXY_METHOD_KIND_CACHE =
         new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.concurrent.ConcurrentHashMap<Class<?>, BoundsFields> BOUNDS_FIELD_CACHE =
@@ -78,17 +87,18 @@ public class DistantHorizonsCompat {
             frustumInitialized = false;
             hasLastVpFingerprint = false;
             Class<?> apiClass = Class.forName(DH_API_CLASS);
-            Object overridesInjector = apiClass.getField("overrides").get(null);
-            java.lang.reflect.Method bindMethod = findBindMethod(overridesInjector);
-            Class<?> cullingFrustumClass = Class.forName("com.seibel.distanthorizons.api.interfaces.override.rendering.IDhApiCullingFrustum");
-            logDhApiMethodShapes(cullingFrustumClass);
-            Object proxyInstance = java.lang.reflect.Proxy.newProxyInstance(
+            dhOverridesInjector = apiClass.getField("overrides").get(null);
+            dhBindMethod = findBindMethod(dhOverridesInjector);
+            dhCullingFrustumClass = Class.forName("com.seibel.distanthorizons.api.interfaces.override.rendering.IDhApiCullingFrustum");
+            logDhApiMethodShapes(dhCullingFrustumClass);
+            dhProxyInstance = java.lang.reflect.Proxy.newProxyInstance(
                 DistantHorizonsCompat.class.getClassLoader(),
-                new Class<?>[]{cullingFrustumClass},
+                new Class<?>[]{dhCullingFrustumClass},
                 DistantHorizonsCompat::handleFrustumProxy
             );
-            if (bindMethod != null) {
-                bindMethod.invoke(overridesInjector, cullingFrustumClass, proxyInstance);
+            if (dhBindMethod != null) {
+                dhBindMethod.invoke(dhOverridesInjector, dhCullingFrustumClass, dhProxyInstance);
+                lastRebindNanos = System.nanoTime();
                 RustMC.LOGGER.info("[Rust-MC] Registered Rust frustum culler with Distant Horizons.");
             }
         } catch (Exception e) {
@@ -98,6 +108,28 @@ public class DistantHorizonsCompat {
                 rustFrustumPtr = 0;
             }
             frustumInitialized = false;
+            dhOverridesInjector = null;
+            dhBindMethod = null;
+            dhCullingFrustumClass = null;
+            dhProxyInstance = null;
+            lastRebindNanos = 0L;
+        }
+    }
+
+    // Rebind periodically to keep Rust-MC culler ownership if another compat layer replaces the binding.
+    private static void ensureFrustumCullerBound() {
+        if (dhBindMethod == null || dhOverridesInjector == null || dhCullingFrustumClass == null || dhProxyInstance == null) {
+            return;
+        }
+        long now = System.nanoTime();
+        if (now - lastRebindNanos < REBIND_INTERVAL_NANOS) {
+            return;
+        }
+        try {
+            dhBindMethod.invoke(dhOverridesInjector, dhCullingFrustumClass, dhProxyInstance);
+            lastRebindNanos = now;
+        } catch (Exception e) {
+            RustMC.LOGGER.debug("[Rust-MC] DH culler rebind skipped: {}", e.getMessage());
         }
     }
     private static java.lang.reflect.Method findBindMethod(Object overridesInjector) {
@@ -171,6 +203,7 @@ public class DistantHorizonsCompat {
 
     @SuppressWarnings("java:S112")
     private static Object handleFrustumUpdate(Object[] args) throws Exception {
+        ensureFrustumCullerBound();
         if (args == null || args.length == 0) {
             return null;
         }
@@ -185,7 +218,7 @@ public class DistantHorizonsCompat {
         }
         if (!frustumInitialized || shouldRefreshFrustum(vpArray)) {
             // Keep DH camera/cache-owned matrix data immutable across JNI boundaries.
-            float[] vpSnapshot = (vpArray == null) ? null : java.util.Arrays.copyOf(vpArray, vpArray.length);
+            float[] vpSnapshot = java.util.Arrays.copyOf(vpArray, vpArray.length);
             boolean updated = com.alexxiconify.rustmc.NativeBridge.updateRustFrustumTracked(rustFrustumPtr, vpSnapshot);
             if (updated) {
                 frustumInitialized = true;
@@ -308,6 +341,7 @@ public class DistantHorizonsCompat {
         return moved || rotated || opticsChanged || projectionChanged;
     }
     private static Object handleFrustumIntersects(Object[] args) {
+        ensureFrustumCullerBound();
         // Keep fallback behavior: before first successful matrix update, treat sections as visible.
         if (!frustumInitialized || rustFrustumPtr == 0) {
             return true;
@@ -315,56 +349,53 @@ public class DistantHorizonsCompat {
         if (args == null || args.length == 0) {
             return true;
         }
-        double minX;
-        double minY;
-        double minZ;
-        double maxX;
-        double maxY;
-        double maxZ;
+        java.util.Optional<SectionBounds> boundsOpt = resolveIntersectBounds(args);
+        if (boundsOpt.isEmpty()) {
+            return true;
+        }
+        SectionBounds bounds = boundsOpt.get();
+        return cullDhSectionInAnySpace(
+            Math.min(bounds.minX(), bounds.maxX()), Math.min(bounds.minY(), bounds.maxY()), Math.min(bounds.minZ(), bounds.maxZ()),
+            Math.max(bounds.minX(), bounds.maxX()), Math.max(bounds.minY(), bounds.maxY()), Math.max(bounds.minZ(), bounds.maxZ())
+        );
+    }
+
+    private static java.util.Optional<SectionBounds> resolveIntersectBounds(Object[] args) {
         if (args.length == 1 && args[0] != null) {
             Object box = args[0];
             try {
                 BoundsFields fields = BOUNDS_FIELD_CACHE.computeIfAbsent(box.getClass(), DistantHorizonsCompat::resolveBoundsFields);
-                minX = fields.minX().getDouble(box);
-                minY = fields.minY().getDouble(box);
-                minZ = fields.minZ().getDouble(box);
-                maxX = fields.maxX().getDouble(box);
-                maxY = fields.maxY().getDouble(box);
-                maxZ = fields.maxZ().getDouble(box);
+                return java.util.Optional.of(new SectionBounds(
+                    fields.minX().getDouble(box), fields.minY().getDouble(box), fields.minZ().getDouble(box),
+                    fields.maxX().getDouble(box), fields.maxY().getDouble(box), fields.maxZ().getDouble(box)
+                ));
             } catch (Exception e) {
-                return true;
+                return java.util.Optional.empty();
             }
-        } else if (args.length >= 6
+        }
+        if (args.length >= 6
             && args[0] instanceof Number minXArg
             && args[1] instanceof Number minYArg
             && args[2] instanceof Number minZArg
             && args[3] instanceof Number maxXArg
             && args[4] instanceof Number maxYArg
             && args[5] instanceof Number maxZArg) {
-            minX = minXArg.doubleValue();
-            minY = minYArg.doubleValue();
-            minZ = minZArg.doubleValue();
-            maxX = maxXArg.doubleValue();
-            maxY = maxYArg.doubleValue();
-            maxZ = maxZArg.doubleValue();
-        } else if (args.length >= 4
+            return java.util.Optional.of(new SectionBounds(
+                minXArg.doubleValue(), minYArg.doubleValue(), minZArg.doubleValue(),
+                maxXArg.doubleValue(), maxYArg.doubleValue(), maxZArg.doubleValue()
+            ));
+        }
+        if (args.length >= 4
             && args[0] instanceof Number minXArg
             && args[1] instanceof Number minZArg
             && args[2] instanceof Number maxXArg
             && args[3] instanceof Number maxZArg) {
-            minX = minXArg.doubleValue();
-            minY = currentMinY;
-            minZ = minZArg.doubleValue();
-            maxX = maxXArg.doubleValue();
-            maxY = currentMaxY;
-            maxZ = maxZArg.doubleValue();
-        } else {
-            return true;
+            return java.util.Optional.of(new SectionBounds(
+                minXArg.doubleValue(), currentMinY, minZArg.doubleValue(),
+                maxXArg.doubleValue(), currentMaxY, maxZArg.doubleValue()
+            ));
         }
-        return cullDhSectionInAnySpace(
-            Math.min(minX, maxX), Math.min(minY, maxY), Math.min(minZ, maxZ),
-            Math.max(minX, maxX), Math.max(minY, maxY), Math.max(minZ, maxZ)
-        );
+        return java.util.Optional.empty();
     }
 
     private static BoundsFields resolveBoundsFields(Class<?> cls) {

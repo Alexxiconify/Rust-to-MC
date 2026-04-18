@@ -17,6 +17,16 @@ Historical-first view of the same canonical fact set used by [`ROADMAP.md`](../R
 
 ## Chronological Milestones
 
+### April 18, 2026
+
+#### Rust DH Frustum + Occlusion Micro-Optimization Pass
+
+- `rust_mc_core/src/frustum.rs` now uses scalar plane coefficients in frustum point/AABB loops and precomputes margin-expanded AABB bounds once per test.
+- `rust_mc_core/src/lib.rs` frustum JNI single-AABB path now calls `is_outside_aabb_coords(...)` directly (no temporary mins/maxs arrays), and batch path now reuses one `count_usize` sizing path.
+- `rust_mc_core/src/occlusion.rs` `submit(...)` and `test(...)` now cache matrix/camera components per call to reduce repeated indexing in projection math.
+- `rust_mc_core/src/occlusion.rs` now culls DH chunks only when all sampled points (8 corners + center) are hidden, preventing partial-visibility false culls.
+- `src/main/java/com/alexxiconify/rustmc/compat/DistantHorizonsCompat.java` now rebinds the Rust frustum culler periodically to keep Rust-MC culling authority when other hooks attempt replacement.
+
 ### April 14, 2026
 
 #### Background Thread Sweep
