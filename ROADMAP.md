@@ -33,16 +33,19 @@ Scope: active work only. Completed optimization history lives in [`docs/complete
 - DH LOD culling JNI path now caches optional symbol availability (frustum margin/vertical gate/fused/occlusion), removing repeated exception-based fallbacks in hot visibility loops.
 - DH API debug now logs detected culling interface method shapes once at registration time, plus capped unresolved-method notices for reflection mismatch diagnosis.
 - DH frustum update/relight/LOD-mesh JNI handoffs now use defensive snapshots of DH-owned arrays, preventing accidental mutation of user cache-backed LOD data.
-- DH surface gate is now tuned to `54` (from `62`) to reduce over-culling while swimming near ocean level.
+- DH surface gate is now tuned to `54` to reduce over-culling while swimming near ocean level.
 - Fast loading screen now defaults to ON for new configs.
 - ModMenu config surface was trimmed to remove stale native/bridge toggles no longer wired to runtime behavior.
 - ModMenu JNI counters now render via live read-only text suppliers with an explicit metric-status line (`active` / `no-data` / `native-off`).
 - DH culling debug-log controls were removed from ModMenu + keybinds, and runtime DH culling logs were dropped from release path.
 - DH LOD occlusion now runs only after frustum keep decisions, and only frustum-kept LOD chunks are submitted as occluders for other LOD chunks.
 - Camera-relative DH fallback checks now skip vertical cave gating, reducing angle-dependent low-Y chunk culling regressions.
+- DH 3.0.0 / API 6 frustum bridge now supports both legacy DH matrix wrappers and Blaze3D/JOML matrix shapes, with projection fingerprint refresh and cached camera-minus offsets to cut hot-path overhead.
+- DH camera-minus culling margin is now adaptive to player movement speed and wide-FOV states, reducing pop-in during fast travel while keeping aggressive static culling.
 - Rust particle ticking now reuses thread-local native scratch buffers and only enables Rayon for larger batches, reducing per-tick allocations and scheduling overhead.
 - Particle spawn culling now caches squared cutoff distance at 20Hz, removing repeated per-spawn cutoff recomputation from `ParticleManagerMixin` hot paths.
 - Gradle/Cargo packaging now stages native outputs in `build/generated/rust-resources` and skips Rust binary staging for `sourcesJar`, reducing avoidable rebuild work.
+- Version `:versions:mc1_21_11` no longer includes the three Xaero local jar dependencies, removing a Loom checksum/configure failure path when those jars are absent.
 - DNS cache persistence now also triggers on multiplayer join/disconnect to reduce cache-loss windows between sessions.
 - Section-12 Java consolidation pass #1 is complete: duplicated JNI math fallback wrappers and repeated DH readiness guards are now centralized.
 - Section-12 Java consolidation pass #2 is complete: DNS cache enable/persist/hostname guards and connection-hook glue now share `DnsCacheUtil`, and unused per-math-call config toggles were removed from config + Mod Menu.
@@ -202,4 +205,4 @@ Every optimization should satisfy at least one of these before it is considered 
 
 ---
 
-Last Updated: April 14, 2026
+Last Updated: April 18, 2026

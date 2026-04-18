@@ -11,6 +11,8 @@ public class DistantHorizonsCompat {
     private static final String DH_API_CLASS = "com.seibel.distanthorizons.api.DhApi";
     private static final double DH_SURFACE_Y = 54.0;
     private static final double DH_AGGRESSIVE_MARGIN = -2.0;
+    private static final double DH_MIN_MARGIN = -2.0;
+    private static final double DH_MAX_MARGIN = 0.25;
     private DistantHorizonsCompat() {}
     private static long rustFrustumPtr = 0;
     private static int currentMinY = -64;
@@ -23,15 +25,23 @@ public class DistantHorizonsCompat {
     private static double lastCameraZ = 0.0;
     private static float lastCameraYaw = 0.0f;
     private static float lastCameraPitch = 0.0f;
+    private static double lastCameraMoveSq = 0.0;
+    private static double cachedCameraMinusX = 0.0;
+    private static double cachedCameraMinusY = 0.0;
+    private static double cachedCameraMinusZ = 0.0;
+    private static long lastVpFingerprint = 0L;
+    private static boolean hasLastVpFingerprint = false;
+    private static java.lang.reflect.Method matrixToArrayMethod = null;
+    private static java.lang.reflect.Method matrixGetMethod = null;
     private static double lastFov = Double.NaN;
     private static double lastAspect = Double.NaN;
 
-    private static boolean isDhLoaded() {
+    private static boolean isDhMissing() {
         return !FabricLoader.getInstance ( ).isModLoaded ( DH_MOD_ID );
     }
 
     private static boolean isDhNativeReady() {
-        return isDhLoaded ( ) || !com.alexxiconify.rustmc.NativeBridge.isReady ( );
+        return isDhMissing ( ) || !com.alexxiconify.rustmc.NativeBridge.isReady ( );
     }
 
     private enum ProxyMethodKind {
@@ -66,6 +76,7 @@ public class DistantHorizonsCompat {
             if (rustFrustumPtr == 0) return;
             hasLastCameraState = false;
             frustumInitialized = false;
+            hasLastVpFingerprint = false;
             Class<?> apiClass = Class.forName(DH_API_CLASS);
             Object overridesInjector = apiClass.getField("overrides").get(null);
             java.lang.reflect.Method bindMethod = findBindMethod(overridesInjector);
@@ -168,11 +179,11 @@ public class DistantHorizonsCompat {
             currentMaxY = maxY.intValue();
         }
         Object mat = args[args.length - 1];
-        if (getValuesAsArrayMethod == null) {
-            getValuesAsArrayMethod = mat.getClass().getMethod("getValuesAsArray");
+        float[] vpArray = extractMatrixValues(mat);
+        if (vpArray == null || vpArray.length < 16) {
+            return null;
         }
-        float[] vpArray = (float[]) getValuesAsArrayMethod.invoke(mat);
-        if (!frustumInitialized || shouldRefreshFrustum()) {
+        if (!frustumInitialized || shouldRefreshFrustum(vpArray)) {
             // Keep DH camera/cache-owned matrix data immutable across JNI boundaries.
             float[] vpSnapshot = (vpArray == null) ? null : java.util.Arrays.copyOf(vpArray, vpArray.length);
             boolean updated = com.alexxiconify.rustmc.NativeBridge.updateRustFrustumTracked(rustFrustumPtr, vpSnapshot);
@@ -183,9 +194,71 @@ public class DistantHorizonsCompat {
         return null;
     }
 
+    // Supports both legacy DH API matrix wrappers and Blaze3D/JOML matrix paths.
+    private static float[] extractMatrixValues(Object mat) throws Exception {
+        if (mat == null) {
+            return null;
+        }
+        if (getValuesAsArrayMethod == null) {
+            try {
+                getValuesAsArrayMethod = mat.getClass().getMethod("getValuesAsArray");
+            } catch (NoSuchMethodException ignored) {
+                getValuesAsArrayMethod = null;
+            }
+        }
+        if (getValuesAsArrayMethod != null) {
+            Object out = getValuesAsArrayMethod.invoke(mat);
+            if (out instanceof float[] arr && arr.length >= 16) {
+                return arr;
+            }
+        }
+
+        if (matrixToArrayMethod == null) {
+            try {
+                matrixToArrayMethod = mat.getClass().getMethod("toArray");
+            } catch (NoSuchMethodException ignored) {
+                matrixToArrayMethod = null;
+            }
+        }
+        if (matrixToArrayMethod != null) {
+            Object out = matrixToArrayMethod.invoke(mat);
+            if (out instanceof float[] arr && arr.length >= 16) {
+                return arr;
+            }
+        }
+
+        if (matrixGetMethod == null) {
+            try {
+                matrixGetMethod = mat.getClass().getMethod("get", float[].class);
+            } catch (NoSuchMethodException ignored) {
+                matrixGetMethod = null;
+            }
+        }
+        if (matrixGetMethod != null) {
+            float[] out = new float[16];
+            Object ret = matrixGetMethod.invoke(mat, (Object) out);
+            if (ret instanceof float[] arr && arr.length >= 16) {
+                return arr;
+            }
+            return out;
+        }
+        return null;
+    }
+
+    private static long fingerprintMatrix(float[] vpArray) {
+        int len = Math.min(16, vpArray.length);
+        long hash = 0xcbf29ce484222325L;
+        for (int i = 0; i < len; i++) {
+            int quantized = Math.round(vpArray[i] * 1_000_000.0f);
+            hash ^= (quantized * 0x9E3779B9L) ^ i;
+            hash *= 0x100000001b3L;
+        }
+        return hash;
+    }
+
     // Keep DH frustum ownership strict to player state so detached freecam camera changes
     // do not retarget culling decisions.
-    private static boolean shouldRefreshFrustum() {
+    private static boolean shouldRefreshFrustum(float[] vpArray) {
         net.minecraft.client.MinecraftClient mc2 = net.minecraft.client.MinecraftClient.getInstance();
         if (mc2 == null || mc2.player == null) {
             return false;
@@ -206,10 +279,22 @@ public class DistantHorizonsCompat {
             double dx = cx - lastCameraX;
             double dy = cy - lastCameraY;
             double dz = cz - lastCameraZ;
-            moved = (dx * dx + dy * dy + dz * dz) > 1.0e-6;
+            lastCameraMoveSq = dx * dx + dy * dy + dz * dz;
+            moved = lastCameraMoveSq > 1.0e-6;
             rotated = Math.abs(yaw - lastCameraYaw) > 1.0e-4f || Math.abs(pitch - lastCameraPitch) > 1.0e-4f;
             opticsChanged = Math.abs(fov - lastFov) > 1.0e-4 || Math.abs(aspect - lastAspect) > 1.0e-4;
+        } else {
+            lastCameraMoveSq = 0.0;
         }
+
+        cachedCameraMinusX = -cx;
+        cachedCameraMinusY = -cy;
+        cachedCameraMinusZ = -cz;
+
+        long vpFingerprint = fingerprintMatrix(vpArray);
+        boolean projectionChanged = hasLastVpFingerprint && vpFingerprint != lastVpFingerprint;
+        lastVpFingerprint = vpFingerprint;
+        hasLastVpFingerprint = true;
 
         lastCameraX = cx;
         lastCameraY = cy;
@@ -220,7 +305,7 @@ public class DistantHorizonsCompat {
         lastAspect = aspect;
         hasLastCameraState = true;
 
-        return moved || rotated || opticsChanged;
+        return moved || rotated || opticsChanged || projectionChanged;
     }
     private static Object handleFrustumIntersects(Object[] args) {
         // Keep fallback behavior: before first successful matrix update, treat sections as visible.
@@ -306,24 +391,30 @@ public class DistantHorizonsCompat {
 
     private static boolean testCameraMinusSpace(double minX, double minY, double minZ,
                                                 double maxX, double maxY, double maxZ) {
-        net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
-        if (mc == null) {
-            return false;
+        if (!hasLastCameraState) {
+            return true;
         }
-        if (mc.player == null) {
-            return false;
-        }
-        double cx = -mc.player.getX();
-        double cy = -mc.player.getY();
-        double cz = -mc.player.getZ();
         return com.alexxiconify.rustmc.NativeBridge.cullDistantHorizonsSection(
             rustFrustumPtr,
-            minX + cx, minY + cy, minZ + cz,
-            maxX + cx, maxY + cy, maxZ + cz,
+            minX + cachedCameraMinusX, minY + cachedCameraMinusY, minZ + cachedCameraMinusZ,
+            maxX + cachedCameraMinusX, maxY + cachedCameraMinusY, maxZ + cachedCameraMinusZ,
             DH_SURFACE_Y,
-            DH_AGGRESSIVE_MARGIN,
+            getAdaptiveMargin(),
             false
         );
+    }
+
+    private static double getAdaptiveMargin() {
+        double margin = DH_AGGRESSIVE_MARGIN;
+        if (lastFov >= 100.0) {
+            margin += 0.75;
+        }
+        if (lastCameraMoveSq > 16.0) {
+            margin += 1.25;
+        } else if (lastCameraMoveSq > 4.0) {
+            margin += 0.75;
+        }
+        return Math.clamp(margin, DH_MIN_MARGIN, DH_MAX_MARGIN);
     }
     //
      // Public API hook for DH vertex builders or shaders to offload Ambient Occlusion
@@ -350,7 +441,7 @@ public class DistantHorizonsCompat {
      // Called during init. DH's default thread count is conservative — on modern
      // CPUs we can afford more threads for disk I/O and LOD meshing.
     public static void optimizeLodThreading() {
-        if ( isDhLoaded ( ) ) return;
+        if ( isDhMissing ( ) ) return;
         try {
             Class<?> apiClass = Class.forName(DH_API_CLASS);
             Object dhApi = apiClass.getField("Inst").get(null);
@@ -391,7 +482,7 @@ public class DistantHorizonsCompat {
      // Pre-warms DH's LOD file cache for the current world on a platform daemon thread.
      // Called when connecting to a world/server to reduce initial LOD pop-in.
     public static void prefetchLodData() {
-        if ( isDhLoaded ( ) ) return;
+        if ( isDhMissing ( ) ) return;
         Thread.ofPlatform().daemon(true).name("rustmc-dh-prefetch").start(() -> {
             try {
                 // Trigger DH's internal data cache warmup by touching the API
