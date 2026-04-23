@@ -651,6 +651,7 @@ public class NativeBridge {
             return out;
         }
         catch (UnsatisfiedLinkError e) {
+            RustMC.LOGGER.debug("[Rust-MC] Native batch frustum test not available.");
             return allVisibleBatchFrustumResult(safeCount);
         }
     }
@@ -923,6 +924,7 @@ public class NativeBridge {
         if (!libLoaded || hostname == null || hostname.isEmpty()) return;
         try { rustDnsResolve(hostname); }
         catch (UnsatisfiedLinkError ignored) {
+            // DNS resolution fallback
         }
     }
     //
@@ -939,6 +941,7 @@ public class NativeBridge {
         if (!libLoaded) return;
         try { rustDnsCacheClear(); }
         catch (UnsatisfiedLinkError ignored) {
+            // DNS batch resolution fallback
         }
     }
 
