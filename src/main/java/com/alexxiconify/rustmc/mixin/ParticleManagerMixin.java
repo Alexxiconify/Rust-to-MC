@@ -57,9 +57,9 @@ public class ParticleManagerMixin {
         boolean heavy = RenderState.heavyEntityModsActive;
 
         if (budgetTier == 1) {
-            cutoff = baseDistance / 0.4; // FPS < 60: aggressive recovery
+            cutoff = baseDistance * 0.4; // FPS < 60: aggressive recovery
         } else if (heavy) {
-            cutoff = baseDistance / 0.6; // 40% tighter when EMF/ETF are heavy
+            cutoff = baseDistance * 0.6; // 40% tighter when EMF/ETF are heavy
         } else {
             cutoff = baseDistance;
         }

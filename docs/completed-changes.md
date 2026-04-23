@@ -24,8 +24,16 @@ Historical-first view of the same canonical fact set used by [`ROADMAP.md`](../R
 - `src/main/java/com/alexxiconify/rustmc/config/RustMCConfig.java` config version bumped to `2.6.0` and added `enableChunkIngestOffload` (default `false`) for controlled rollout.
 - `src/main/java/com/alexxiconify/rustmc/config/ModMenuIntegration.java` now exposes `Chunk Ingest Offload (Preview)` toggle under native features.
 - `src/main/java/com/alexxiconify/rustmc/NativeBridge.java` `processChunkData(...)` now uses config/symbol gates with one-way `UnsatisfiedLinkError` fallback caching to avoid repeated hot-path exception checks.
+- `src/main/java/com/alexxiconify/rustmc/mixin/network/ClientPlayNetworkHandlerMixin.java` adds preview `require=0` chunk receive hook and forwards lightweight chunk metadata to JNI ingest path.
 - `rust_mc_core/src/lib.rs` now exports `rustProcessChunkData(...)` and `rustRequestMemoryCleanup(...)` JNI symbols with safe no-crash behavior and ingest counters.
+- `src/main/java/com/alexxiconify/rustmc/config/ModMenuIntegration.java` status panel now shows chunk ingest packets/bytes from expanded native metrics.
 - Track status: ingest/instrumentation only; no gameplay-critical chunk decode/worldgen replacement enabled yet.
+
+#### Startup Load-In + Particle Pressure Trim
+
+- `src/main/java/com/alexxiconify/rustmc/RustMC.java` startup config path now skips unconditional rewrite when config schema is already current, reducing load-in disk churn.
+- `src/main/java/com/alexxiconify/rustmc/RustMC.java` startup/internal config writes now avoid unnecessary `ElbConfig` persistence; explicit user saves still persist ELB settings.
+- `src/main/java/com/alexxiconify/rustmc/mixin/ParticleManagerMixin.java` cutoff scaling corrected (`* 0.4`, `* 0.6`) so low-FPS/heavy-mod states cull more aggressively instead of expanding particle distance.
 
 ### April 18, 2026
 

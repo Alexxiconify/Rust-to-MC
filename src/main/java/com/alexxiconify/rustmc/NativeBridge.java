@@ -883,13 +883,14 @@ public class NativeBridge {
         }
     }
     public static long[] getMetrics(boolean reset) {
-        if (!libLoaded) return new long[] {0L, 0L, 0L};
+        if (!libLoaded) return new long[] {0L, 0L, 0L, 0L, 0L};
         try {
             long[] metrics = rustGetMetrics(reset);
-            if (metrics == null || metrics.length < 3) return new long[] {0L, 0L, 0L};
-            return metrics;
+            if (metrics == null || metrics.length < 3) return new long[] {0L, 0L, 0L, 0L, 0L};
+            if (metrics.length >= 5) return metrics;
+            return new long[] {metrics[0], metrics[1], metrics[2], 0L, 0L};
         } catch (UnsatisfiedLinkError e) {
-            return new long[] {0L, 0L, 0L};
+            return new long[] {0L, 0L, 0L, 0L, 0L};
         }
     }
     // ─── DNS Cache Methods ──────────────────────────────────────────────────

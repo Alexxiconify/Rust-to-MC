@@ -31,6 +31,7 @@ public class MixinManager implements IMixinConfigPlugin {
         m.put("ServerPinger", dnsGroup);
         m.put("ServerAddress", dnsGroup);
         m.put("Multiplayer", dnsGroup);
+        m.put("network.ClientPlayNetworkHandler", "Chunk Ingest Offload");
         m.put("DebugHud", "Debug HUD Overlays");
         m.put("MinecraftClient", "Frame Timing");
         m.put("RenderBudget", "Render Budget");
@@ -52,7 +53,8 @@ public class MixinManager implements IMixinConfigPlugin {
                 || RustMC.CONFIG.isEnableImmediatelyFastCompat()),
             Map.entry(PKG + "network.ServerPingerMixin", RustMC.CONFIG :: isEnableDnsCache),
             Map.entry(PKG + "network.ServerAddressMixin", RustMC.CONFIG :: isEnableDnsCache),
-            Map.entry(PKG + "network.MultiplayerScreenMixin", RustMC.CONFIG :: isEnableDnsCache)
+            Map.entry(PKG + "network.MultiplayerScreenMixin", RustMC.CONFIG :: isEnableDnsCache),
+            Map.entry(PKG + "network.ClientPlayNetworkHandlerMixin", RustMC.CONFIG :: isEnableChunkIngestOffload)
         );
     }
     @Override

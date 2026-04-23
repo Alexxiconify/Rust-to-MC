@@ -51,6 +51,7 @@ Single source of truth for active direction and completed status. This file and 
 - Lighting offload hot path trimmed (queue mask/snapshot strategy, index-math hoists, less busy-spin/Rayon overhead).
 - Render/HUD trims: shared telemetry snapshot, reduced atomics, cached render-budget tier lookups, fewer repeat JNI pulls.
 - Particle paths: native scratch buffer reuse, Rayon only for larger batches, spawn cutoff squared-distance cache at 20Hz.
+- April 23 pass: particle cutoff scaling fixed so low-FPS/heavy-mod modes tighten distance as intended (reduced particle load under stress).
 - LOD mesh/GPU paths skip empty inputs early in Java and Rust.
 
 ### Build + Packaging + Networking
@@ -59,6 +60,9 @@ Single source of truth for active direction and completed status. This file and 
 - `sourcesJar` no longer triggers Rust binary staging work.
 - `:versions:mc1_21_11` removed local Xaero jar dependency assumptions.
 - DNS cache persistence now includes join/disconnect in addition to unload/exit.
+- April 23 pass: startup config load no longer rewrites valid unchanged `rust-mc.json`, reducing unnecessary disk I/O during load-in.
+- April 23 pass: preview chunk ingest now hooks client chunk receive path (`ClientPlayNetworkHandler` mixin, `require=0`) and forwards lightweight chunk metadata to Rust JNI.
+- April 23 pass: native metrics expanded with chunk ingest packet/byte counters and surfaced in Mod Menu status.
 
 ### Java Structure Consolidation (Section 12)
 
@@ -93,7 +97,7 @@ Single source of truth for active direction and completed status. This file and 
 2. JNI crossing hygiene: batch where beneficial, keep Java fallback where faster.
 3. Config and compat cleanup: remove dead accessors/placeholders and stale suppressions.
 4. Native lighting/packet/chunk expansion only where profiling shows measurable win.
-5. Chunk ingest offload rollout (preview-only): hook chunk receive path, compare chunk correctness, and verify frame pacing impact.
+5. Chunk ingest offload rollout (preview-only): compare chunk correctness and verify frame pacing impact with receive hook active.
 
 ### Next
 

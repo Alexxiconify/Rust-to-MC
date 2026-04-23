@@ -81,7 +81,7 @@ public class RustMC implements ModInitializer {
     public static synchronized void loadConfig() {
         if (configLoaded) return; // Already loaded by preload thread
         if (!Files.exists(CONFIG_PATH)) {
-            saveConfig();
+            saveConfigInternal(false);
             configLoaded = true;
             return;
         }
@@ -95,13 +95,12 @@ public class RustMC implements ModInitializer {
                 configLoaded = true;
                 return;
             }
-            saveConfig();
-            LOGGER.debug("[Rust-MC] Config loaded & normalised from {}", CONFIG_PATH);
+            LOGGER.debug("[Rust-MC] Config loaded from {}", CONFIG_PATH);
         } catch (IOException e) {
             LOGGER.error("[Rust-MC] Failed to read config file", e);
         } catch (Exception e) {
             LOGGER.error("[Rust-MC] Failed to parse config (malformed JSON?), resetting to defaults", e);
-            saveConfig();
+            saveConfigInternal(false);
         }
         configLoaded = true;
     }
@@ -118,14 +117,20 @@ public class RustMC implements ModInitializer {
         }
         RustMCConfig defaults = new RustMCConfig();
         CONFIG.copyFrom(defaults);
-        saveConfig();
+        saveConfigInternal(false);
     }
 
     public static void saveConfig() {
+        saveConfigInternal(true);
+    }
+
+    private static void saveConfigInternal(boolean persistElbConfig) {
         try {
             CONFIG.setConfigVersion(RustMCConfig.CURRENT_CONFIG_VERSION);
             Files.writeString(CONFIG_PATH, GSON.toJson(CONFIG));
-            ElbConfig.getInstance().save();
+            if (persistElbConfig) {
+                ElbConfig.getInstance().save();
+            }
         } catch (IOException e) {
             LOGGER.error("[Rust-MC] Failed to save config", e);
         }

@@ -21,7 +21,7 @@ public class ModMenuIntegration implements ModMenuApi {
     private static final String NO  = "§7NO";
     private static final long METRICS_REFRESH_INTERVAL_MS = 100L;
     private static long lastMetricsRefreshMs;
-    private static long[] cachedMetrics = new long[] { 0L, 0L, 0L };
+    private static long[] cachedMetrics = new long[] { 0L, 0L, 0L, 0L, 0L };
     @Override
     public ConfigScreenFactory<?> getModConfigScreenFactory() {
         return parent -> {
@@ -86,6 +86,20 @@ public class ModMenuIntegration implements ModMenuApi {
                 .available(false)
                 .build())
             .option(Option.<String>createBuilder()
+                .name(Text.literal("Chunk Ingest Packets"))
+                .description(OptionDescription.of(Text.literal("Preview chunk ingest packets observed by Rust JNI hook.")))
+                .binding("0", () -> metricText(3), val -> {})
+                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
+                .available(false)
+                .build())
+            .option(Option.<String>createBuilder()
+                .name(Text.literal("Chunk Ingest Bytes"))
+                .description(OptionDescription.of(Text.literal("Total payload bytes forwarded through preview chunk ingest path.")))
+                .binding("0", () -> metricText(4), val -> {})
+                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
+                .available(false)
+                .build())
+            .option(Option.<String>createBuilder()
                 .name(Text.literal("JNI Metrics Status"))
                 .description(OptionDescription.of(Text.literal("Quick status of JNI metric availability for this session.")))
                 .binding("unavailable", ModMenuIntegration::getMetricsStatusText, val -> {})
@@ -122,14 +136,16 @@ public class ModMenuIntegration implements ModMenuApi {
 
     private static void refreshMetricsCache() {
         long now = System.currentTimeMillis();
-        if (now - lastMetricsRefreshMs < METRICS_REFRESH_INTERVAL_MS && cachedMetrics.length >= 3) {
+        if (now - lastMetricsRefreshMs < METRICS_REFRESH_INTERVAL_MS && cachedMetrics.length >= 5) {
             return;
         }
         long[] metrics = NativeBridge.getMetrics(false);
-        if (metrics.length >= 3) {
+        if (metrics.length >= 5) {
             cachedMetrics = metrics;
+        } else if (metrics.length >= 3) {
+            cachedMetrics = new long[] { metrics[0], metrics[1], metrics[2], 0L, 0L };
         } else {
-            cachedMetrics = new long[] { 0L, 0L, 0L };
+            cachedMetrics = new long[] { 0L, 0L, 0L, 0L, 0L };
         }
         lastMetricsRefreshMs = now;
     }
@@ -230,7 +246,7 @@ public class ModMenuIntegration implements ModMenuApi {
             return "native-off";
         }
         refreshMetricsCache();
-        long total = cachedMetrics[0] + cachedMetrics[1] + cachedMetrics[2];
+        long total = cachedMetrics[0] + cachedMetrics[1] + cachedMetrics[2] + cachedMetrics[3] + cachedMetrics[4];
         return total > 0 ? "active" : "no-data";
     }
 
