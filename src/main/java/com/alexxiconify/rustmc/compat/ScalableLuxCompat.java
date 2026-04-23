@@ -9,7 +9,7 @@ import java.util.Collection;
 //
  //  High-performance hook for ScalableLux.
  //  Extracts pending light updates via reflection and offloads them to Rust's parallel engine.
-@SuppressWarnings({"unused", "java:S3011"})
+@SuppressWarnings("java:S3011")
 public class ScalableLuxCompat {
     private static Method mUpdateLight;
     private static Field fPendingQueue;

@@ -2,12 +2,10 @@ package com.alexxiconify.rustmc.util;
 //
  //  Shared volatile render-pass state flags set by mixins and read by optimization hooks.
  //  Separated from mixin classes because Mixin doesn't allow non-private static fields.
- //  <p>
  //  Single-writer (WorldRenderer render HEAD inject), multi-reader (particle/entity hooks).
  //  Volatile is sufficient for this single-writer pattern.
- //  <p>
  //  IDE may report "never used" because it cannot trace cross-mixin references.
-@SuppressWarnings({"unused", "java:S1104", "java:S1444"})
+@SuppressWarnings({"java:S1104", "java:S1444"})
 public final class RenderState {
     private RenderState() {}
     //

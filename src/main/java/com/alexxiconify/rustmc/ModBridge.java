@@ -1,7 +1,7 @@
 package com.alexxiconify.rustmc;
 import net.fabricmc.loader.api.FabricLoader;
     // Returns true if another mod completely owns the lighting threading model, and we cannot safely intervene.
-@SuppressWarnings({"unused", "java:S125"}) // API surface + intentional commented-out mod stubs
+@SuppressWarnings("java:S125") // Intentional commented-out mod stubs
 public class ModBridge {
     // ── Core Performance Mods (actively used in ownership checks) ───────────
     public static final boolean SODIUM      = isMod("sodium");

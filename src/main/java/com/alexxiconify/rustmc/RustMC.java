@@ -77,7 +77,6 @@ public class RustMC implements ModInitializer {
         LOGGER.info("[Rust-MC] Ready.");
     }
     private static volatile boolean configLoaded = false;
-    @SuppressWarnings("null")
     public static synchronized void loadConfig() {
         if (configLoaded) return; // Already loaded by preload thread
         if (!Files.exists(CONFIG_PATH)) {

@@ -10,7 +10,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  //  <p>
  //  Methods like {@code store}, {@code has}, {@code get} form the public API surface
  //  used by mod compat hooks and future extensions.
-@SuppressWarnings("unused")
 public class NativeCache {
     private NativeCache() {}
     private static final int MAX_ENTRIES = 1024;

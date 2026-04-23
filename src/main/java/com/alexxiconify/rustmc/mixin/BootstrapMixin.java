@@ -13,7 +13,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  //  so if our platform thread finishes first the main-thread call is instant.
 @Mixin(Bootstrap.class)
 public class BootstrapMixin {
-    @SuppressWarnings("unused")
     private BootstrapMixin() {}
 
     @Unique

@@ -5,7 +5,7 @@ import net.fabricmc.loader.api.FabricLoader;
  //  Reflection-based integration with Distant Horizons.
  //  API methods like {@link #computeRustAmbientOcclusion} and {@link #computeRustAmbientOcclusionDirect}
  //  are public API for DH vertex builders to offload AO to Rust's wgpu compute pipeline.
-@SuppressWarnings({"unused", "java:S3776", "java:S112", "java:S1168", "java:S1854", "java:S1905"})
+@SuppressWarnings({"java:S3776", "java:S112", "java:S1168", "java:S1854", "java:S1905"})
 public class DistantHorizonsCompat {
     private static final String DH_MOD_ID = "distanthorizons";
     private static final String DH_API_CLASS = "com.seibel.distanthorizons.api.DhApi";

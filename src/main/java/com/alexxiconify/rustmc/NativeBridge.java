@@ -11,7 +11,6 @@ import java.util.concurrent.atomic.AtomicReference;
  //  NativeBridge handles all communication between Java and the Rust native core via JNI.
  //  Many wrapper methods appear "unused" in static analysis because they are part of the
  //  public API consumed by mixins and compat hooks.
-@SuppressWarnings({"unused", "java:S1135"})
 public class NativeBridge {
     private NativeBridge() {}
     public static final int CONTEXT_VANILLA = 0;
@@ -180,7 +179,7 @@ public class NativeBridge {
             return;
         }
         try { rustFrustumUpdate(0, vpMatrix); }
-        catch (UnsatisfiedLinkError ignored) { }
+    catch (UnsatisfiedLinkError ignored) { /* */ }
     }
     public static void updateVanillaFrustum(float[] vpMatrix, double fovScale, double camX, double camY, double camZ) {
         if (!libLoaded || vpMatrix == null || vpMatrix.length < 16) return;
@@ -188,7 +187,7 @@ public class NativeBridge {
             rustFrustumUpdate(0, vpMatrix, fovScale, camX, camY, camZ);
         } catch (UnsatisfiedLinkError e) {
             try { rustFrustumUpdate(0, vpMatrix); }
-            catch (UnsatisfiedLinkError ignored) { }
+            catch (UnsatisfiedLinkError ignored) { /* Fallback to legacy native update */ }
         }
     }
     public static void updateVanillaFrustumAndCave(float[] vpMatrix, boolean inCave) {
@@ -487,7 +486,7 @@ public class NativeBridge {
     public static void propagateLightDH(long[] tasks, int len) {
         if (!libLoaded) return;
         try { rustPropagateLightDH(tasks, len); }
-        catch (UnsatisfiedLinkError ignored) {
+        catch (UnsatisfiedLinkError ignored) {/* */
         }
     }
     public static byte[] invokeCompress(byte[] input) {
@@ -532,7 +531,6 @@ public class NativeBridge {
         try { return rustProcessPacket(buf, len); }
         catch (UnsatisfiedLinkError e) { return -1; }
     }
-    @SuppressWarnings("unused")
     public static int invokeFrustumIntersect(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
         return testRustFrustum(0, minX, minY, minZ, maxX, maxY, maxZ) ? 1 : 0;
     }
@@ -806,7 +804,7 @@ public class NativeBridge {
     public static void updateCaveStatus(boolean inCave) {
         if (!libLoaded) return;
         try { rustSetCaveStatus(inCave); }
-        catch (UnsatisfiedLinkError ignored) { }
+        catch (UnsatisfiedLinkError ignored) { /* */ }
     }
     // Returns smoothed average FPS from the local frame-time ring buffer.
     public static float invokeGetAvgFps() {

@@ -4,7 +4,6 @@ import com.alexxiconify.rustmc.RustMC;
 //
  //  Integration with ImmediatelyFast (IF) — a rendering optimization mod that batches
  //  draw calls, defers HUD rendering, and optimizes text/map rendering.
-@SuppressWarnings("unused") // Public API surface for mixins and future compat hooks
 public final class ImmediatelyFastCompat {
     private ImmediatelyFastCompat() {}
     private static boolean initialized = false;

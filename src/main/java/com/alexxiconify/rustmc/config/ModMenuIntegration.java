@@ -358,31 +358,34 @@ public class ModMenuIntegration implements ModMenuApi {
     }
     // ── Blame Chart ─────────────────────────────────────────────────────────
     private static final String PCT_FORMAT = "%.1f%%";
-    @SuppressWarnings("java:S3776")
     private ConfigCategory buildBlameCategory() {
         var builder = ConfigCategory.createBuilder()
             .name(Text.literal("Blame Chart"))
             .tooltip(Text.literal("Loading phase timings from launcher start to game-ready."));
+        
         java.util.List<BlameLog.Entry> entries = BlameLog.getEntriesWithGaps();
-        long tracked = BlameLog.trackedMs();
-        long wallClock = BlameLog.wallClockMs();
         if (entries.isEmpty()) {
-            builder.option(Option.<Boolean>createBuilder()
-                .name(Text.literal("No data yet"))
-                .description(OptionDescription.of(Text.literal(
-                    "Blame data is recorded during startup.\n" +
-                    "Close this screen and re-open after the game finishes loading.")))
-                .binding(false, () -> false, v -> {})
-                .controller(opt -> BooleanControllerBuilder.create(opt)
-                    .formatValue(v -> Text.literal("§7—")))
-                .available(false)
-                .build());
+            addNoDataOption(builder);
         } else {
-            addTotalSummary(builder, tracked, wallClock);
+            long wallClock = BlameLog.wallClockMs();
+            addTotalSummary(builder, BlameLog.trackedMs(), wallClock);
             addPhaseEntries(builder, entries, wallClock);
             addMixinBreakdown(builder);
         }
         return builder.build();
+    }
+
+    private void addNoDataOption(ConfigCategory.Builder builder) {
+        builder.option(Option.<Boolean>createBuilder()
+            .name(Text.literal("No data yet"))
+            .description(OptionDescription.of(Text.literal(
+                "Blame data is recorded during startup.\n" +
+                "Close this screen and re-open after the game finishes loading.")))
+            .binding(false, () -> false, v -> {})
+            .controller(opt -> BooleanControllerBuilder.create(opt)
+                .formatValue(v -> Text.literal("§7—")))
+            .available(false)
+            .build());
     }
     private static void addTotalSummary(ConfigCategory.Builder builder, long tracked, long wallClock) {
         long untracked = wallClock - tracked;
