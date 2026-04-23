@@ -210,7 +210,7 @@ public class ModMenuIntegration implements ModMenuApi {
                 "Shows text-only render/load timing summary overlay.",
                 cfg::isEnablePieChart, v -> cfg.setEnablePieChart(v != null && v)))
             .option(buildBooleanOption("DNS Cache (Server Pings)",
-                "Caches DNS lookups for 5 minutes via Rust to speed up server list pings.\nCached entries: " + NativeBridge.dnsCacheSize(),
+                "Caches DNS lookups permanently via Rust to speed up server list pings. Persistent across sessions.\nCached entries: " + NativeBridge.dnsCacheSize(),
                 cfg::isEnableDnsCache, v -> cfg.setEnableDnsCache(v != null && v)))
             .option(buildBooleanOption("Chunk Ingest Offload (Preview)",
                 "Routes chunk packet bytes through Rust JNI ingest path for chunk-loading migration groundwork.\nSafe no-op when native symbol is unavailable.",

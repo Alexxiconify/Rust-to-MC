@@ -977,7 +977,7 @@ public class NativeBridge {
                 String json = java.nio.file.Files.readString(DNS_CACHE_PATH);
                 if (!json.isBlank()) {
                     rustDnsCacheImport(json);
-                    "Caches DNS lookups permanently via Rust to speed up server list pings. Persistent across sessions.\nCached entries: " + NativeBridge.dnsCacheSize();
+                    RustMC.LOGGER.info("[Rust-MC] DNS cache loaded from disk ({} entries)", dnsCacheSize());
                 }
             }
         } catch (UnsatisfiedLinkError e) {
