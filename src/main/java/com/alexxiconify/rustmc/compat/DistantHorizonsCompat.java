@@ -236,7 +236,7 @@ public class DistantHorizonsCompat {
             try {
                 getValuesAsArrayMethod = mat.getClass().getMethod("getValuesAsArray");
             } catch (NoSuchMethodException ignored) {
-                getValuesAsArrayMethod = null;
+                // Method not present in this DH version
             }
         }
         if (getValuesAsArrayMethod != null) {
@@ -250,7 +250,7 @@ public class DistantHorizonsCompat {
             try {
                 matrixToArrayMethod = mat.getClass().getMethod("toArray");
             } catch (NoSuchMethodException ignored) {
-                matrixToArrayMethod = null;
+                // Method not present in this DH version
             }
         }
         if (matrixToArrayMethod != null) {
@@ -264,7 +264,7 @@ public class DistantHorizonsCompat {
             try {
                 matrixGetMethod = mat.getClass().getMethod("get", float[].class);
             } catch (NoSuchMethodException ignored) {
-                matrixGetMethod = null;
+                // Method not present in this DH version
             }
         }
         if (matrixGetMethod != null) {
@@ -425,6 +425,10 @@ public class DistantHorizonsCompat {
         if (!hasLastCameraState) {
             return true;
         }
+        // Keep legacy behavior: below the DH surface gate, hide DH chunks entirely.
+        if (isBelowDhSurfaceGate()) {
+            return false;
+        }
         return com.alexxiconify.rustmc.NativeBridge.cullDistantHorizonsSection(
             rustFrustumPtr,
             minX + cachedCameraMinusX, minY + cachedCameraMinusY, minZ + cachedCameraMinusZ,
@@ -433,6 +437,18 @@ public class DistantHorizonsCompat {
             getAdaptiveMargin(),
             false
         );
+    }
+
+    private static boolean isBelowDhSurfaceGate() {
+        if (!RustMC.CONFIG.isEnableDhCaveCulling()) {
+            return false;
+        }
+        try {
+            net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+            return mc != null && mc.player != null && mc.player.getY() < DH_SURFACE_Y;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private static double getAdaptiveMargin() {

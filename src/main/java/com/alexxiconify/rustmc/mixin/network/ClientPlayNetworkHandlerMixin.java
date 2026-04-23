@@ -50,7 +50,7 @@ public class ClientPlayNetworkHandlerMixin {
             return;
         }
         NativeBridge.processChunkData(payload, chunkX, chunkZ);
-        maybeLogValidationStats(validationEnabled, chunkX, chunkZ, payload.length, shouldSampleSnapshot);
+        maybeLogValidationStats(chunkX, chunkZ, payload.length);
     }
 
     @Unique
@@ -238,10 +238,7 @@ public class ClientPlayNetworkHandlerMixin {
     }
 
     @Unique
-    private static void maybeLogValidationStats(boolean validationEnabled, int chunkX, int chunkZ, int payloadBytes, boolean sampledPayload) {
-        if (!validationEnabled) {
-            return;
-        }
+    private static void maybeLogValidationStats(int chunkX, int chunkZ, int payloadBytes) {
         long now = System.nanoTime();
         if (now - lastValidationLogNs < VALIDATION_LOG_INTERVAL_NS) {
             return;
@@ -252,11 +249,10 @@ public class ClientPlayNetworkHandlerMixin {
         long nativePackets = nativeStats.length > 3 ? nativeStats[3] : 0L;
         long nativeBytes = nativeStats.length > 4 ? nativeStats[4] : 0L;
         RustMC.LOGGER.info(
-            "[Rust-MC] Chunk ingest validation: chunk=({}, {}), payload={}B, sampledPayload={}, attempts={}, forwards={}, failures={}, avgJNI={}us, nativePackets={}, nativeBytes={}B",
+            "[Rust-MC] Chunk ingest validation: chunk=({}, {}), payload={}B, sampledPayload=true, attempts={}, forwards={}, failures={}, avgJNI={}us, nativePackets={}, nativeBytes={}B",
             chunkX,
             chunkZ,
             payloadBytes,
-            sampledPayload,
             javaStats[0],
             javaStats[1],
             javaStats[2],

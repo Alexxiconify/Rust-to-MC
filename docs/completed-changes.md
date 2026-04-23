@@ -32,6 +32,8 @@ Historical-first view of the same canonical fact set used by [`ROADMAP.md`](../R
 - FPS recovery pass: `src/main/java/com/alexxiconify/rustmc/NativeBridge.java` now tracks ingest `System.nanoTime` only when validation is enabled, cutting per-packet timing overhead.
 - FPS recovery pass: `rust_mc_core/src/lib.rs` chunk ingest now trusts validated Java length and skips redundant JNI `get_array_length` checks.
 - FPS recovery pass: `src/main/java/com/alexxiconify/rustmc/mixin/network/ClientPlayNetworkHandlerMixin.java` now hard-skips chunk ingest JNI/allocation work unless validation sampling is active, removing steady-state packet overhead in preview mode.
+- `src/main/java/com/alexxiconify/rustmc/compat/DistantHorizonsCompat.java` now restores below-`54` DH cave gating in camera-minus mode by short-circuiting DH visibility when player Y is under the surface gate and `enableDhCaveCulling` is enabled.
+- `src/main/java/com/alexxiconify/rustmc/mixin/network/ClientPlayNetworkHandlerMixin.java` validation logging helper now removes constant-true flags from call signatures to clear IDE warnings.
 - `src/main/java/com/alexxiconify/rustmc/config/ModMenuIntegration.java` status panel now shows chunk ingest packets/bytes from native metrics plus Java-side attempts/failures/avg JNI microseconds.
 - Track status: ingest/instrumentation only; no gameplay-critical chunk decode/worldgen replacement enabled yet.
 

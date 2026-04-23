@@ -91,6 +91,8 @@ Single source of truth for active direction and completed status. This file and 
 - April 23 fix: chunk ingest payload reflection probes are now resolved once and reused; per-packet method scanning removed from the hot path.
 - April 23 fix: chunk ingest timing and JNI length checks were trimmed (`System.nanoTime` only in validation mode, Rust path trusts validated Java length).
 - April 23 fix: preview ingest now hard-skips per-packet JNI/allocation work unless validation sampling is active; normal gameplay with offload toggle enabled but validation disabled now has near-zero runtime overhead.
+- April 23 fix: DH cave gate behavior restored for below-surface play; when `enableDhCaveCulling` is on and player Y is below `54`, DH chunk rendering is disabled again in camera-minus culling mode.
+- April 23 cleanup: chunk ingest validation log helper removed constant-true boolean parameters to clear IDE warnings on the preview mixin path.
 - Current phase: ingest and instrumentation only; no gameplay-critical decode replacement yet.
 - Next phase gate: add client chunk receive hook behind `require=0` mixin + correctness parity checks before enabling by default.
 - Worldgen note: move noise/sample experimentation only after chunk ingest parity and profiling evidence.
@@ -100,10 +102,17 @@ Single source of truth for active direction and completed status. This file and 
 ### Now
 
 1. Frustum and DH culling reliability validation on edge camera/FOV/world-join cases.
-2. JNI crossing hygiene: batch where beneficial, keep Java fallback where faster.
+2. JNI crossing hygiene: batch where beneficial, keep Java fallback where faster. (Optimized MatrixMul, Particles, Entities).
 3. Config and compat cleanup: remove dead accessors/placeholders and stale suppressions.
 4. Native lighting/packet/chunk expansion only where profiling shows measurable win.
 5. Chunk ingest offload rollout (preview-only): run chunk correctness + pacing validation passes with real payload snapshots.
+
+### April 23 Pass (Completed)
+
+- **Matrix Math**: Offloaded `Matrix4f.mul` to Rust SIMD via `glam`. Fixed memory bloat/safety with `ThreadLocal` scratch buffers in `MatrixMixin`.
+- **Particle Physics**: High-throughput `tickParticles` offload. Eliminated heap allocations via `SCRATCH_POS`/`SCRATCH_VEL` ThreadLocal buffers.
+- **Entity Culling**: Parallelized `rustCullEntities`. Eliminated heap allocations via `SCRATCH_ENTITIES` ThreadLocal buffer.
+- **Hygiene**: Achieved zero-warning/zero-allocationhot-path state. Standardized Java/Rust naming conventions.
 
 ### Next
 

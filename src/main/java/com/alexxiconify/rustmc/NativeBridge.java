@@ -918,7 +918,7 @@ public class NativeBridge {
     // ─── DNS Cache Methods ──────────────────────────────────────────────────
     //
      // Resolves a hostname to an IP address using Rust's cached DNS resolver.
-     // Results are cached for 5 minutes to speed up repeated server list pings.
+     // Results are cached permanently on disk to speed up repeated server list pings.
     public static void dnsResolve(String hostname) {
         if (!libLoaded || hostname == null || hostname.isEmpty()) return;
         try { rustDnsResolve(hostname); }
@@ -977,7 +977,7 @@ public class NativeBridge {
                 String json = java.nio.file.Files.readString(DNS_CACHE_PATH);
                 if (!json.isBlank()) {
                     rustDnsCacheImport(json);
-                    RustMC.LOGGER.info("[Rust-MC] DNS cache loaded from disk ({} entries)", dnsCacheSize());
+                    "Caches DNS lookups permanently via Rust to speed up server list pings. Persistent across sessions.\nCached entries: " + NativeBridge.dnsCacheSize();
                 }
             }
         } catch (UnsatisfiedLinkError e) {

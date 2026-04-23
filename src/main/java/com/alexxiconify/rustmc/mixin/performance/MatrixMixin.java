@@ -12,20 +12,25 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(value = Matrix4f.class, remap = false)
 public abstract class MatrixMixin {
     @Unique
-    private final float[] rustmc$leftBuf = new float[16];
-    @Unique
-    private final float[] rustmc$rightBuf = new float[16];
-    @Unique
-    private final float[] rustmc$resBuf = new float[16];
+    @SuppressWarnings("java:S5164") // ThreadLocal is pooled for the lifetime of rendering threads
+    private static final ThreadLocal<float[][]> RUSTMC_BUFFER_POOL = ThreadLocal.withInitial(() -> new float[][] {
+        new float[16], new float[16], new float[16]
+    });
     @Inject(method = "mul(Lorg/joml/Matrix4fc;Lorg/joml/Matrix4f;)Lorg/joml/Matrix4f;", at = @At("HEAD"), cancellable = true)
-    private void rustmc$onMul(org.joml.Matrix4fc right, Matrix4f dest, CallbackInfoReturnable<Matrix4f> cir) {
-        // Check conditions in order of cost: isReady() is cached, isMathOwned() requires lookup
+    private void rustmcOnMul(org.joml.Matrix4fc right, Matrix4f dest, CallbackInfoReturnable<Matrix4f> cir) {
         if (!NativeBridge.isReady() || ModBridge.isMathOwned()) return;
+        
+        float[][] buffers = RUSTMC_BUFFER_POOL.get();
+        float[] leftArr = buffers[0];
+        float[] rightArr = buffers[1];
+        float[] resArr = buffers[2];
+
         Matrix4f self = (Matrix4f) (Object) this;
-        self.get(rustmc$leftBuf);
-        right.get(rustmc$rightBuf);
-        NativeBridge.invokeMatrixMul(rustmc$leftBuf, rustmc$rightBuf, rustmc$resBuf);
-        dest.set(rustmc$resBuf);
+        self.get(leftArr);
+        right.get(rightArr);
+        
+        NativeBridge.invokeMatrixMul(leftArr, rightArr, resArr);
+        dest.set(resArr);
         cir.setReturnValue(dest);
     }
 }
