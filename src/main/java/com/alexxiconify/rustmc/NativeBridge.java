@@ -130,7 +130,8 @@ public class NativeBridge {
         if (!libLoaded || buf == null || !supportsChunkDataOffload) return;
         if (!RustMC.CONFIG.isEnableChunkIngestOffload()) return;
         chunkIngestAttempts.incrementAndGet();
-        long start = System.nanoTime();
+        boolean trackTiming = RustMC.CONFIG.isEnableChunkIngestValidation();
+        long start = trackTiming ? System.nanoTime() : 0L;
         try {
             rustProcessChunkData(buf, buf.length, chunkX, chunkZ);
             chunkIngestForwards.incrementAndGet();
@@ -138,7 +139,9 @@ public class NativeBridge {
             chunkIngestFailures.incrementAndGet();
             supportsChunkDataOffload = false;
         } finally {
-            chunkIngestTotalNanos.addAndGet(System.nanoTime() - start);
+            if (trackTiming) {
+                chunkIngestTotalNanos.addAndGet(System.nanoTime() - start);
+            }
         }
     }
 

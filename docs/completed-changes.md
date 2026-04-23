@@ -26,7 +26,12 @@ Historical-first view of the same canonical fact set used by [`ROADMAP.md`](../R
 - `src/main/java/com/alexxiconify/rustmc/NativeBridge.java` `processChunkData(...)` now uses config/symbol gates with one-way `UnsatisfiedLinkError` fallback caching to avoid repeated hot-path exception checks.
 - `src/main/java/com/alexxiconify/rustmc/mixin/network/ClientPlayNetworkHandlerMixin.java` adds preview `require=0` chunk receive hook to forward chunk packet payload snapshots into JNI ingest path.
 - `src/main/java/com/alexxiconify/rustmc/mixin/network/ClientPlayNetworkHandlerMixin.java` now snapshots real `ChunkDataS2CPacket` bytes for JNI handoff and emits throttled validation logs (5s interval) when enabled.
+- FPS recovery pass: `src/main/java/com/alexxiconify/rustmc/mixin/network/ClientPlayNetworkHandlerMixin.java` now sends lightweight coord payload by default and samples full packet snapshots only during validation windows (1/32 packets).
+- FPS recovery pass: `ClientPlayNetworkHandlerMixin` payload reflection lookups are resolved once and reused, removing per-packet method-table scans.
 - `rust_mc_core/src/lib.rs` now exports `rustProcessChunkData(...)` and `rustRequestMemoryCleanup(...)` JNI symbols with safe no-crash behavior and ingest counters.
+- FPS recovery pass: `src/main/java/com/alexxiconify/rustmc/NativeBridge.java` now tracks ingest `System.nanoTime` only when validation is enabled, cutting per-packet timing overhead.
+- FPS recovery pass: `rust_mc_core/src/lib.rs` chunk ingest now trusts validated Java length and skips redundant JNI `get_array_length` checks.
+- FPS recovery pass: `src/main/java/com/alexxiconify/rustmc/mixin/network/ClientPlayNetworkHandlerMixin.java` now hard-skips chunk ingest JNI/allocation work unless validation sampling is active, removing steady-state packet overhead in preview mode.
 - `src/main/java/com/alexxiconify/rustmc/config/ModMenuIntegration.java` status panel now shows chunk ingest packets/bytes from native metrics plus Java-side attempts/failures/avg JNI microseconds.
 - Track status: ingest/instrumentation only; no gameplay-critical chunk decode/worldgen replacement enabled yet.
 

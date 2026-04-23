@@ -87,6 +87,10 @@ Single source of truth for active direction and completed status. This file and 
 - April 23 kickoff: Rust JNI now exports `rustProcessChunkData(...)` and `rustRequestMemoryCleanup(...)` with safe no-crash behavior and chunk ingest counters.
 - April 23 pass: chunk ingest preview now snapshots real `ChunkDataS2CPacket` payload bytes before JNI handoff (metadata-only stub removed from hot path).
 - April 23 pass: chunk ingest validation counters/logs added (attempts/failures/avg JNI us + native packet/byte counters) with throttled output under developer toggle.
+- April 23 fix: chunk ingest preview defaults to lightweight coordinate payload and samples real packet snapshots only during validation windows (1/32 packets), restoring frame pacing under heavy chunk streams.
+- April 23 fix: chunk ingest payload reflection probes are now resolved once and reused; per-packet method scanning removed from the hot path.
+- April 23 fix: chunk ingest timing and JNI length checks were trimmed (`System.nanoTime` only in validation mode, Rust path trusts validated Java length).
+- April 23 fix: preview ingest now hard-skips per-packet JNI/allocation work unless validation sampling is active; normal gameplay with offload toggle enabled but validation disabled now has near-zero runtime overhead.
 - Current phase: ingest and instrumentation only; no gameplay-critical decode replacement yet.
 - Next phase gate: add client chunk receive hook behind `require=0` mixin + correctness parity checks before enabling by default.
 - Worldgen note: move noise/sample experimentation only after chunk ingest parity and profiling evidence.
