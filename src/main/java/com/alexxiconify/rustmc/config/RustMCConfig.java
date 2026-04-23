@@ -3,7 +3,7 @@ package com.alexxiconify.rustmc.config;
 //  and getters/setters are referenced by ModMenu (YACL) via method references.
 public class RustMCConfig {
     // Bump this whenever the ModMenu config surface changes so old saved values are reset.
-    public static final String CURRENT_CONFIG_VERSION = "2.5.0";
+    public static final String CURRENT_CONFIG_VERSION = "2.6.0";
     private String configVersion = CURRENT_CONFIG_VERSION;
     // Math/debug overlays
     private boolean useNativeF3       = true;
@@ -27,6 +27,7 @@ public class RustMCConfig {
     private boolean enableNativeMetricsHud     = false;
     // DNS / Server List
     private boolean enableDnsCache             = true;
+    private boolean enableChunkIngestOffload   = false;
     // Mod bridges
     private boolean bridgeSodium    = true;
     private boolean bridgeC2ME      = true;
@@ -63,6 +64,7 @@ public class RustMCConfig {
         this.enablePieChart = o.enablePieChart;
         this.enableNativeMetricsHud = o.enableNativeMetricsHud;
         this.enableDnsCache = o.enableDnsCache;
+        this.enableChunkIngestOffload = o.enableChunkIngestOffload;
         this.bridgeSodium = o.bridgeSodium;
         this.bridgeC2ME = o.bridgeC2ME;
         this.bridgeLithium = o.bridgeLithium;
@@ -96,6 +98,7 @@ public class RustMCConfig {
     public boolean isEnablePieChart()             { return enablePieChart; }
     public boolean isEnableNativeMetricsHud()     { return enableNativeMetricsHud; }
     public boolean isEnableDnsCache()             { return enableDnsCache; }
+    public boolean isEnableChunkIngestOffload()   { return enableChunkIngestOffload; }
     public boolean isBridgeSodium()         { return bridgeSodium; }
     public boolean isBridgeC2ME()           { return bridgeC2ME; }
     public boolean isBridgeLithium()        { return bridgeLithium; }
@@ -127,6 +130,7 @@ public class RustMCConfig {
     public void setEnablePieChart(boolean v)             { enablePieChart = v; }
     public void setEnableNativeMetricsHud(boolean v)     { enableNativeMetricsHud = v; }
     public void setEnableDnsCache(boolean v)             { enableDnsCache = v; }
+    public void setEnableChunkIngestOffload(boolean v)   { enableChunkIngestOffload = v; }
     public void setBridgeSodium(boolean v)         { bridgeSodium = v; }
     public void setBridgeC2ME(boolean v)           { bridgeC2ME = v; }
     public void setBridgeLithium(boolean v)        { bridgeLithium = v; }

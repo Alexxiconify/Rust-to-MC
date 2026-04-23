@@ -17,6 +17,16 @@ Historical-first view of the same canonical fact set used by [`ROADMAP.md`](../R
 
 ## Chronological Milestones
 
+### April 23, 2026
+
+#### Chunk/Worldgen GPU Migration Kickoff (Preview Foundation)
+
+- `src/main/java/com/alexxiconify/rustmc/config/RustMCConfig.java` config version bumped to `2.6.0` and added `enableChunkIngestOffload` (default `false`) for controlled rollout.
+- `src/main/java/com/alexxiconify/rustmc/config/ModMenuIntegration.java` now exposes `Chunk Ingest Offload (Preview)` toggle under native features.
+- `src/main/java/com/alexxiconify/rustmc/NativeBridge.java` `processChunkData(...)` now uses config/symbol gates with one-way `UnsatisfiedLinkError` fallback caching to avoid repeated hot-path exception checks.
+- `rust_mc_core/src/lib.rs` now exports `rustProcessChunkData(...)` and `rustRequestMemoryCleanup(...)` JNI symbols with safe no-crash behavior and ingest counters.
+- Track status: ingest/instrumentation only; no gameplay-critical chunk decode/worldgen replacement enabled yet.
+
 ### April 18, 2026
 
 #### Rust DH Frustum + Occlusion Micro-Optimization Pass
@@ -124,11 +134,13 @@ Historical-first view of the same canonical fact set used by [`ROADMAP.md`](../R
 2. JNI crossing hygiene (batch where measured; keep Java when faster).
 3. Config/compat cleanup (remove dead placeholders/accessors/suppressions).
 4. Native lighting/packet/chunk expansion only with profiling evidence.
+5. Chunk ingest offload rollout (preview-only): add receive hook, then verify correctness + pacing.
 
 ### Next
 
 1. Cache locality profiling (`MatrixMixin`, render-state lookups, JOML layout).
 2. Debug visibility hooks (frustum counters, ratios, optional JNI timing).
+3. Worldgen candidate analysis for Rust/WGPU batchable sampling paths.
 
 ### Future
 
@@ -138,6 +150,7 @@ Historical-first view of the same canonical fact set used by [`ROADMAP.md`](../R
 4. Lock-free replacement only on proven contention.
 5. Additional structure consolidation with behavior parity.
 6. Backlog: selective `serde_json` bridge, benchmark scene expansion, optional extra Mod Menu stats.
+7. Worldgen offload prototypes only with parity harness + rollback guard.
 
 ## Validation Gates
 
@@ -168,4 +181,4 @@ Historical-first view of the same canonical fact set used by [`ROADMAP.md`](../R
 
 ---
 
-Last Updated: April 18, 2026
+Last Updated: April 23, 2026

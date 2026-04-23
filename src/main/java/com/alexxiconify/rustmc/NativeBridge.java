@@ -39,6 +39,8 @@ public class NativeBridge {
     private static volatile boolean supportsDhFusedCull = true;
     private static volatile boolean supportsDhOcclusionTest = true;
     private static volatile boolean supportsDhOcclusionSubmit = true;
+    private static volatile boolean supportsChunkDataOffload = true;
+    private static volatile boolean supportsMemoryCleanup = true;
 
     public static final class FrameHistorySnapshot {
         private final float[] history;
@@ -121,11 +123,21 @@ public class NativeBridge {
      // Subverts Java-side chunk data parsing by offloading large byte buffers
      // directly to Rust's optimized decoder (PumpkinMC style).
     public static void processChunkData(byte[] buf, int chunkX, int chunkZ) {
-        if (!libLoaded || buf == null) return;
-        rustProcessChunkData(buf, buf.length, chunkX, chunkZ);
+        if (!libLoaded || buf == null || !supportsChunkDataOffload) return;
+        if (!RustMC.CONFIG.isEnableChunkIngestOffload()) return;
+        try {
+            rustProcessChunkData(buf, buf.length, chunkX, chunkZ);
+        } catch (UnsatisfiedLinkError ignored) {
+            supportsChunkDataOffload = false;
+        }
     }
     public static void requestMemoryCleanup() {
-        if (libLoaded) rustRequestMemoryCleanup();
+        if (!libLoaded || !supportsMemoryCleanup) return;
+        try {
+            rustRequestMemoryCleanup();
+        } catch (UnsatisfiedLinkError ignored) {
+            supportsMemoryCleanup = false;
+        }
     }
     // Frustum state management
     private static native long rustFrustumCreate();
