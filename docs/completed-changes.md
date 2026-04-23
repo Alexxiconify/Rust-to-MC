@@ -21,12 +21,13 @@ Historical-first view of the same canonical fact set used by [`ROADMAP.md`](../R
 
 #### Chunk/Worldgen GPU Migration Kickoff (Preview Foundation)
 
-- `src/main/java/com/alexxiconify/rustmc/config/RustMCConfig.java` config version bumped to `2.6.0` and added `enableChunkIngestOffload` (default `false`) for controlled rollout.
+- `src/main/java/com/alexxiconify/rustmc/config/RustMCConfig.java` config version bumped to `2.7.0`; added `enableChunkIngestOffload` (default `false`) and `enableChunkIngestValidation` (default `false`) for controlled rollout and throttled preview telemetry.
 - `src/main/java/com/alexxiconify/rustmc/config/ModMenuIntegration.java` now exposes `Chunk Ingest Offload (Preview)` toggle under native features.
 - `src/main/java/com/alexxiconify/rustmc/NativeBridge.java` `processChunkData(...)` now uses config/symbol gates with one-way `UnsatisfiedLinkError` fallback caching to avoid repeated hot-path exception checks.
-- `src/main/java/com/alexxiconify/rustmc/mixin/network/ClientPlayNetworkHandlerMixin.java` adds preview `require=0` chunk receive hook and forwards lightweight chunk metadata to JNI ingest path.
+- `src/main/java/com/alexxiconify/rustmc/mixin/network/ClientPlayNetworkHandlerMixin.java` adds preview `require=0` chunk receive hook to forward chunk packet payload snapshots into JNI ingest path.
+- `src/main/java/com/alexxiconify/rustmc/mixin/network/ClientPlayNetworkHandlerMixin.java` now snapshots real `ChunkDataS2CPacket` bytes for JNI handoff and emits throttled validation logs (5s interval) when enabled.
 - `rust_mc_core/src/lib.rs` now exports `rustProcessChunkData(...)` and `rustRequestMemoryCleanup(...)` JNI symbols with safe no-crash behavior and ingest counters.
-- `src/main/java/com/alexxiconify/rustmc/config/ModMenuIntegration.java` status panel now shows chunk ingest packets/bytes from expanded native metrics.
+- `src/main/java/com/alexxiconify/rustmc/config/ModMenuIntegration.java` status panel now shows chunk ingest packets/bytes from native metrics plus Java-side attempts/failures/avg JNI microseconds.
 - Track status: ingest/instrumentation only; no gameplay-critical chunk decode/worldgen replacement enabled yet.
 
 #### Startup Load-In + Particle Pressure Trim

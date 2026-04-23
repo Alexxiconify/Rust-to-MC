@@ -100,6 +100,27 @@ public class ModMenuIntegration implements ModMenuApi {
                 .available(false)
                 .build())
             .option(Option.<String>createBuilder()
+                .name(Text.literal("Chunk Ingest Attempts (Java)"))
+                .description(OptionDescription.of(Text.literal("Java-side attempts to forward chunk packets through JNI preview path.")))
+                .binding("0", () -> chunkIngestStatText(0), val -> {})
+                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
+                .available(false)
+                .build())
+            .option(Option.<String>createBuilder()
+                .name(Text.literal("Chunk Ingest Failures (Java)"))
+                .description(OptionDescription.of(Text.literal("Java-side JNI ingest failures (e.g. missing symbol fallback trip).")))
+                .binding("0", () -> chunkIngestStatText(2), val -> {})
+                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
+                .available(false)
+                .build())
+            .option(Option.<String>createBuilder()
+                .name(Text.literal("Chunk Ingest Avg JNI (us)"))
+                .description(OptionDescription.of(Text.literal("Average JNI call time in microseconds for forwarded chunk ingest packets.")))
+                .binding("0", () -> chunkIngestStatText(3), val -> {})
+                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
+                .available(false)
+                .build())
+            .option(Option.<String>createBuilder()
                 .name(Text.literal("JNI Metrics Status"))
                 .description(OptionDescription.of(Text.literal("Quick status of JNI metric availability for this session.")))
                 .binding("unavailable", ModMenuIntegration::getMetricsStatusText, val -> {})
@@ -132,6 +153,12 @@ public class ModMenuIntegration implements ModMenuApi {
 
     private static String metricText(int index) {
         return Long.toString(getCachedMetric(index));
+    }
+
+    private static String chunkIngestStatText(int index) {
+        long[] stats = NativeBridge.getChunkIngestStats();
+        if (index < 0 || index >= stats.length) return "0";
+        return Long.toString(stats[index]);
     }
 
     private static void refreshMetricsCache() {
@@ -279,7 +306,10 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildSectionHeader("Developer", "Developer and logging options."))
             .option(buildBooleanOption("Silence Startup Logs",
                 "Filters repetitive INFO-level startup spam from other mods. WARN and ERROR are never suppressed.",
-                cfg::isSilenceLogs, v -> cfg.setSilenceLogs(v != null && v)));
+                cfg::isSilenceLogs, v -> cfg.setSilenceLogs(v != null && v)))
+            .option(buildBooleanOption("Chunk Ingest Validation Logs",
+                "Emits throttled preview chunk-ingest parity/pacing logs (5s interval).",
+                cfg::isEnableChunkIngestValidation, v -> cfg.setEnableChunkIngestValidation(v != null && v)));
     }
     private Option<Boolean> buildDetectOption(String name, Supplier<Boolean> isDetected) {
         return Option.<Boolean>createBuilder()

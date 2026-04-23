@@ -85,6 +85,8 @@ Single source of truth for active direction and completed status. This file and 
 
 - April 23 kickoff: `NativeBridge.processChunkData(...)` now hard-gated by config and native symbol availability cache to avoid repeated link-error paths.
 - April 23 kickoff: Rust JNI now exports `rustProcessChunkData(...)` and `rustRequestMemoryCleanup(...)` with safe no-crash behavior and chunk ingest counters.
+- April 23 pass: chunk ingest preview now snapshots real `ChunkDataS2CPacket` payload bytes before JNI handoff (metadata-only stub removed from hot path).
+- April 23 pass: chunk ingest validation counters/logs added (attempts/failures/avg JNI us + native packet/byte counters) with throttled output under developer toggle.
 - Current phase: ingest and instrumentation only; no gameplay-critical decode replacement yet.
 - Next phase gate: add client chunk receive hook behind `require=0` mixin + correctness parity checks before enabling by default.
 - Worldgen note: move noise/sample experimentation only after chunk ingest parity and profiling evidence.
@@ -97,7 +99,7 @@ Single source of truth for active direction and completed status. This file and 
 2. JNI crossing hygiene: batch where beneficial, keep Java fallback where faster.
 3. Config and compat cleanup: remove dead accessors/placeholders and stale suppressions.
 4. Native lighting/packet/chunk expansion only where profiling shows measurable win.
-5. Chunk ingest offload rollout (preview-only): compare chunk correctness and verify frame pacing impact with receive hook active.
+5. Chunk ingest offload rollout (preview-only): run chunk correctness + pacing validation passes with real payload snapshots.
 
 ### Next
 

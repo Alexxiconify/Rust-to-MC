@@ -41,6 +41,10 @@ public class NativeBridge {
     private static volatile boolean supportsDhOcclusionSubmit = true;
     private static volatile boolean supportsChunkDataOffload = true;
     private static volatile boolean supportsMemoryCleanup = true;
+    private static final java.util.concurrent.atomic.AtomicLong chunkIngestAttempts = new java.util.concurrent.atomic.AtomicLong(0L);
+    private static final java.util.concurrent.atomic.AtomicLong chunkIngestForwards = new java.util.concurrent.atomic.AtomicLong(0L);
+    private static final java.util.concurrent.atomic.AtomicLong chunkIngestFailures = new java.util.concurrent.atomic.AtomicLong(0L);
+    private static final java.util.concurrent.atomic.AtomicLong chunkIngestTotalNanos = new java.util.concurrent.atomic.AtomicLong(0L);
 
     public static final class FrameHistorySnapshot {
         private final float[] history;
@@ -125,11 +129,26 @@ public class NativeBridge {
     public static void processChunkData(byte[] buf, int chunkX, int chunkZ) {
         if (!libLoaded || buf == null || !supportsChunkDataOffload) return;
         if (!RustMC.CONFIG.isEnableChunkIngestOffload()) return;
+        chunkIngestAttempts.incrementAndGet();
+        long start = System.nanoTime();
         try {
             rustProcessChunkData(buf, buf.length, chunkX, chunkZ);
+            chunkIngestForwards.incrementAndGet();
         } catch (UnsatisfiedLinkError ignored) {
+            chunkIngestFailures.incrementAndGet();
             supportsChunkDataOffload = false;
+        } finally {
+            chunkIngestTotalNanos.addAndGet(System.nanoTime() - start);
         }
+    }
+
+    public static long[] getChunkIngestStats() {
+        long attempts = chunkIngestAttempts.get();
+        long forwards = chunkIngestForwards.get();
+        long failures = chunkIngestFailures.get();
+        long totalNanos = chunkIngestTotalNanos.get();
+        long avgMicros = forwards > 0 ? (totalNanos / forwards) / 1_000L : 0L;
+        return new long[] {attempts, forwards, failures, avgMicros};
     }
     public static void requestMemoryCleanup() {
         if (!libLoaded || !supportsMemoryCleanup) return;
