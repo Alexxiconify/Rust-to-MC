@@ -1,12 +1,10 @@
 package com.alexxiconify.rustmc.util;
 import com.alexxiconify.rustmc.NativeBridge;
 import net.minecraft.client.gui.DrawContext;
-//
- //  Draws a compact text-only timing overlay.
- //  Keeps the existing toggle/config plumbing but removes the pie graphic itself.
+//  Draws a compact text-only timing overlay. Keeps the existing toggle/config plumbing but removes the pie graphic itself.
 public final class PieChartRenderer {
     private PieChartRenderer() {}
-    // ── Cached stats to avoid JNI + computation every render frame ──
+    // Cached stats to avoid JNI + computation every render frame
     private static long lastUpdateMs;
     private static String cachedRenderLabel = "Render 0%";
     private static String cachedTickLabel = "Tick 0%";
@@ -46,9 +44,7 @@ public final class PieChartRenderer {
         context.drawTextWithShadow(textRenderer, cachedGpuLabel, x, y + 70, 0xFFAAAAAA);
         context.drawTextWithShadow(textRenderer, cachedOtherLabel, x, y + 80, 0xFFAAAAAA);
     }
-    //
-     // Refreshes cached stats from the native frame history ring buffer.
-     // Returns false if no history is available.
+    // Refreshes cached stats from the native frame history ring buffer.  Returns false if no history is available.
     private static boolean refreshStats() {
         NativeBridge.FrameHistorySnapshot snapshot = NativeBridge.getFrameHistorySnapshot();
         float[] history = snapshot.history();
@@ -88,7 +84,6 @@ public final class PieChartRenderer {
     private static String formatPercentLabel(String label, float fraction) {
         return label + " " + Math.round(fraction * 100.0f) + "%";
     }
-
 
     private static String formatMsValue(float value) {
         int tenths = Math.round(value * 10.0f);
