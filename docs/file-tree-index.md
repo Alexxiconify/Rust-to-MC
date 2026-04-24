@@ -7,7 +7,6 @@ Fast map. Start here before search.
 - `ROADMAP.md` — active plan; short current state only.
 - `docs/completed-changes.md` — full chronological history.
 - `docs/file-tree-index.md` — quick lookup map.
-- `docs/rollback.md` — rollback notes and recovery path.
 - `README.md` — project summary and run/build entry points.
 - `ModInfo.md` — mod-facing metadata / notes.
 - `build.gradle` — root Gradle build and Rust staging.

@@ -11,7 +11,6 @@ Active plan only. History lives in [`docs/completed-changes.md`](docs/completed-
 ## Reference Paths
 
 - Mod API/decompile jars: `C:/Users/Taylor Allred/AppData/Roaming/PandoraLauncher/instances/1.21.11-1.minecraft/mods`
-- Rollback archive: [`docs/rollback.md`](docs/rollback.md)
 - File index: [`docs/file-tree-index.md`](docs/file-tree-index.md)
 
 ## Current Snapshot
@@ -43,7 +42,7 @@ Active plan only. History lives in [`docs/completed-changes.md`](docs/completed-
 3. JNI lookup/cache micro-optimizations.
 4. Lock-free work only on proven contention.
 5. Extra structure consolidation only when behavior stays unchanged.
-6. Worldgen offload prototypes only with parity harness and rollback guard.
+6. Worldgen offload prototypes only with parity harness and safe recovery path.
 
 ## Validation Gates
 

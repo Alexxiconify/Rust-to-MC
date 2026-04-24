@@ -5,7 +5,6 @@ Historical record. Active plan lives in [`ROADMAP.md`](../ROADMAP.md); fast file
 ## Reference Paths
 
 - Mod API/decompile reference jars: `C:/Users/Taylor Allred/AppData/Roaming/PandoraLauncher/instances/1.21.11-1.minecraft/mods`
-- Rollback archive: [`docs/rollback.md`](rollback.md)
 
 ## Current Snapshot (April 2026)
 
@@ -181,7 +180,7 @@ Historical record. Active plan lives in [`ROADMAP.md`](../ROADMAP.md); fast file
 4. Lock-free replacement only on proven contention.
 5. Additional structure consolidation with behavior parity.
 6. Backlog: selective `serde_json` bridge, benchmark scene expansion, optional extra Mod Menu stats.
-7. Worldgen offload prototypes only with parity harness + rollback guard.
+7. Worldgen offload prototypes only with parity harness + safe recovery path.
 
 ## Validation Gates
 
@@ -203,12 +202,6 @@ Historical record. Active plan lives in [`ROADMAP.md`](../ROADMAP.md); fast file
 - Do not widen mutable shared state without measured gain.
 - Do not add per-frame release logging.
 
-## Rollback Snapshot
-
-- Target: `v1.0.3-a3` (`12e8073`)
-- Source: `main` at `9cd2790`
-- Backup branch: `backup/pre-rollback-v1.0.3-a3-20260412-210316`
-- Commits removed: 13 (`v1.0.3-a3..9cd2790`)
 
 ---
 
