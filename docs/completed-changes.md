@@ -1,6 +1,6 @@
 # Completed Changes
 
-Historical-first view of the same canonical fact set used by [`ROADMAP.md`](../ROADMAP.md). Both files now stay aligned, with different ordering.
+Historical record. Active plan lives in [`ROADMAP.md`](../ROADMAP.md); fast file lookup lives in [`docs/file-tree-index.md`](file-tree-index.md).
 
 ## Reference Paths
 
