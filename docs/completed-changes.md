@@ -48,6 +48,7 @@ Historical-first view of the same canonical fact set used by [`ROADMAP.md`](../R
 - `src/main/java/com/alexxiconify/rustmc/config/ModMenuIntegration.java` native-stats checkboxes now share one setter, so HUD and pie-chart tracker stay synchronized.
 - `src/main/java/com/alexxiconify/rustmc/RustMC.java` now fingerprints build output and resets stale config when jar contents change without a config version bump.
 - `src/main/java/com/alexxiconify/rustmc/NativeBridge.java` cache extraction now hashes bundled DLL bytes and deletes stale `rustmc-bin` entries before loading a replacement.
+- `rust_mc_core/src/wgpu_ao.rs` now caps retained GPU buffers harder and exposes a cleanup trim path that runs from JNI memory cleanup.
 - `rust_mc_core/src/wgpu_mesher.rs` now trims retained GPU buffers harder after spikes, and `rust_mc_core/src/lib.rs` calls the new pool trim during JNI memory cleanup.
 - `rust_mc_core/src/occlusion.rs` lowered heuristic depth-buffer resolution to reduce resident memory.
 

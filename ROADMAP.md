@@ -56,7 +56,8 @@ Single source of truth for active direction and completed status. This file and 
 - April 24 pass: frustum/chunk/metric JNI stats now reuse per-thread snapshot buffers; `NativeStatsRenderer` no longer over-reads 5-field metric snapshots; `PieChartRenderer` dropped per-render line-array churn.
 - April 24 pass: native-stats keybind and Mod Menu control now flip `enableNativeMetricsHud` + `enablePieChart` together, keeping pie-chart tracker in sync.
 - April 24 pass: `NativeBridge` cache extraction now hashes bundled DLL bytes, deletes stale `rustmc-bin` entries, and uses atomic support flags instead of volatile hot-path state.
-- April 24 pass: `rust_mc_core/src/wgpu_mesher.rs` pool now caps retained GPU buffers harder and drops oversized spike caches; `rust_mc_core/src/occlusion.rs` lowered heuristic buffer resolution to trim resident memory.
+- April 24 pass: `rust_mc_core/src/wgpu_ao.rs` now caps retained GPU buffers harder and exposes cleanup trim; `rust_mc_core/src/wgpu_mesher.rs` pool now caps retained GPU buffers harder and drops oversized spike caches.
+- April 24 pass: `rust_mc_core/src/occlusion.rs` lowered heuristic buffer resolution to trim resident memory.
 
 ### Build + Packaging + Networking
 
