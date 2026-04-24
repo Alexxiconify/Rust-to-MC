@@ -23,21 +23,21 @@ Active plan only. History lives in [`docs/completed-changes.md`](docs/completed-
 - Native lighting coexist mode stays user-controlled for modded lighting stacks.
 - Particle and DNS hot paths now keep Java multicore fallbacks available when native path is unavailable or repeatedly slower.
 - Single-pass (Apr 24): DH frustum proxy now handles more intersect argument shapes safely; mixin ownership gating corrected; JNI batch frustum wrappers now avoid duplicate fallback paths/empty-array churn; dead compat stub block removed from `ModBridge`.
+- Instrumentation pass (Apr 24): DH frustum validation instrumentation added (refresh reasons, move tracking); `PieChartRenderer` timing overlay expanded with DH/Frustum diagnostics; player position fallback implemented for `1.21.11` camera API transition.
 
 ## Now
 
-1. Validate frustum/DH edge cases. (in progress: proxy arg-shape/null hardening landed)
-2. Cut JNI crossings and allocations where payoff is real. (in progress: batch frustum wrapper consolidation landed)
-3. Remove dead config, compat, and logging noise. (in progress: `ModBridge` dead compat stub sweep landed)
-4. Expand native packet/chunk work only with profiling proof.
-5. Keep chunk ingest preview gated and sampled.
-6. If Rust path overhead is higher than Java on a hot path, prefer Java multicore/multithread optimization first.
+1. Resolve `1.21.11` Camera API mapping for native bridge (getPos/getCameraPos ambiguity).
+2. Debug observability for cull ratios and JNI timing. (in progress: status labels landed in PieChartRenderer)
+3. Expand native packet/chunk work only with profiling proof.
+4. Keep chunk ingest preview gated and sampled.
+5. If Rust path overhead is higher than Java on a hot path, prefer Java multicore/multithread optimization first.
 
 ## Next
 
 1. Render cache locality.
-2. Debug observability for cull ratios and JNI timing.
-3. Worldgen candidate analysis for Rust/WGPU batchable work.
+2. Worldgen candidate analysis for Rust/WGPU batchable work.
+3. Cull ratio metrics in Debug HUD.
 
 ## Future
 

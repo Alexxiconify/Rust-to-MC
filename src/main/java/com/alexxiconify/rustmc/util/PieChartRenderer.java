@@ -1,6 +1,7 @@
 package com.alexxiconify.rustmc.util;
 import com.alexxiconify.rustmc.NativeBridge;
 import net.minecraft.client.gui.DrawContext;
+
 //  Draws a compact text-only timing overlay. Keeps the existing toggle/config plumbing but removes the pie graphic itself.
 public final class PieChartRenderer {
     private PieChartRenderer() {}
@@ -14,6 +15,8 @@ public final class PieChartRenderer {
     private static String cachedAvgLabel = "Avg: 0.0ms";
     private static String cachedMinMaxLabel = "Min: 0.0ms  Max: 0.0ms";
     private static String cachedSlowLabel = "Slow: 0/0";
+    private static String cachedDhLabel = "DH: OFF";
+    private static String cachedFrustumLabel = "Frustum: INIT";
     private static boolean cacheValid;
     private static final long UPDATE_INTERVAL_MS = 250;
     // Draws text-only timing info in the top-right of the screen. Estimates category proportions from the frame history distribution.
@@ -30,9 +33,11 @@ public final class PieChartRenderer {
         maxWidth = Math.max(maxWidth, textRenderer.getWidth(cachedNetLabel));
         maxWidth = Math.max(maxWidth, textRenderer.getWidth(cachedGpuLabel));
         maxWidth = Math.max(maxWidth, textRenderer.getWidth(cachedOtherLabel));
+        maxWidth = Math.max(maxWidth, textRenderer.getWidth(cachedDhLabel));
+        maxWidth = Math.max(maxWidth, textRenderer.getWidth(cachedFrustumLabel));
         int x = screenW - maxWidth - 10;
         int y = 6;
-        int height = 9 * 10 + 6;
+        int height = 9 * 12 + 6;
         context.fill(x - 4, y - 3, x + maxWidth + 4, y + height, 0x70000000);
         context.drawTextWithShadow(textRenderer, "Timing Info", x, y, 0xFF33CCFF);
         context.drawTextWithShadow(textRenderer, cachedAvgLabel, x, y + 10, 0xFFCCCCCC);
@@ -43,6 +48,8 @@ public final class PieChartRenderer {
         context.drawTextWithShadow(textRenderer, cachedNetLabel, x, y + 60, 0xFFAAAAAA);
         context.drawTextWithShadow(textRenderer, cachedGpuLabel, x, y + 70, 0xFFAAAAAA);
         context.drawTextWithShadow(textRenderer, cachedOtherLabel, x, y + 80, 0xFFAAAAAA);
+        context.drawTextWithShadow(textRenderer, cachedDhLabel, x, y + 90, 0xFF55FF55);
+        context.drawTextWithShadow(textRenderer, cachedFrustumLabel, x, y + 100, 0xFFFFFF55);
     }
     // Refreshes cached stats from the native frame history ring buffer.  Returns false if no history is available.
     private static boolean refreshStats() {
@@ -52,10 +59,12 @@ public final class PieChartRenderer {
             cacheValid = false;
             return false;
         }
+
         float avg = snapshot.avgMs();
         float min = snapshot.minMs();
         float max = snapshot.maxMs();
-        int slowFrames = snapshot.slowFrames();
+        int slowFrames = 0;
+        for (float f : history) if (f > 16.6f) slowFrames++;
         // Estimate category proportions heuristically from frame variance
         float renderPct = Math.min(0.55f, 0.35f + (avg - 8f) * 0.005f);
         float tickPct   = Math.min(0.25f, 0.15f + (slowFrames / (float) history.length) * 0.1f);
@@ -77,6 +86,16 @@ public final class PieChartRenderer {
         cachedAvgLabel = "Avg: " + formatMsValue(avg) + "ms";
         cachedMinMaxLabel = "Min: " + formatMsValue(min) + "ms  Max: " + formatMsValue(max) + "ms";
         cachedSlowLabel = "Slow: " + slowFrames + "/" + history.length;
+        if (com.alexxiconify.rustmc.ModBridge.DISTANT_HORIZONS) {
+            String reason = com.alexxiconify.rustmc.compat.DistantHorizonsCompat.getLastRefreshReason();
+            boolean init = com.alexxiconify.rustmc.compat.DistantHorizonsCompat.isFrustumInitialized();
+            double move = com.alexxiconify.rustmc.compat.DistantHorizonsCompat.getLastCameraMoveSq();
+            cachedDhLabel = "DH: ACTIVE (" + reason + ")";
+            cachedFrustumLabel = "Frust: " + (init ? "READY" : "WAIT") + " m=" + formatMsValue((float)move);
+        } else {
+            cachedDhLabel = "DH: NOT FOUND";
+            cachedFrustumLabel = "Frust: N/A";
+        }
         lastUpdateMs = System.currentTimeMillis();
         cacheValid = true;
         return true;

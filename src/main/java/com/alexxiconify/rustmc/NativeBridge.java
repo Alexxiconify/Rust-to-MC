@@ -645,12 +645,14 @@ public class NativeBridge {
     private static ClientFrustumContext getClientFrustumContext() {
         try {
             MinecraftClient client = MinecraftClient.getInstance();
-            if (client == null || client.player == null) return null;
+            if (client == null || client.world == null) return null;
+            var camera = client.gameRenderer.getCamera();
             double fov = client.options.getFov().getValue();
             double aspect = client.getWindow().getFramebufferWidth() / Math.max(1.0, client.getWindow().getFramebufferHeight());
             double aspectBoost = Math.max(1.0, aspect / (16.0 / 9.0));
             double fovScale = Math.clamp(1.15 * (fov / 70.0) * Math.sqrt(aspectBoost), 0.8, 2.5);
-            return new ClientFrustumContext(fovScale, client.player.getX(), client.player.getEyeY(), client.player.getZ());
+            var pos = camera.getCameraPos();
+            return new ClientFrustumContext(fovScale, pos.x, pos.y, pos.z);
         } catch (Exception ignored) { return null;}
     }
     public static void destroyRustFrustum(long ptr) {

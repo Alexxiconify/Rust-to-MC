@@ -1,8 +1,7 @@
 package com.alexxiconify.rustmc.compat;
 import com.alexxiconify.rustmc.RustMC;
 import net.fabricmc.loader.api.FabricLoader;
-//  Reflection-based integration with Distant Horizons. API methods like {@link #computeRustAmbientOcclusion} and {@link #computeRustAmbientOcclusionDirect} are public API for DH vertex builders to offload AO to Rust's wgpu compute pipeline.
-@SuppressWarnings({"java:S3776", "java:S112", "java:S1168", "java:S1854", "java:S1905"})
+// Reflection-based integration with Distant Horizons. API for DH vertex builders to offload AO to Rust.
 public class DistantHorizonsCompat {
     private static final String DH_MOD_ID = "distanthorizons";
     private static final String DH_API_CLASS = "com.seibel.distanthorizons.api.DhApi";
@@ -39,7 +38,11 @@ public class DistantHorizonsCompat {
     private static Class<?> dhCullingFrustumClass = null;
     private static Object dhProxyInstance = null;
     private static long lastRebindNanos = 0L;
+    private static String lastRefreshReason = "INIT";
     private static final long REBIND_INTERVAL_NANOS = java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+    public static String getLastRefreshReason() { return lastRefreshReason; }
+    public static boolean isFrustumInitialized() { return frustumInitialized; }
+    public static double getLastCameraMoveSq() { return lastCameraMoveSq; }
 
     private static boolean isDhMissing() {
         return !FabricLoader.getInstance ( ).isModLoaded ( DH_MOD_ID );
@@ -116,7 +119,7 @@ public class DistantHorizonsCompat {
         }
     }
 
-    // Rebind periodically to keep Rust-MC culler ownership if another compat layer replaces the binding.
+    // Rebind periodically to keep Rust-MC culler ownership if another compat replaces binding.
     private static void ensureFrustumCullerBound() {
         if (dhBindMethod == null || dhOverridesInjector == null || dhCullingFrustumClass == null || dhProxyInstance == null) {
             return;
@@ -140,8 +143,8 @@ public class DistantHorizonsCompat {
         }
         return null;
     }
-    @SuppressWarnings("java:S112") // Reflection methods throw many checked exception types
-    private static Object handleFrustumProxy(Object proxy, java.lang.reflect.Method method, Object[] args) throws Exception {
+    @SuppressWarnings("java:S3824")
+    private static Object handleFrustumProxy(Object proxy, java.lang.reflect.Method method, Object[] args) throws ReflectiveOperationException {
         ProxyMethodKind kind = PROXY_METHOD_KIND_CACHE.computeIfAbsent(method, DistantHorizonsCompat::resolveProxyMethodKind);
         return switch (kind) {
             case PRIORITY -> Integer.MAX_VALUE;
@@ -201,37 +204,27 @@ public class DistantHorizonsCompat {
         return ProxyMethodKind.UNKNOWN;
     }
 
-    @SuppressWarnings("java:S112")
-    private static Object handleFrustumUpdate(Object[] args) throws Exception {
+    private static Object handleFrustumUpdate(Object[] args) throws ReflectiveOperationException {
         ensureFrustumCullerBound();
-        if (args == null || args.length == 0) {
-            return null;
-        }
+        if (args == null || args.length == 0) return null;
         if (args.length >= 3 && args[0] instanceof Number minY && args[1] instanceof Number maxY) {
             currentMinY = minY.intValue();
             currentMaxY = maxY.intValue();
         }
         Object mat = args[args.length - 1];
         float[] vpArray = extractMatrixValues(mat);
-        if (vpArray == null || vpArray.length < 16) {
-            return null;
-        }
+        if (vpArray == null || vpArray.length < 16) return null;
         if (!frustumInitialized || shouldRefreshFrustum(vpArray)) {
-            // Keep DH camera/cache-owned matrix data immutable across JNI boundaries.
             float[] vpSnapshot = java.util.Arrays.copyOf(vpArray, vpArray.length);
-            boolean updated = com.alexxiconify.rustmc.NativeBridge.updateRustFrustumTracked(rustFrustumPtr, vpSnapshot);
-            if (updated) {
+            if (com.alexxiconify.rustmc.NativeBridge.updateRustFrustumTracked(rustFrustumPtr, vpSnapshot)) {
                 frustumInitialized = true;
             }
         }
         return null;
     }
 
-    // Supports both legacy DH API matrix wrappers and Blaze3D/JOML matrix paths.
-    private static float[] extractMatrixValues(Object mat) throws Exception {
-        if (mat == null) {
-            return null;
-        }
+    private static float[] extractMatrixValues(Object mat) throws ReflectiveOperationException {
+        if (mat == null) return new float[0];
         float[] values = tryInvokeNoArgFloatArray(mat, MATRIX_VALUES_AS_ARRAY_METHOD);
         if (values != null) return values;
         values = tryInvokeNoArgFloatArray(mat, MATRIX_TO_ARRAY_METHOD);
@@ -239,7 +232,7 @@ public class DistantHorizonsCompat {
         return tryInvokeMatrixGet(mat);
     }
 
-    private static float[] tryInvokeNoArgFloatArray(Object mat, String methodName) throws Exception {
+    private static float[] tryInvokeNoArgFloatArray(Object mat, String methodName) throws ReflectiveOperationException {
         java.lang.reflect.Method method = switch (methodName) {
             case MATRIX_VALUES_AS_ARRAY_METHOD -> getValuesAsArrayMethod;
             case MATRIX_TO_ARRAY_METHOD -> matrixToArrayMethod;
@@ -247,20 +240,12 @@ public class DistantHorizonsCompat {
         };
         if (method == null) {
             method = resolveNoArgMethod(mat, methodName);
-            if (method == null) {
-                return null;
-            }
-            if (MATRIX_VALUES_AS_ARRAY_METHOD.equals(methodName)) {
-                getValuesAsArrayMethod = method;
-            } else if (MATRIX_TO_ARRAY_METHOD.equals(methodName)) {
-                matrixToArrayMethod = method;
-            }
+            if (method == null) return new float[0];
+            if (MATRIX_VALUES_AS_ARRAY_METHOD.equals(methodName)) getValuesAsArrayMethod = method;
+            else if (MATRIX_TO_ARRAY_METHOD.equals(methodName)) matrixToArrayMethod = method;
         }
         Object out = method.invoke(mat);
-        if (out instanceof float[] arr && arr.length >= 16) {
-            return arr;
-        }
-        return null;
+        return (out instanceof float[] arr && arr.length >= 16) ? arr : null;
     }
 
     private static java.lang.reflect.Method resolveNoArgMethod(Object mat, String methodName) {
@@ -271,16 +256,16 @@ public class DistantHorizonsCompat {
         }
     }
 
-    private static float[] tryInvokeMatrixGet(Object mat) throws Exception {
+    private static float[] tryInvokeMatrixGet(Object mat) throws ReflectiveOperationException {
         if (matrixGetMethod == null) {
             try {
                 matrixGetMethod = mat.getClass().getMethod("get", float[].class);
             } catch (NoSuchMethodException ignored) {
-                return null;
+                return new float[0];
             }
         }
         float[] out = new float[16];
-        Object ret = matrixGetMethod.invoke(mat, (Object) out);
+        Object ret = matrixGetMethod.invoke(mat, out);
         if (ret instanceof float[] arr && arr.length >= 16) {
             return arr;
         }
@@ -298,22 +283,19 @@ public class DistantHorizonsCompat {
         return hash;
     }
 
-    // Keep DH frustum ownership strict to player state so detached freecam camera changes
-    // do not retarget culling decisions.
+    // Keep DH frustum strict to camera state for freecam support.
     private static boolean shouldRefreshFrustum(float[] vpArray) {
         net.minecraft.client.MinecraftClient mc2 = net.minecraft.client.MinecraftClient.getInstance();
-        if (mc2 == null || mc2.player == null) {
-            return false;
-        }
-
-        double cx = mc2.player.getX();
-        double cy = mc2.player.getY();
-        double cz = mc2.player.getZ();
-        float yaw = mc2.player.getYaw();
-        float pitch = mc2.player.getPitch();
+        if (mc2 == null || mc2.world == null) return false;
+        var camera = mc2.gameRenderer.getCamera();
+        var pos = camera.getCameraPos();
+        double cx = pos.x;
+        double cy = pos.y;
+        double cz = pos.z;
+        float yaw = camera.getYaw();
+        float pitch = camera.getPitch();
         double fov = mc2.options.getFov().getValue();
         double aspect = mc2.getWindow().getFramebufferWidth() / Math.max(1.0, mc2.getWindow().getFramebufferHeight());
-
         boolean moved = true;
         boolean rotated = true;
         boolean opticsChanged = true;
@@ -327,17 +309,15 @@ public class DistantHorizonsCompat {
             opticsChanged = Math.abs(fov - lastFov) > 1.0e-4 || Math.abs(aspect - lastAspect) > 1.0e-4;
         } else {
             lastCameraMoveSq = 0.0;
+            lastRefreshReason = "JOIN";
         }
-
         cachedCameraMinusX = -cx;
         cachedCameraMinusY = -cy;
         cachedCameraMinusZ = -cz;
-
         long vpFingerprint = fingerprintMatrix(vpArray);
         boolean projectionChanged = hasLastVpFingerprint && vpFingerprint != lastVpFingerprint;
         lastVpFingerprint = vpFingerprint;
         hasLastVpFingerprint = true;
-
         lastCameraX = cx;
         lastCameraY = cy;
         lastCameraZ = cz;
@@ -346,12 +326,15 @@ public class DistantHorizonsCompat {
         lastFov = fov;
         lastAspect = aspect;
         hasLastCameraState = true;
-
+        if (moved) lastRefreshReason = "MOVE";
+        else if (rotated) lastRefreshReason = "ROT";
+        else if (opticsChanged) lastRefreshReason = "FOV";
+        else if (projectionChanged) lastRefreshReason = "PROJ";
         return moved || rotated || opticsChanged || projectionChanged;
     }
     private static Object handleFrustumIntersects(Object[] args) {
         ensureFrustumCullerBound();
-        // Keep fallback behavior: before first successful matrix update, treat sections as visible.
+        // Treat sections as visible before first successful matrix update.
         if (!frustumInitialized || rustFrustumPtr == 0) {
             return true;
         }
@@ -484,7 +467,7 @@ public class DistantHorizonsCompat {
         }
     }
 
-    // Force the single camera-minus transform path (best-performing/most-correct mode in testing).
+    // Force single camera-minus transform path (best-performing mode).
     private static boolean cullDhSectionInAnySpace(double minX, double minY, double minZ,
                                                    double maxX, double maxY, double maxZ) {
         return testCameraMinusSpace(minX, minY, minZ, maxX, maxY, maxZ);
@@ -496,7 +479,7 @@ public class DistantHorizonsCompat {
         if (!hasLastCameraState) {
             return true;
         }
-        // Keep legacy behavior: below the DH surface gate, hide DH chunks entirely.
+        // Hide DH chunks entirely below the surface gate.
         if (isBelowDhSurfaceGate()) {
             return false;
         }
@@ -535,9 +518,7 @@ public class DistantHorizonsCompat {
         return Math.clamp(margin, DH_MIN_MARGIN, DH_MAX_MARGIN);
     }
     //
-     // Public API hook for DH vertex builders or shaders to offload Ambient Occlusion
-     // calculations to the Rust wgpu Compute Shader pipeline.
-     // Expects vertices formatted as contiguous floats: [posX, posY, posZ, pad, normX, normY, normZ, pad].
+      // Public API hook for DH vertex builders to offload Ambient Occlusion.
     public static float[] computeRustAmbientOcclusion(float[] vertexData) {
         if ( isDhNativeReady ( ) ) {
             return new float[0];
@@ -555,9 +536,7 @@ public class DistantHorizonsCompat {
     }
     // ── LOD Loading Optimization ────────────────────────────────────────────
     //
-     // Hints the DH API to use a higher thread count for LOD generation/loading.
-     // Called during init. DH's default thread count is conservative — on modern
-     // CPUs we can afford more threads for disk I/O and LOD meshing.
+      // Hints DH API to use higher thread count for LOD generation.
     public static void optimizeLodThreading() {
         if ( isDhMissing ( ) ) return;
         try {
@@ -597,8 +576,7 @@ public class DistantHorizonsCompat {
         }
     }
     //
-     // Pre-warms DH's LOD file cache for the current world on a platform daemon thread.
-     // Called when connecting to a world/server to reduce initial LOD pop-in.
+      // Pre-warms DH LOD file cache for current world.
     public static void prefetchLodData() {
         if ( isDhMissing ( ) ) return;
         Thread.ofPlatform().daemon(true).name("rustmc-dh-prefetch").start(() -> {
@@ -606,7 +584,7 @@ public class DistantHorizonsCompat {
                 // Trigger DH's internal data cache warmup by touching the API
                 Class<?> apiClass = Class.forName(DH_API_CLASS);
                 Object dhApi = apiClass.getField("Inst").get(null);
-                // getWorldProxy() initializes DH's world-level caches
+                // getWorldProxy() initializes cache.
                 dhApi.getClass().getMethod("getWorldProxy").invoke(dhApi);
                 RustMC.LOGGER.debug("[Rust-MC] DH LOD data pre-fetched.");
             } catch (Exception e) {
@@ -615,13 +593,11 @@ public class DistantHorizonsCompat {
         });
     }
     //
-     // Offloads Distant Horizons "Ghost" lighting tasks to Rust.
-     // DH uses a separate light engine for LODs that can be run in parallel
-     // without touching vanilla world state.
+      // Offloads Distant Horizons "Ghost" lighting tasks to Rust.
     public static void optimizeLighting(long[] lightTasks) {
         if (lightTasks == null || lightTasks.length == 0) return;
         if ( isDhNativeReady ( ) ) return;
-        // Never mutate DH/user cache-owned task buffers in native relight paths.
+        // Never mutate DH/user cache task buffers in native relight paths.
         long[] taskSnapshot = java.util.Arrays.copyOf(lightTasks, lightTasks.length);
         com.alexxiconify.rustmc.NativeBridge.propagateLightDH(taskSnapshot, taskSnapshot.length);
     }
@@ -631,7 +607,7 @@ public class DistantHorizonsCompat {
         if (!com.alexxiconify.rustmc.NativeBridge.isReady() || detail > 2 || blocks == null || blocks.length == 0) {
             return new int[0];
         }
-        // Copy source blocks so native meshing cannot alter DH/user LOD cache arrays.
+        // Copy blocks so native meshing cannot alter DH LOD cache arrays.
         int[] blockSnapshot = java.util.Arrays.copyOf(blocks, blocks.length);
         return com.alexxiconify.rustmc.NativeBridge.generateLodMeshGpu(blockSnapshot, chunkX, chunkZ, detail);
     }
