@@ -22,22 +22,19 @@ Active plan only. History lives in [`docs/completed-changes.md`](docs/completed-
 - UI/debug overlays now focus on Debug HUD Frame Graph + Timing Info overlay (F6), with JNI metrics in Mod Menu status.
 - Native lighting coexist mode stays user-controlled for modded lighting stacks.
 - Particle and DNS hot paths now keep Java multicore fallbacks available when native path is unavailable or repeatedly slower.
-- Single-pass (Apr 24): DH frustum proxy now handles more intersect argument shapes safely; mixin ownership gating corrected; JNI batch frustum wrappers now avoid duplicate fallback paths/empty-array churn; dead compat stub block removed from `ModBridge`.
 - Instrumentation pass (Apr 24): DH frustum validation instrumentation added (refresh reasons, move tracking); `PieChartRenderer` timing overlay expanded with DH/Frustum diagnostics; player position fallback implemented for `1.21.11` camera API transition.
+- Observability & Hygiene pass (Apr 24): Expanded `PieChartRenderer` with live cull ratios and JNI timing; unified frame metric return types as `long[]` across `NativeBridge` and `ModMenu`; resolved architectural hygiene lints (nested try extraction).
 
 ## Now
 
-1. Resolve `1.21.11` Camera API mapping for native bridge (getPos/getCameraPos ambiguity).
-2. Debug observability for cull ratios and JNI timing. (in progress: status labels landed in PieChartRenderer)
-3. Expand native packet/chunk work only with profiling proof.
-4. Keep chunk ingest preview gated and sampled.
-5. If Rust path overhead is higher than Java on a hot path, prefer Java multicore/multithread optimization first.
+1. Expand native packet/chunk work only with profiling proof. (in progress: chunk ingest stats tracking active)
+2. Keep chunk ingest preview gated and sampled.
+3. Render cache locality improvements.
+4. If Rust path overhead is higher than Java on a hot path, prefer Java multicore/multithread optimization first.
 
 ## Next
 
-1. Render cache locality.
-2. Worldgen candidate analysis for Rust/WGPU batchable work.
-3. Cull ratio metrics in Debug HUD.
+1. Worldgen candidate analysis for Rust/WGPU batchable work.
 
 ## Future
 

@@ -27,6 +27,8 @@ public class NativeBridge {
     private static final java.util.concurrent.atomic.AtomicInteger frustumChecksLastFrame = new java.util.concurrent.atomic.AtomicInteger(0);
     private static final java.util.concurrent.atomic.AtomicInteger frustumVisibleLastFrame = new java.util.concurrent.atomic.AtomicInteger(0);
     private static final java.util.concurrent.atomic.AtomicInteger frustumCulledLastFrame = new java.util.concurrent.atomic.AtomicInteger(0);
+    private static final java.util.concurrent.atomic.AtomicLong frustumTotalNanosThisFrame = new java.util.concurrent.atomic.AtomicLong(0L);
+    private static final java.util.concurrent.atomic.AtomicLong frustumTotalNanosLastFrame = new java.util.concurrent.atomic.AtomicLong(0L);
     private static final int FRAME_HISTORY_CAPACITY = 240;
     private static final float[] frameHistoryMs = new float[FRAME_HISTORY_CAPACITY];
     private static int frameHistoryWriteIndex;
@@ -616,21 +618,28 @@ public class NativeBridge {
         return testRustFrustum(ptr, minX, minY, minZ, maxX, maxY, maxZ, 0.0);
     }
     public static boolean testRustFrustum(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin) {
-        if (!libLoaded || ptr == 0) return true; // Default to visible if Rust is not available or ptr is 0
-        if (supportsFrustumMarginTest.get()) {
-            try {
-                boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
-                recordFrustumResult(visible);
-                return visible;
-            } catch (UnsatisfiedLinkError e) {
-                supportsFrustumMarginTest.set(false);
-            }
-        }
+        if (!libLoaded || ptr == 0) return true;
+        long start = System.nanoTime();
         try {
-            boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ);
+            boolean visible = supportsFrustumMarginTest.get()
+                ? tryRustFrustumTestWithMargin(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin)
+                : rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ);
             recordFrustumResult(visible);
             return visible;
-        } catch (UnsatisfiedLinkError ignored) { return true;}
+        } catch (UnsatisfiedLinkError e) {
+            return true;
+        } finally {
+            frustumTotalNanosThisFrame.addAndGet(System.nanoTime() - start);
+        }
+    }
+
+    private static boolean tryRustFrustumTestWithMargin(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin) {
+        try {
+            return rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
+        } catch (UnsatisfiedLinkError e) {
+            supportsFrustumMarginTest.set(false);
+            return rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ);
+        }
     }
     private record ClientFrustumContext(double fovScale, double camX, double camY, double camZ) {}
 
@@ -672,24 +681,19 @@ public class NativeBridge {
         return all;
     }
     public static byte[] batchFrustumTest(long ptr, double[] aabbs, int count, double margin) {
-        if (aabbs == null || count <= 0) {
-            return EMPTY_BYTE_ARRAY;
-        }
+        if (aabbs == null || count <= 0) return EMPTY_BYTE_ARRAY;
         int safeCount = Math.min(count, aabbs.length / 6);
-        if (safeCount == 0) {
-            return EMPTY_BYTE_ARRAY;
-        }
-        if (!libLoaded || ptr == 0) {
-            return allVisibleBatchFrustumResult(safeCount);
-        }
+        if (safeCount == 0) return EMPTY_BYTE_ARRAY;
+        if (!libLoaded || ptr == 0) return allVisibleBatchFrustumResult(safeCount);
+        long start = System.nanoTime();
         try {
             byte[] out = rustBatchFrustumTest(ptr, aabbs, safeCount, margin);
             recordBatchFrustumResult(out, safeCount);
             return out;
-        }
-        catch (UnsatisfiedLinkError e) {
-            RustMC.LOGGER.debug("[Rust-MC] Native batch frustum test not available.");
+        } catch (UnsatisfiedLinkError e) {
             return allVisibleBatchFrustumResult(safeCount);
+        } finally {
+            frustumTotalNanosThisFrame.addAndGet(System.nanoTime() - start);
         }
     }
 
@@ -728,13 +732,15 @@ public class NativeBridge {
         frustumChecksLastFrame.set(frustumChecksThisFrame.getAndSet(0));
         frustumVisibleLastFrame.set(frustumVisibleThisFrame.getAndSet(0));
         frustumCulledLastFrame.set(frustumCulledThisFrame.getAndSet(0));
+        frustumTotalNanosLastFrame.set(frustumTotalNanosThisFrame.getAndSet(0));
     }
 
-    public static synchronized int[] getLastFrustumFrameCounters() {
-        int[] snapshot = lastFrustumFrameCounters;
+    public static synchronized long[] getLastFrustumFrameCounters() {
+        long[] snapshot = new long[4];
         snapshot[0] = frustumChecksLastFrame.get();
         snapshot[1] = frustumVisibleLastFrame.get();
         snapshot[2] = frustumCulledLastFrame.get();
+        snapshot[3] = frustumTotalNanosLastFrame.get();
         return snapshot;
     }
     public static boolean invokeDHCull(double minY, double maxY, double surfaceY) {

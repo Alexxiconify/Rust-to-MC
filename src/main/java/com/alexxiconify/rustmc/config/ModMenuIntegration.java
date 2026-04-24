@@ -151,7 +151,7 @@ public class ModMenuIntegration implements ModMenuApi {
     }
 
     private static String getFrustumFrameStatsText() {
-        int[] frameStats = NativeBridge.getLastFrustumFrameCounters();
+        long[] frameStats = NativeBridge.getLastFrustumFrameCounters();
         if (frameStats.length < 3) {
             return "checks=0 visible=0 culled=0";
         }

@@ -16,7 +16,8 @@ public final class PieChartRenderer {
     private static String cachedMinMaxLabel = "Min: 0.0ms  Max: 0.0ms";
     private static String cachedSlowLabel = "Slow: 0/0";
     private static String cachedDhLabel = "DH: OFF";
-    private static String cachedFrustumLabel = "Frustum: INIT";
+    private static String cachedFrustumLabel = "Frust: INIT";
+    private static String cachedJniLabel = "JNI: 0.0ms";
     private static boolean cacheValid;
     private static final long UPDATE_INTERVAL_MS = 250;
     // Draws text-only timing info in the top-right of the screen. Estimates category proportions from the frame history distribution.
@@ -37,7 +38,7 @@ public final class PieChartRenderer {
         maxWidth = Math.max(maxWidth, textRenderer.getWidth(cachedFrustumLabel));
         int x = screenW - maxWidth - 10;
         int y = 6;
-        int height = 9 * 12 + 6;
+        int height = 10 * 12 + 6;
         context.fill(x - 4, y - 3, x + maxWidth + 4, y + height, 0x70000000);
         context.drawTextWithShadow(textRenderer, "Timing Info", x, y, 0xFF33CCFF);
         context.drawTextWithShadow(textRenderer, cachedAvgLabel, x, y + 10, 0xFFCCCCCC);
@@ -50,6 +51,7 @@ public final class PieChartRenderer {
         context.drawTextWithShadow(textRenderer, cachedOtherLabel, x, y + 80, 0xFFAAAAAA);
         context.drawTextWithShadow(textRenderer, cachedDhLabel, x, y + 90, 0xFF55FF55);
         context.drawTextWithShadow(textRenderer, cachedFrustumLabel, x, y + 100, 0xFFFFFF55);
+        context.drawTextWithShadow(textRenderer, cachedJniLabel, x, y + 110, 0xFFFFAA55);
     }
     // Refreshes cached stats from the native frame history ring buffer.  Returns false if no history is available.
     private static boolean refreshStats() {
@@ -91,10 +93,19 @@ public final class PieChartRenderer {
             boolean init = com.alexxiconify.rustmc.compat.DistantHorizonsCompat.isFrustumInitialized();
             double move = com.alexxiconify.rustmc.compat.DistantHorizonsCompat.getLastCameraMoveSq();
             cachedDhLabel = "DH: ACTIVE (" + reason + ")";
-            cachedFrustumLabel = "Frust: " + (init ? "READY" : "WAIT") + " m=" + formatMsValue((float)move);
+            long[] fStats = NativeBridge.getLastFrustumFrameCounters();
+            if (fStats[0] > 0) {
+                float cRate = (float) fStats[2] / fStats[0] * 100f;
+                cachedFrustumLabel = "Frust: " + fStats[2] + "/" + fStats[0] + " (" + Math.round(cRate) + "%)";
+                cachedJniLabel = "JNI: " + formatMsValue((fStats[3] / 1000.0f) / 1000.0f) + "ms";
+            } else {
+                cachedFrustumLabel = "Frust: " + (init ? "READY" : "WAIT") + " m=" + formatMsValue((float)move);
+                cachedJniLabel = "JNI: 0.0ms";
+            }
         } else {
             cachedDhLabel = "DH: NOT FOUND";
             cachedFrustumLabel = "Frust: N/A";
+            cachedJniLabel = "JNI: N/A";
         }
         lastUpdateMs = System.currentTimeMillis();
         cacheValid = true;
