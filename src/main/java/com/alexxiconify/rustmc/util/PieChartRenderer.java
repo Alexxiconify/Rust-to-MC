@@ -18,9 +18,7 @@ public final class PieChartRenderer {
     private static String cachedSlowLabel = "Slow: 0/0";
     private static boolean cacheValid;
     private static final long UPDATE_INTERVAL_MS = 250;
-    //
-     // Draws text-only timing info in the top-right of the screen.
-     // Estimates category proportions from the frame history distribution.
+    // Draws text-only timing info in the top-right of the screen. Estimates category proportions from the frame history distribution.
     public static void draw(DrawContext context, net.minecraft.client.font.TextRenderer textRenderer, int screenW) {
         // Refresh cached stats at most every 250ms
         long now = System.currentTimeMillis();
