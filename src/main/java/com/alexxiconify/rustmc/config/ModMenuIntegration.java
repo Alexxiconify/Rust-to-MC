@@ -201,14 +201,14 @@ public class ModMenuIntegration implements ModMenuApi {
                 "Hooks lighting engine for Rust-parallel updates.\nDisabled when Sodium/Starlight/C2ME/Iris Bridge is ON.",
                 cfg::isUseNativeLighting, v -> cfg.setUseNativeLighting(v != null && v)))
             .option(buildBooleanOption("Native Metrics HUD",
-                "Shows native performance metrics. Toggle with the Rust-MC keybind.",
-                cfg::isEnableNativeMetricsHud, v -> cfg.setEnableNativeMetricsHud(v != null && v)))
+                "Shows native performance metrics. Shared with Timing Info Overlay and the Rust-MC keybind.",
+                cfg::isEnableNativeMetricsHud, v -> cfg.setNativeStatsEnabled(v != null && v)))
             .option(buildBooleanOption("Debug HUD Frame Graph",
                 "Shows frame-time graph overlay for quick pacing checks.",
                 cfg::isDebugHudGraphEnabled, v -> cfg.setDebugHudGraphEnabled(v != null && v)))
             .option(buildBooleanOption("Timing Info Overlay",
-                "Shows text-only render/load timing summary overlay.",
-                cfg::isEnablePieChart, v -> cfg.setEnablePieChart(v != null && v)))
+                "Shows text-only render/load timing summary overlay. Shared with Native Metrics HUD and the Rust-MC keybind.",
+                cfg::isEnablePieChart, v -> cfg.setNativeStatsEnabled(v != null && v)))
             .option(buildBooleanOption("DNS Cache (Server Pings)",
                 "Caches DNS lookups permanently via Rust to speed up server list pings. Persistent across sessions.\nCached entries: " + NativeBridge.dnsCacheSize(),
                 cfg::isEnableDnsCache, v -> cfg.setEnableDnsCache(v != null && v)))
@@ -362,7 +362,7 @@ public class ModMenuIntegration implements ModMenuApi {
         var builder = ConfigCategory.createBuilder()
             .name(Text.literal("Blame Chart"))
             .tooltip(Text.literal("Loading phase timings from launcher start to game-ready."));
-        
+
         java.util.List<BlameLog.Entry> entries = BlameLog.getEntriesWithGaps();
         if (entries.isEmpty()) {
             addNoDataOption(builder);

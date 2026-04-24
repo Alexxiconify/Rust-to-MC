@@ -3,13 +3,13 @@ import net.minecraft.client.MinecraftClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 //  NativeBridge handles all communication between Java and the Rust native core via JNI.
-//  Many wrapper methods appear "unused" in static analysis because they are part of the
-//  public API consumed by mixins and compat hooks.
+//  Many wrapper methods appear "unused" in static analysis because they are part of the public API consumed by mixins and compat hooks.
 public class NativeBridge {
     private NativeBridge() {}
     public static final int CONTEXT_VANILLA = 0;
@@ -35,13 +35,13 @@ public class NativeBridge {
     private static final long[] chunkIngestStats = new long[4];
     private static final long[] metricsSnapshot = new long[5];
     // Cache optional native symbol availability to avoid repeated exception fallbacks in hot culling paths.
-    private static volatile boolean supportsFrustumMarginTest = true;
-    private static volatile boolean supportsDhVerticalCull = true;
-    private static volatile boolean supportsDhFusedCull = true;
-    private static volatile boolean supportsDhOcclusionTest = true;
-    private static volatile boolean supportsDhOcclusionSubmit = true;
-    private static volatile boolean supportsChunkDataOffload = true;
-    private static volatile boolean supportsMemoryCleanup = true;
+    private static final AtomicBoolean supportsFrustumMarginTest = new AtomicBoolean(true);
+    private static final AtomicBoolean supportsDhVerticalCull = new AtomicBoolean(true);
+    private static final AtomicBoolean supportsDhFusedCull = new AtomicBoolean(true);
+    private static final AtomicBoolean supportsDhOcclusionTest = new AtomicBoolean(true);
+    private static final AtomicBoolean supportsDhOcclusionSubmit = new AtomicBoolean(true);
+    private static final AtomicBoolean supportsChunkDataOffload = new AtomicBoolean(true);
+    private static final AtomicBoolean supportsMemoryCleanup = new AtomicBoolean(true);
     private static final java.util.concurrent.atomic.AtomicLong chunkIngestAttempts = new java.util.concurrent.atomic.AtomicLong(0L);
     private static final java.util.concurrent.atomic.AtomicLong chunkIngestForwards = new java.util.concurrent.atomic.AtomicLong(0L);
     private static final java.util.concurrent.atomic.AtomicLong chunkIngestFailures = new java.util.concurrent.atomic.AtomicLong(0L);
@@ -86,12 +86,16 @@ public class NativeBridge {
                 // Use a persistent cache path in the game config directory to avoid re-extracting every launch
                 Path cacheDir = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("rustmc-bin");
                 Files.createDirectories(cacheDir);
-                Path cachedLib = cacheDir.resolve(libName + "-" + RustMC.class.getPackage().getImplementationVersion());
+                byte[] bundledLib;
+                try (java.io.InputStream is = NativeBridge.class.getResourceAsStream("/" + libName)) {
+                    if (is == null) throw new IllegalStateException("Library " + libName + " not found in dev path or resources");
+                    bundledLib = is.readAllBytes();
+                }
+                String cacheKey = fingerprintBytes(bundledLib);
+                Path cachedLib = cacheDir.resolve(libName + "-" + cacheKey);
+                cleanupStaleNativeCache(cacheDir, libName, cachedLib.getFileName().toString());
                 if (!Files.exists(cachedLib)) {
-                    try (java.io.InputStream is = NativeBridge.class.getResourceAsStream("/" + libName)) {
-                        if (is == null) throw new IllegalStateException("Library " + libName + " not found in dev path or resources");
-                        Files.copy(is, cachedLib, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                    }
+                    Files.write(cachedLib, bundledLib, java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
                 }
                 System.load(cachedLib.toString());
             }
@@ -102,6 +106,37 @@ public class NativeBridge {
             RustMC.LOGGER.error("[Rust-MC] Failed to load native library ({}). fallback to Java.", t.getMessage());
         }
     }
+
+    private static String fingerprintBytes(byte[] bytes) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
+            StringBuilder hex = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                hex.append(Character.forDigit((b >>> 4) & 0xF, 16));
+                hex.append(Character.forDigit(b & 0xF, 16));
+            }
+            return hex.toString();
+        } catch (Exception ignored) {
+            return Integer.toHexString(java.util.Arrays.hashCode(bytes));
+        }
+    }
+
+    private static void cleanupStaleNativeCache(Path cacheDir, String libName, String keepFileName) {
+        try (java.util.stream.Stream<Path> files = Files.list(cacheDir)) {
+            files.filter(path -> path.getFileName().toString().startsWith(libName + "-"))
+                 .filter(path -> !path.getFileName().toString().equals(keepFileName))
+                 .forEach(path -> {
+                     try {
+                         Files.deleteIfExists(path);
+                     } catch (Exception ignored) {
+                         // Ignore stale cache cleanup failures; load still works.
+                     }
+                 });
+        } catch (Exception ignored) {
+            // Ignore cleanup failures; cache rebuild still continues.
+        }
+    }
+
     // --- Native Methods ---
     private static native void rustNoiseInit(int seed);
     private static native void rustNoiseReset();
@@ -128,7 +163,7 @@ public class NativeBridge {
      // Subverts Java-side chunk data parsing by offloading large byte buffers
      // directly to Rust's optimized decoder (PumpkinMC style).
     public static void processChunkData(byte[] buf, int chunkX, int chunkZ) {
-        if (!libLoaded || buf == null || !supportsChunkDataOffload) return;
+        if (!libLoaded || buf == null || !supportsChunkDataOffload.get()) return;
         if (!RustMC.CONFIG.isEnableChunkIngestOffload()) return;
         chunkIngestAttempts.incrementAndGet();
         boolean trackTiming = RustMC.CONFIG.isEnableChunkIngestValidation();
@@ -138,7 +173,7 @@ public class NativeBridge {
             chunkIngestForwards.incrementAndGet();
         } catch (UnsatisfiedLinkError ignored) {
             chunkIngestFailures.incrementAndGet();
-            supportsChunkDataOffload = false;
+            supportsChunkDataOffload.set(false);
         } finally {
             if (trackTiming) {
                 chunkIngestTotalNanos.addAndGet(System.nanoTime() - start);
@@ -160,11 +195,11 @@ public class NativeBridge {
         return snapshot;
     }
     public static void requestMemoryCleanup() {
-        if (!libLoaded || !supportsMemoryCleanup) return;
+        if (!libLoaded || !supportsMemoryCleanup.get()) return;
         try {
             rustRequestMemoryCleanup();
         } catch (UnsatisfiedLinkError ignored) {
-            supportsMemoryCleanup = false;
+            supportsMemoryCleanup.set(false);
         }
     }
     // Frustum state management
@@ -316,13 +351,13 @@ public class NativeBridge {
      // Conservative frustum test with margin (useful for DH chunks/LODs).
     public static boolean frustumTest(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin) {
         if (!libLoaded) return true;
-        if (supportsFrustumMarginTest) {
+        if (supportsFrustumMarginTest.get()) {
             try {
                 boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
                 recordFrustumResult(visible);
                 return visible;
             } catch (UnsatisfiedLinkError e) {
-                supportsFrustumMarginTest = false;
+                supportsFrustumMarginTest.set(false);
             }
         }
         try {
@@ -574,13 +609,13 @@ public class NativeBridge {
     }
     public static boolean testRustFrustum(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin) {
         if (!libLoaded || ptr == 0) return true; // Default to visible if Rust is not available or ptr is 0
-        if (supportsFrustumMarginTest) {
+        if (supportsFrustumMarginTest.get()) {
             try {
                 boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
                 recordFrustumResult(visible);
                 return visible;
             } catch (UnsatisfiedLinkError e) {
-                supportsFrustumMarginTest = false;
+                supportsFrustumMarginTest.set(false);
             }
         }
         try {
@@ -694,42 +729,42 @@ public class NativeBridge {
     }
     public static boolean invokeDHCull(double minY, double maxY, double surfaceY) {
         if (!libLoaded) return true;
-        if (!supportsDhVerticalCull) return true;
+        if (!supportsDhVerticalCull.get()) return true;
         try {
             return rustDHCull(minY, maxY, surfaceY);
         } catch (UnsatisfiedLinkError e) {
-            supportsDhVerticalCull = false;
+            supportsDhVerticalCull.set(false);
             return true;
         }
     }
     public static boolean invokeDHCullFused(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double surfaceY) {
         if (!libLoaded || ptr == 0) return false;
-        if (!supportsDhFusedCull) return false;
+        if (!supportsDhFusedCull.get()) return false;
         try {
             return rustDHCullFused(ptr, minX, minY, minZ, maxX, maxY, maxZ, surfaceY);
         } catch (UnsatisfiedLinkError e) {
-            supportsDhFusedCull = false;
+            supportsDhFusedCull.set(false);
             return false;
         }
     }
     // Same as invokeDHCullFused but returns empty when native symbol is unavailable, allowing fallback logic.
     public static Optional<Boolean> tryDHCullFused(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double surfaceY) {
-        if (!libLoaded || ptr == 0 || !supportsDhFusedCull) return Optional.empty();
+        if (!libLoaded || ptr == 0 || !supportsDhFusedCull.get()) return Optional.empty();
         try {
             return Optional.of(rustDHCullFused(ptr, minX, minY, minZ, maxX, maxY, maxZ, surfaceY));
         } catch (UnsatisfiedLinkError e) {
-            supportsDhFusedCull = false;
+            supportsDhFusedCull.set(false);
             return Optional.empty();
         }
     }
     private static boolean isDHOccluded(double minX, double minY, double minZ,
                                         double maxX, double maxY, double maxZ) {
         if (!libLoaded) return false;
-        if (!supportsDhOcclusionTest) return false;
+        if (!supportsDhOcclusionTest.get()) return false;
         try {
             return rustOcclusionTest(minX, minY, minZ, maxX, maxY, maxZ);
         } catch (UnsatisfiedLinkError ignored) {
-            supportsDhOcclusionTest = false;
+            supportsDhOcclusionTest.set(false);
             return false;
         }
     }
@@ -737,11 +772,11 @@ public class NativeBridge {
     private static void submitDHOccluder(double minX, double minY, double minZ,
                                          double maxX, double maxY, double maxZ) {
         if (!libLoaded) return;
-        if (!supportsDhOcclusionSubmit) return;
+        if (!supportsDhOcclusionSubmit.get()) return;
         try {
             rustOcclusionSubmit(minX, minY, minZ, maxX, maxY, maxZ);
         } catch (UnsatisfiedLinkError ignored) {
-            supportsDhOcclusionSubmit = false;
+            supportsDhOcclusionSubmit.set(false);
         }
     }
 

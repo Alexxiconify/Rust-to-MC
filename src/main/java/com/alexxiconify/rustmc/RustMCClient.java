@@ -11,11 +11,7 @@ import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
-//
- //  Client-side initializer for Rust-MC.
- //  Registers keybinds for toggling overlays:
- //    F6 — Native metrics HUD
- //    F8 — Frame-time sparkline graph
+// Client-side initializer for Rust-MC. Registers keybinds for toggling overlays: F6 — Metrics HUD.  F8 — Frame-time sparkline graph
 public class RustMCClient implements ClientModInitializer {
     private KeyBinding toggleNativeMetrics;
     private KeyBinding toggleFrameGraph;
@@ -44,10 +40,11 @@ public class RustMCClient implements ClientModInitializer {
         RustMCConfig cfg = RustMC.CONFIG;
         boolean changed = false;
         while (toggleNativeMetrics.wasPressed()) {
-            cfg.setEnableNativeMetricsHud(!cfg.isEnableNativeMetricsHud());
-            String state = cfg.isEnableNativeMetricsHud() ? "ON" : "OFF";
-            RustMC.LOGGER.info("[Rust-MC] Native metrics HUD: {}", state);
-            showActionBar(client, "Rust-MC Native Metrics HUD: " + state);
+            boolean enabled = !cfg.isEnableNativeMetricsHud();
+            cfg.setNativeStatsEnabled(enabled);
+            String state = enabled ? "ON" : "OFF";
+            RustMC.LOGGER.info("[Rust-MC] Native stats overlays: {}", state);
+            showActionBar(client, "Rust-MC Native Stats: " + state);
             changed = true;
         }
         while (toggleFrameGraph.wasPressed()) {

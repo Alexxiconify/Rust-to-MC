@@ -44,6 +44,12 @@ Historical-first view of the same canonical fact set used by [`ROADMAP.md`](../R
 - `src/main/java/com/alexxiconify/rustmc/NativeBridge.java` now reuses per-thread snapshot buffers for frustum counters, chunk ingest stats, and metrics reads, and swaps frame-history cache churn from atomic snapshot plumbing to a lighter volatile cache.
 - `src/main/java/com/alexxiconify/rustmc/util/NativeStatsRenderer.java` now respects the 5-field metrics snapshot while rendering only the 3 HUD lines it needs.
 - `src/main/java/com/alexxiconify/rustmc/util/PieChartRenderer.java` no longer allocates a per-frame line array for the timing overlay.
+- `src/main/java/com/alexxiconify/rustmc/RustMCClient.java` native-stats keybind now flips `enableNativeMetricsHud` and `enablePieChart` together.
+- `src/main/java/com/alexxiconify/rustmc/config/ModMenuIntegration.java` native-stats checkboxes now share one setter, so HUD and pie-chart tracker stay synchronized.
+- `src/main/java/com/alexxiconify/rustmc/RustMC.java` now fingerprints build output and resets stale config when jar contents change without a config version bump.
+- `src/main/java/com/alexxiconify/rustmc/NativeBridge.java` cache extraction now hashes bundled DLL bytes and deletes stale `rustmc-bin` entries before loading a replacement.
+- `rust_mc_core/src/wgpu_mesher.rs` now trims retained GPU buffers harder after spikes, and `rust_mc_core/src/lib.rs` calls the new pool trim during JNI memory cleanup.
+- `rust_mc_core/src/occlusion.rs` lowered heuristic depth-buffer resolution to reduce resident memory.
 
 #### Startup Load-In + Particle Pressure Trim
 

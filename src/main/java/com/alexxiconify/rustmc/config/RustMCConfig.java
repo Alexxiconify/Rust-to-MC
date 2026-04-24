@@ -1,6 +1,5 @@
 package com.alexxiconify.rustmc.config;
-//  Configuration POJO for Rust-MC. All fields are serialized/deserialized by Gson,
-//  and getters/setters are referenced by ModMenu (YACL) via method references.
+//  Configuration POJO for Rust-MC. All fields are serialized/deserialized by Gson, and getters/setters are referenced by ModMenu (YACL) via method references.
 public class RustMCConfig {
     // Bump this whenever the ModMenu config surface changes so old saved values are reset.
     public static final String CURRENT_CONFIG_VERSION = "2.7.0";
@@ -132,6 +131,7 @@ public class RustMCConfig {
     public void setDebugHudGraphEnabled(boolean v)       { enableDebugHudGraph = v; }
     public void setEnablePieChart(boolean v)             { enablePieChart = v; }
     public void setEnableNativeMetricsHud(boolean v)     { enableNativeMetricsHud = v; }
+    public void setNativeStatsEnabled(boolean v)         { enableNativeMetricsHud = v; enablePieChart = v; }
     public void setEnableDnsCache(boolean v)             { enableDnsCache = v; }
     public void setEnableChunkIngestOffload(boolean v)   { enableChunkIngestOffload = v; }
     public void setEnableChunkIngestValidation(boolean v) { enableChunkIngestValidation = v; }

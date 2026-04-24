@@ -18,6 +18,12 @@ public class RustMC implements ModInitializer {
     public static final RustMCConfig CONFIG = new RustMCConfig();
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("rust-mc.json");
+    private static final Path BUILD_SIGNATURE_PATH = FabricLoader.getInstance().getConfigDir().resolve("rust-mc.build-id");
+    private static final String BUILD_FINGERPRINT = computeBuildFingerprint();
+
+    public static String getBuildFingerprint() {
+        return BUILD_FINGERPRINT;
+    }
     @Override
     public void onInitialize() {
         LOGGER.info("[Rust-MC] Initializing...");
@@ -80,17 +86,18 @@ public class RustMC implements ModInitializer {
     public static synchronized void loadConfig() {
         if (configLoaded) return; // Already loaded by preload thread
         if (!Files.exists(CONFIG_PATH)) {
-            saveConfigInternal(false);
-            configLoaded = true;
+            saveConfigInternal(false);configLoaded = true;
             return;
         }
         try {
             String rawJson = Files.readString(CONFIG_PATH);
             RustMCConfig loaded = GSON.fromJson(rawJson, RustMCConfig.class);
-            if (loaded != null && RustMCConfig.CURRENT_CONFIG_VERSION.equals(loaded.getConfigVersion())) {
+            if (loaded != null
+                && RustMCConfig.CURRENT_CONFIG_VERSION.equals(loaded.getConfigVersion())
+                && isBuildSignatureCurrent()) {
                 CONFIG.copyFrom(loaded);
             } else {
-                backupAndResetConfig(loaded == null ? "missing-body" : "schema-mismatch");
+                backupAndResetConfig(loaded == null ? "missing-body" : "schema-or-build-mismatch");
                 configLoaded = true;
                 return;
             }
@@ -119,6 +126,34 @@ public class RustMC implements ModInitializer {
         saveConfigInternal(false);
     }
 
+    private static boolean isBuildSignatureCurrent() {
+        try {
+            return Files.exists(BUILD_SIGNATURE_PATH)
+                && BUILD_FINGERPRINT.equals(Files.readString(BUILD_SIGNATURE_PATH));
+        } catch (IOException ignored) {
+            return false;
+        }
+    }
+
+    private static String computeBuildFingerprint() {
+        try {
+            java.net.URL location = RustMC.class.getProtectionDomain().getCodeSource().getLocation();
+            if (location == null) {
+                return "unknown";
+            }
+            Path source = Path.of(location.toURI());
+            if (Files.exists(source)) {
+                if (Files.isRegularFile(source)) {
+                    return source.getFileName() + "|" + Files.size(source) + "|" + Files.getLastModifiedTime(source).toMillis();
+                }
+                return source.toAbsolutePath() + "|" + Files.getLastModifiedTime(source).toMillis();
+            }
+            return location.toExternalForm();
+        } catch (Exception ignored) {
+            return "unknown";
+        }
+    }
+
     public static void saveConfig() {
         saveConfigInternal(true);
     }
@@ -127,6 +162,7 @@ public class RustMC implements ModInitializer {
         try {
             CONFIG.setConfigVersion(RustMCConfig.CURRENT_CONFIG_VERSION);
             Files.writeString(CONFIG_PATH, GSON.toJson(CONFIG));
+            Files.writeString(BUILD_SIGNATURE_PATH, BUILD_FINGERPRINT);
             if (persistElbConfig) {
                 ElbConfig.getInstance().save();
             }
