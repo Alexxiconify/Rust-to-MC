@@ -213,7 +213,7 @@ public class DistantHorizonsCompat {
         }
         Object mat = args[args.length - 1];
         float[] vpArray = extractMatrixValues(mat);
-        if (vpArray == null || vpArray.length < 16) return null;
+        if (vpArray.length < 16) return null;
         if (!frustumInitialized || shouldRefreshFrustum(vpArray)) {
             float[] vpSnapshot = java.util.Arrays.copyOf(vpArray, vpArray.length);
             if (com.alexxiconify.rustmc.NativeBridge.updateRustFrustumTracked(rustFrustumPtr, vpSnapshot)) {
@@ -226,9 +226,9 @@ public class DistantHorizonsCompat {
     private static float[] extractMatrixValues(Object mat) throws ReflectiveOperationException {
         if (mat == null) return new float[0];
         float[] values = tryInvokeNoArgFloatArray(mat, MATRIX_VALUES_AS_ARRAY_METHOD);
-        if (values != null) return values;
+        if (values.length >= 16) return values;
         values = tryInvokeNoArgFloatArray(mat, MATRIX_TO_ARRAY_METHOD);
-        if (values != null) return values;
+        if (values.length >= 16) return values;
         return tryInvokeMatrixGet(mat);
     }
 
@@ -245,7 +245,7 @@ public class DistantHorizonsCompat {
             else if (MATRIX_TO_ARRAY_METHOD.equals(methodName)) matrixToArrayMethod = method;
         }
         Object out = method.invoke(mat);
-        return (out instanceof float[] arr && arr.length >= 16) ? arr : null;
+        return (out instanceof float[] arr && arr.length >= 16) ? arr : new float[0];
     }
 
     private static java.lang.reflect.Method resolveNoArgMethod(Object mat, String methodName) {
