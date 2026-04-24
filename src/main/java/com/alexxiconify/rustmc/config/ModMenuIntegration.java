@@ -51,6 +51,19 @@ public class ModMenuIntegration implements ModMenuApi {
                     .formatValue(val -> Text.literal(NativeBridge.isReady() ? "§aREADY" : "§cFAILED")))
                 .available(false)
                 .build())
+            .option(Option.<String>createBuilder()
+                .name(Text.literal("Native Lighting Status"))
+                .description(OptionDescription.of(Text.literal(
+                    """
+                    Current lighting hook mode.
+                    active: Rust lighting worker is allowed.
+                    disabled: lighting toggle is off.
+                    yielded-mod-owner: coexist mode is off and an intrusive lighting mod owns the path.
+                    """)))
+                .binding("unknown", ModMenuIntegration::getLightingStatusText, val -> {})
+                .controller(dev.isxander.yacl3.api.controller.StringControllerBuilder::create)
+                .available(false)
+                .build())
             .option(buildDetectOption("Sodium Detected",   () -> ModBridge.SODIUM))
             .option(buildDetectOption("Iris Detected",     () -> ModBridge.IRIS))
             .option(buildDetectOption("Lithium Detected",  () -> ModBridge.LITHIUM))
@@ -198,17 +211,19 @@ public class ModMenuIntegration implements ModMenuApi {
                 "Enable Rust-backed F3/debug calculations where available.",
                 cfg::isUseNativeF3, v -> cfg.setUseNativeF3(v != null && v)))
             .option(buildBooleanOption("Native Lighting (Experimental)",
-                "Hooks lighting engine for Rust-parallel updates.\nDisabled when Sodium/Starlight/C2ME/Iris Bridge is ON.",
+                "Routes client lighting updates through Rust worker path when native core is ready.\n" +
+                    "Supports coexist mode with modded lighting stacks; disable if your pack shows lighting conflicts.",
                 cfg::isUseNativeLighting, v -> cfg.setUseNativeLighting(v != null && v)))
-            .option(buildBooleanOption("Native Metrics HUD",
-                "Shows native performance metrics. Shared with Timing Info Overlay and the Rust-MC keybind.",
-                cfg::isEnableNativeMetricsHud, v -> cfg.setNativeStatsEnabled(v != null && v)))
+            .option(buildBooleanOption("Experimental Lighting Coexistence",
+                "When ON, keep Rust lighting hook active even when intrusive lighting mods are detected.\n" +
+                    "When OFF, Rust lighting yields to Starlight/ScalableLux ownership.",
+                cfg::isExperimentalCoexistEnabled, v -> cfg.setExperimentalCoexistEnabled(v != null && v)))
             .option(buildBooleanOption("Debug HUD Frame Graph",
                 "Shows frame-time graph overlay for quick pacing checks.",
                 cfg::isDebugHudGraphEnabled, v -> cfg.setDebugHudGraphEnabled(v != null && v)))
             .option(buildBooleanOption("Timing Info Overlay",
-                "Shows text-only render/load timing summary overlay. Shared with Native Metrics HUD and the Rust-MC keybind.",
-                cfg::isEnablePieChart, v -> cfg.setNativeStatsEnabled(v != null && v)))
+                "Shows text-only render/load timing summary overlay. F6 keybind toggles this overlay.",
+                cfg::isEnablePieChart, v -> cfg.setEnablePieChart(v != null && v)))
             .option(buildBooleanOption("DNS Cache (Server Pings)",
                 "Caches DNS lookups permanently via Rust to speed up server list pings. Persistent across sessions.\nCached entries: " + NativeBridge.dnsCacheSize(),
                 cfg::isEnableDnsCache, v -> cfg.setEnableDnsCache(v != null && v)))
@@ -275,6 +290,16 @@ public class ModMenuIntegration implements ModMenuApi {
         refreshMetricsCache();
         long total = cachedMetrics[0] + cachedMetrics[1] + cachedMetrics[2] + cachedMetrics[3] + cachedMetrics[4];
         return total > 0 ? "active" : "no-data";
+    }
+
+    private static String getLightingStatusText() {
+        if (!NativeBridge.isReady()) {
+            return "native-off";
+        }
+        if (!RustMC.CONFIG.isUseNativeLighting()) {
+            return "disabled";
+        }
+        return ModBridge.isLightingOwned() ? "yielded-mod-owner" : "active";
     }
 
     private void addLoadingScreenOptions(ConfigCategory.Builder builder, RustMCConfig cfg) {

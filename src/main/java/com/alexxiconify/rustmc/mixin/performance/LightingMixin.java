@@ -1,5 +1,6 @@
 package com.alexxiconify.rustmc.mixin.performance;
 import com.alexxiconify.rustmc.NativeBridge;
+import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.RustMC;
 import net.minecraft.world.chunk.light.LightingProvider;
 import org.spongepowered.asm.mixin.Mixin;
@@ -70,7 +71,9 @@ public class LightingMixin {
     @Unique
     private static boolean isRustLightingActive() {
         // Client-only: process received lighting data from server
-        return NativeBridge.isReady() && RustMC.CONFIG.isUseNativeLighting();
+        return NativeBridge.isReady()
+            && RustMC.CONFIG.isUseNativeLighting()
+            && !ModBridge.isLightingOwned();
     }
     @Unique
     private static void ensureRustThread() {

@@ -5,11 +5,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.util.Optional;
+import java.util.stream.IntStream;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 //  NativeBridge handles all communication between Java and the Rust native core via JNI.
 //  Many wrapper methods appear "unused" in static analysis because they are part of the public API consumed by mixins and compat hooks.
+@SuppressWarnings({"java:S3776", "OverlyComplexClass", "OverlyComplexMethod"})
 public class NativeBridge {
     private NativeBridge() {}
     public static final int CONTEXT_VANILLA = 0;
@@ -46,6 +48,7 @@ public class NativeBridge {
     private static final java.util.concurrent.atomic.AtomicLong chunkIngestForwards = new java.util.concurrent.atomic.AtomicLong(0L);
     private static final java.util.concurrent.atomic.AtomicLong chunkIngestFailures = new java.util.concurrent.atomic.AtomicLong(0L);
     private static final java.util.concurrent.atomic.AtomicLong chunkIngestTotalNanos = new java.util.concurrent.atomic.AtomicLong(0L);
+    private static final int DNS_PARALLEL_THRESHOLD = 16;
 
     public static final class FrameHistorySnapshot {
         private final float[] history;
@@ -305,9 +308,17 @@ public class NativeBridge {
     //
      // Parallelizes particle physics (gravity, velocity decay).
      // Ideal for mods that spawn thousands of environmental particles.
-    public static void tickParticles(double[] positions, double[] velocities, double gravity) {
-        if (!libLoaded || positions == null || velocities == null || positions.length == 0) return;
-        rustTickParticles(positions, velocities, positions.length / 3, gravity);
+    public static void tickParticlesNative(double[] positions, double[] velocities, double gravity) {
+        if (!libLoaded) return;
+        if (positions == null || velocities == null) return;
+        if (positions.length == 0 || velocities.length == 0) return;
+        int count = Math.min(positions.length, velocities.length) / 3;
+        if (count <= 0) return;
+        rustTickParticles(positions, velocities, count, gravity);
+    }
+
+    public static void tickParticlesAdaptive(double[] positions, double[] velocities, double gravity) {
+        com.alexxiconify.rustmc.util.ParticleTickDispatcher.tick(positions, velocities, gravity);
     }
     private static native void rustProcessSoundPhysics(float[] samples, int count, double distance, double occlusion);
     private static native int[] rustBlendBiomes(int[] biomeIds, int width, int height, int radius);
@@ -551,16 +562,20 @@ public class NativeBridge {
         try { return rustDecompress(input, maxOutputSize); }
         catch (UnsatisfiedLinkError e) { return new byte[0]; }
     }
-    // Reusable arrays for pathfinding — avoids per-call allocation.
-    // Safe because pathfinding is only called from the server tick thread.
-    private static final int[] PATH_START = new int[3];
-    private static final int[] PATH_END = new int[3];
+    // Reusable thread-local arrays for pathfinding avoid per-call allocation and remain thread-safe.
+    @SuppressWarnings("java:S5164")
+    private static final ThreadLocal<int[][]> PATH_SCRATCH = ThreadLocal.withInitial(() -> new int[][] {
+        new int[3], new int[3]
+    });
     public static int findPathRaw(int sx, int sy, int sz, int ex, int ey, int ez) {
         if (!libLoaded) return -1;
         try {
-            PATH_START[0] = sx; PATH_START[1] = sy; PATH_START[2] = sz;
-            PATH_END[0] = ex; PATH_END[1] = ey; PATH_END[2] = ez;
-            return rustFindPath(PATH_START, PATH_END);
+            int[][] scratch = PATH_SCRATCH.get();
+            int[] pathStart = scratch[0];
+            int[] pathEnd = scratch[1];
+            pathStart[0] = sx; pathStart[1] = sy; pathStart[2] = sz;
+            pathEnd[0] = ex; pathEnd[1] = ey; pathEnd[2] = ez;
+            return rustFindPath(pathStart, pathEnd);
         } catch (UnsatisfiedLinkError e) { return -1; }
     }
     public static int executeCommand(byte[] cmd) {
@@ -962,9 +977,38 @@ public class NativeBridge {
      // Much faster than sequential Java InetAddress.getByName() for server lists.
      // @return array of IPs (empty string for failed lookups), or empty array on error
     public static String[] dnsBatchResolve(String[] hostnames) {
-        if (!libLoaded || hostnames == null || hostnames.length == 0) return new String[0];
-        try { return rustDnsBatchResolve(hostnames); }
-        catch (UnsatisfiedLinkError e) { return new String[0]; }
+        if (hostnames == null || hostnames.length == 0) return new String[0];
+        if (libLoaded) {
+            try {
+                return rustDnsBatchResolve(hostnames);
+            } catch (UnsatisfiedLinkError ignored) {
+                // Fall through to Java resolver fallback.
+            }
+        }
+        return dnsBatchResolveJava(hostnames);
+    }
+
+    private static String[] dnsBatchResolveJava(String[] hostnames) {
+        String[] results = new String[hostnames.length];
+        if (hostnames.length >= DNS_PARALLEL_THRESHOLD && Runtime.getRuntime().availableProcessors() > 2) {
+            IntStream.range(0, hostnames.length).parallel().forEach(i -> results[i] = resolveHostnameJava(hostnames[i]));
+            return results;
+        }
+        for (int i = 0; i < hostnames.length; i++) {
+            results[i] = resolveHostnameJava(hostnames[i]);
+        }
+        return results;
+    }
+
+    private static String resolveHostnameJava(String hostname) {
+        if (hostname == null || hostname.isBlank()) {
+            return "";
+        }
+        try {
+            return java.net.InetAddress.getByName(hostname).getHostAddress();
+        } catch (Exception ignored) {
+            return "";
+        }
     }
     //Clears the Rust DNS cache (memory + disk). // /
     public static void dnsCacheClear() {

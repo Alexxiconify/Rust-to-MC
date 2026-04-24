@@ -2,7 +2,7 @@ package com.alexxiconify.rustmc.config;
 //  Configuration POJO for Rust-MC. All fields are serialized/deserialized by Gson, and getters/setters are referenced by ModMenu (YACL) via method references.
 public class RustMCConfig {
     // Bump this whenever the ModMenu config surface changes so old saved values are reset.
-    public static final String CURRENT_CONFIG_VERSION = "2.7.0";
+    public static final String CURRENT_CONFIG_VERSION = "2.7.1";
     private String configVersion = CURRENT_CONFIG_VERSION;
     // Math/debug overlays
     private boolean useNativeF3       = true;
@@ -23,6 +23,7 @@ public class RustMCConfig {
     private boolean enableDhCaveCulling        = true;
     private boolean enableDebugHudGraph        = false;
     private boolean enablePieChart             = false;
+    // Legacy field kept for JSON compatibility; timing overlay now owns this surface.
     private boolean enableNativeMetricsHud     = false;
     // DNS / Server List
     private boolean enableDnsCache             = true;
@@ -61,8 +62,9 @@ public class RustMCConfig {
         this.enableClientRedstoneSkip = o.enableClientRedstoneSkip;
         this.enableDhCaveCulling = o.enableDhCaveCulling;
         this.enableDebugHudGraph = o.enableDebugHudGraph;
-        this.enablePieChart = o.enablePieChart;
-        this.enableNativeMetricsHud = o.enableNativeMetricsHud;
+        boolean overlayEnabled = o.enablePieChart || o.enableNativeMetricsHud;
+        this.enablePieChart = overlayEnabled;
+        this.enableNativeMetricsHud = overlayEnabled;
         this.enableDnsCache = o.enableDnsCache;
         this.enableChunkIngestOffload = o.enableChunkIngestOffload;
         this.enableChunkIngestValidation = o.enableChunkIngestValidation;
@@ -97,7 +99,7 @@ public class RustMCConfig {
     public boolean isEnableDhCaveCulling()        { return enableDhCaveCulling; }
     public boolean isDebugHudGraphEnabled()       { return enableDebugHudGraph; }
     public boolean isEnablePieChart()             { return enablePieChart; }
-    public boolean isEnableNativeMetricsHud()     { return enableNativeMetricsHud; }
+    public boolean isEnableNativeMetricsHud()     { return enablePieChart; }
     public boolean isEnableDnsCache()             { return enableDnsCache; }
     public boolean isEnableChunkIngestOffload()   { return enableChunkIngestOffload; }
     public boolean isEnableChunkIngestValidation() { return enableChunkIngestValidation; }
@@ -129,9 +131,9 @@ public class RustMCConfig {
     public void setEnableClientRedstoneSkip(boolean v)   { enableClientRedstoneSkip = v; }
     public void setEnableDhCaveCulling(boolean v)        { enableDhCaveCulling = v; }
     public void setDebugHudGraphEnabled(boolean v)       { enableDebugHudGraph = v; }
-    public void setEnablePieChart(boolean v)             { enablePieChart = v; }
-    public void setEnableNativeMetricsHud(boolean v)     { enableNativeMetricsHud = v; }
-    public void setNativeStatsEnabled(boolean v)         { enableNativeMetricsHud = v; enablePieChart = v; }
+    public void setEnablePieChart(boolean v)             { enablePieChart = v; enableNativeMetricsHud = v; }
+    public void setEnableNativeMetricsHud(boolean v)     { setEnablePieChart(v); }
+    public void setNativeStatsEnabled(boolean v)         { setEnablePieChart(v); }
     public void setEnableDnsCache(boolean v)             { enableDnsCache = v; }
     public void setEnableChunkIngestOffload(boolean v)   { enableChunkIngestOffload = v; }
     public void setEnableChunkIngestValidation(boolean v) { enableChunkIngestValidation = v; }

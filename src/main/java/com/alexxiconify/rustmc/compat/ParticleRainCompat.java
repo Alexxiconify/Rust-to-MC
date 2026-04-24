@@ -20,8 +20,8 @@ public class ParticleRainCompat {
      // Offloads the complex weather particle physics to Rust.
      // We pass positions and velocities for bulk processing.
     public static void optimizePhysics(double[] positions, double[] velocities) {
-        if (active && NativeBridge.isReady()) {
-            NativeBridge.tickParticles(positions, velocities, 0.05); // Rain gravity constant
+          if (active) {
+            NativeBridge.tickParticlesAdaptive(positions, velocities, 0.05); // Rain gravity constant
         }
     }
 }

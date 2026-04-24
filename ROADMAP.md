@@ -19,7 +19,9 @@ Active plan only. History lives in [`docs/completed-changes.md`](docs/completed-
 - Client-only optimization surface; server-only mixins removed.
 - Native bridge covers frustum, particle, lighting, audio/compression, DH/LOD paths.
 - Chunk ingest stays preview-only behind `enableChunkIngestOffload`.
-- UI/config stays text-only for timing, with explicit JNI metric status.
+- UI/debug overlays now focus on Debug HUD Frame Graph + Timing Info overlay (F6), with JNI metrics in Mod Menu status.
+- Native lighting coexist mode stays user-controlled for modded lighting stacks.
+- Particle and DNS hot paths now keep Java multicore fallbacks available when native path is unavailable or repeatedly slower.
 
 ## Now
 
@@ -28,6 +30,7 @@ Active plan only. History lives in [`docs/completed-changes.md`](docs/completed-
 3. Remove dead config, compat, and logging noise.
 4. Expand native packet/chunk work only with profiling proof.
 5. Keep chunk ingest preview gated and sampled.
+6. If Rust path overhead is higher than Java on a hot path, prefer Java multicore/multithread optimization first.
 
 ## Next
 

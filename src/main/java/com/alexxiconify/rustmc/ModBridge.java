@@ -193,9 +193,11 @@ public class ModBridge {
      // we cannot safely intervene. We now allow intervention for Lux and Sodium
      // where we have specific Rust-based sub-functions.
     public static boolean isLightingOwned() {
-        // Starlight is very intrusive; we usually yield unless we have a specific hook.
-        // For ScalableLux and Sodium, we can co-optimize.
-        return !STARLIGHT || RustMC.CONFIG.isExperimentalCoexistEnabled ( );
+        if (RustMC.CONFIG.isExperimentalCoexistEnabled()) {
+            return false;
+        }
+        // Only known intrusive lighting owners force a yield when coexist mode is disabled.
+        return STARLIGHT || SCALABLELUX;
     }
     // Returns true if DH is present and handles its own high-performance lighting.
     public static boolean isDhLightingActive() {
@@ -203,8 +205,10 @@ public class ModBridge {
     }
     // Returns true when C2ME or similar controls math/noise so we should skip our hooks.
     public static boolean isMathOwned() {
-        return ( !C2ME && !MOONRISE && !MODERNFIX && !FERRITECORE && !SERVERCORE && !LITHIUM )
-          || !RustMC.CONFIG.isBridgeC2ME ( );
+        if (!RustMC.CONFIG.isBridgeC2ME()) {
+            return false;
+        }
+        return C2ME || MOONRISE || MODERNFIX || FERRITECORE || SERVERCORE || LITHIUM;
     }
     // Returns true when Lithium or similar controls' pathfinding.
     public static boolean isPathfindingOwned() {
@@ -213,11 +217,11 @@ public class ModBridge {
     }
     // Returns true when a specialized networking mod controls packet flow.
     public static boolean isNetworkingOwned() {
-        return !RAKNETIFY && !VIAFABRICPLUS && !PACKETFIXER && !AUTHME && !SERVERCORE;
+        return RAKNETIFY || VIAFABRICPLUS || PACKETFIXER || AUTHME || SERVERCORE;
     }
     // Returns true when another mod's frustum would conflict with our Rust frustum.
     public static boolean isFrustumOwned() {
-        return (SODIUM && !RustMC.CONFIG.isBridgeSodium()) || MORECULLING;
+        return (SODIUM && RustMC.CONFIG.isBridgeSodium()) || MORECULLING;
     }
     // Returns true if interaction/raycasting logic is handled by other mods.
     public static boolean isInteractionOwned() {

@@ -40,11 +40,11 @@ public class RustMCClient implements ClientModInitializer {
         RustMCConfig cfg = RustMC.CONFIG;
         boolean changed = false;
         while (toggleNativeMetrics.wasPressed()) {
-            boolean enabled = !cfg.isEnableNativeMetricsHud();
-            cfg.setNativeStatsEnabled(enabled);
+            boolean enabled = !cfg.isEnablePieChart();
+            cfg.setEnablePieChart(enabled);
             String state = enabled ? "ON" : "OFF";
-            RustMC.LOGGER.info("[Rust-MC] Native stats overlays: {}", state);
-            showActionBar(client, "Rust-MC Native Stats: " + state);
+            RustMC.LOGGER.info("[Rust-MC] Timing info overlay: {}", state);
+            showActionBar(client, "Rust-MC Timing Overlay: " + state);
             changed = true;
         }
         while (toggleFrameGraph.wasPressed()) {

@@ -57,6 +57,22 @@ Historical record. Active plan lives in [`ROADMAP.md`](../ROADMAP.md); fast file
 - `src/main/java/com/alexxiconify/rustmc/RustMC.java` startup/internal config writes now avoid unnecessary `ElbConfig` persistence; explicit user saves still persist ELB settings.
 - `src/main/java/com/alexxiconify/rustmc/mixin/ParticleManagerMixin.java` cutoff scaling corrected (`* 0.4`, `* 0.6`) so low-FPS/heavy-mod states cull more aggressively instead of expanding particle distance.
 
+#### Overlay Surface Cleanup + Lighting Coexist Accuracy
+
+- `src/main/java/com/alexxiconify/rustmc/config/RustMCConfig.java` now treats legacy `enableNativeMetricsHud` as an alias for `enablePieChart` so old configs migrate to the working timing overlay path; config schema bumped to `2.7.1`.
+- `src/main/java/com/alexxiconify/rustmc/RustMCClient.java` F6 toggle now directly controls timing overlay state and action-bar/log text now reflects timing overlay behavior.
+- `src/main/java/com/alexxiconify/rustmc/config/ModMenuIntegration.java` removed dead Native Metrics HUD toggle, added lighting status/readiness text, exposed `experimentalCoexistEnabled`, and updated lighting descriptions to match coexist behavior.
+- `src/main/java/com/alexxiconify/rustmc/ModBridge.java` + `src/main/java/com/alexxiconify/rustmc/mixin/performance/LightingMixin.java` now gate native lighting on explicit mod-ownership rules so coexist ON keeps Rust lighting active while coexist OFF yields to intrusive lighting owners.
+- `src/main/java/com/alexxiconify/rustmc/ModBridge.java` ownership predicates were corrected so bridge semantics match labels (`isMathOwned`, `isNetworkingOwned`, `isFrustumOwned`) and native hooks no longer get disabled by inverted checks.
+- `src/main/resources/assets/rust-mc/lang/en_us.json` F6 translation now reads "Toggle Timing Info Overlay".
+
+#### Java Multicore Fallback Expansion (Hot-Path Safety Net)
+
+- `src/main/java/com/alexxiconify/rustmc/util/ParticleTickDispatcher.java` now drives adaptive particle ticking with Java-parallel fallback (`IntStream.parallel`) and auto-switches after repeated slow native batches; `NativeBridge.tickParticlesAdaptive(...)` routes compat callers through this dispatcher.
+- `src/main/java/com/alexxiconify/rustmc/NativeBridge.java` `dnsBatchResolve(...)` now falls back to Java DNS resolution with parallel batching when native DNS symbols are unavailable.
+- `src/main/java/com/alexxiconify/rustmc/NativeBridge.java` pathfinding scratch arrays moved to `ThreadLocal` storage to keep zero-allocation behavior while remaining thread-safe under modded call patterns.
+- `src/main/java/com/alexxiconify/rustmc/compat/ParticleRainCompat.java` now always routes through `NativeBridge.tickParticlesAdaptive(...)`, allowing native or Java fallback execution without silently disabling optimization when native load fails.
+
 ### April 18, 2026
 
 #### Rust DH Frustum + Occlusion Micro-Optimization Pass
