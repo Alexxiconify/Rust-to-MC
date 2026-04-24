@@ -37,6 +37,14 @@ Historical-first view of the same canonical fact set used by [`ROADMAP.md`](../R
 - `src/main/java/com/alexxiconify/rustmc/config/ModMenuIntegration.java` status panel now shows chunk ingest packets/bytes from native metrics plus Java-side attempts/failures/avg JNI microseconds.
 - Track status: ingest/instrumentation only; no gameplay-critical chunk decode/worldgen replacement enabled yet.
 
+### April 24, 2026
+
+#### JNI Stats Snapshot Reuse + HUD Render Churn Trim
+
+- `src/main/java/com/alexxiconify/rustmc/NativeBridge.java` now reuses per-thread snapshot buffers for frustum counters, chunk ingest stats, and metrics reads, and swaps frame-history cache churn from atomic snapshot plumbing to a lighter volatile cache.
+- `src/main/java/com/alexxiconify/rustmc/util/NativeStatsRenderer.java` now respects the 5-field metrics snapshot while rendering only the 3 HUD lines it needs.
+- `src/main/java/com/alexxiconify/rustmc/util/PieChartRenderer.java` no longer allocates a per-frame line array for the timing overlay.
+
 #### Startup Load-In + Particle Pressure Trim
 
 - `src/main/java/com/alexxiconify/rustmc/RustMC.java` startup config path now skips unconditional rewrite when config schema is already current, reducing load-in disk churn.
@@ -197,4 +205,4 @@ Historical-first view of the same canonical fact set used by [`ROADMAP.md`](../R
 
 ---
 
-Last Updated: April 23, 2026
+Last Updated: April 24, 2026

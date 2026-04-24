@@ -7,10 +7,9 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-//
- //  NativeBridge handles all communication between Java and the Rust native core via JNI.
- //  Many wrapper methods appear "unused" in static analysis because they are part of the
- //  public API consumed by mixins and compat hooks.
+//  NativeBridge handles all communication between Java and the Rust native core via JNI.
+//  Many wrapper methods appear "unused" in static analysis because they are part of the
+//  public API consumed by mixins and compat hooks.
 public class NativeBridge {
     private NativeBridge() {}
     public static final int CONTEXT_VANILLA = 0;
@@ -32,6 +31,9 @@ public class NativeBridge {
     private static int frameHistoryCount;
     private static final AtomicInteger frameHistoryVersion = new AtomicInteger(0);
     private static final AtomicReference<FrameHistorySnapshot> cachedFrameHistorySnapshot = new AtomicReference<>(FrameHistorySnapshot.empty());
+    private static final int[] lastFrustumFrameCounters = new int[3];
+    private static final long[] chunkIngestStats = new long[4];
+    private static final long[] metricsSnapshot = new long[5];
     // Cache optional native symbol availability to avoid repeated exception fallbacks in hot culling paths.
     private static volatile boolean supportsFrustumMarginTest = true;
     private static volatile boolean supportsDhVerticalCull = true;
@@ -144,13 +146,18 @@ public class NativeBridge {
         }
     }
 
-    public static long[] getChunkIngestStats() {
+    public static synchronized long[] getChunkIngestStats() {
+        long[] snapshot = chunkIngestStats;
         long attempts = chunkIngestAttempts.get();
         long forwards = chunkIngestForwards.get();
         long failures = chunkIngestFailures.get();
         long totalNanos = chunkIngestTotalNanos.get();
         long avgMicros = forwards > 0 ? (totalNanos / forwards) / 1_000L : 0L;
-        return new long[] {attempts, forwards, failures, avgMicros};
+        snapshot[0] = attempts;
+        snapshot[1] = forwards;
+        snapshot[2] = failures;
+        snapshot[3] = avgMicros;
+        return snapshot;
     }
     public static void requestMemoryCleanup() {
         if (!libLoaded || !supportsMemoryCleanup) return;
@@ -532,7 +539,7 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError e) { return -1; }
     }
     public static int invokeFrustumIntersect(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
-        return testRustFrustum(0, minX, minY, minZ, maxX, maxY, maxZ) ? 1 : 0;
+        return libLoaded && minX <= maxX && minY <= maxY && minZ <= maxZ ? 1 : 0;
     }
     public static long createRustFrustum() {
         if (!libLoaded) return 0;
@@ -542,7 +549,6 @@ public class NativeBridge {
     public static void updateRustFrustum(long ptr, float[] vpMatrix) {
         updateRustFrustumTracked(ptr, vpMatrix);
     }
-
     // Returns true only when a native frustum update call was successfully invoked.
     public static boolean updateRustFrustumTracked(long ptr, float[] vpMatrix) {
         if (!libLoaded || ptr == 0 || vpMatrix == null || vpMatrix.length < 16) return false;
@@ -551,17 +557,11 @@ public class NativeBridge {
             try {
                 rustFrustumUpdate(ptr, vpMatrix, ctx.fovScale(), ctx.camX(), ctx.camY(), ctx.camZ());
                 return true;
-            } catch (UnsatisfiedLinkError ignored) {
-                // Fallback to newer signature below.
+            } catch (UnsatisfiedLinkError ignored) { // Fallback to newer signature below.
             }
         }
-        try {
-            rustFrustumUpdate(ptr, vpMatrix);
-            return true;
-        }
-        catch (UnsatisfiedLinkError ignored) {
-            return false;
-        }
+        try { rustFrustumUpdate(ptr, vpMatrix); return true;}
+        catch (UnsatisfiedLinkError ignored) { return false;}
     }
     public static void setRustFrustumFovScale(long ptr, double fovScale) {
         if (!libLoaded || ptr == 0) return;
@@ -587,9 +587,7 @@ public class NativeBridge {
             boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ);
             recordFrustumResult(visible);
             return visible;
-        } catch (UnsatisfiedLinkError ignored) {
-            return true;
-        }
+        } catch (UnsatisfiedLinkError ignored) { return true;}
     }
     private record ClientFrustumContext(double fovScale, double camX, double camY, double camZ) {}
 
@@ -598,9 +596,7 @@ public class NativeBridge {
             MinecraftClient client = MinecraftClient.getInstance();
             if (client == null || client.player == null) return Double.NaN;
             return client.player.getY();
-        } catch (Exception ignored) {
-            return Double.NaN;
-        }
+        } catch (Exception ignored) { return Double.NaN;}
     }
 
     private static ClientFrustumContext getClientFrustumContext() {
@@ -612,9 +608,7 @@ public class NativeBridge {
             double aspectBoost = Math.max(1.0, aspect / (16.0 / 9.0));
             double fovScale = Math.clamp(1.15 * (fov / 70.0) * Math.sqrt(aspectBoost), 0.8, 2.5);
             return new ClientFrustumContext(fovScale, client.player.getX(), client.player.getEyeY(), client.player.getZ());
-        } catch (Exception ignored) {
-            return null;
-        }
+        } catch (Exception ignored) { return null;}
     }
     public static void destroyRustFrustum(long ptr) {
         if (!libLoaded || ptr == 0) return;
@@ -691,12 +685,12 @@ public class NativeBridge {
         frustumCulledLastFrame.set(frustumCulledThisFrame.getAndSet(0));
     }
 
-    public static int[] getLastFrustumFrameCounters() {
-        return new int[] {
-            frustumChecksLastFrame.get(),
-            frustumVisibleLastFrame.get(),
-            frustumCulledLastFrame.get()
-        };
+    public static synchronized int[] getLastFrustumFrameCounters() {
+        int[] snapshot = lastFrustumFrameCounters;
+        snapshot[0] = frustumChecksLastFrame.get();
+        snapshot[1] = frustumVisibleLastFrame.get();
+        snapshot[2] = frustumCulledLastFrame.get();
+        return snapshot;
     }
     public static boolean invokeDHCull(double minY, double maxY, double surfaceY) {
         if (!libLoaded) return true;
@@ -903,15 +897,18 @@ public class NativeBridge {
             return new int[0];
         }
     }
-    public static long[] getMetrics(boolean reset) {
-        if (!libLoaded) return new long[] {0L, 0L, 0L, 0L, 0L};
+    public static synchronized long[] getMetrics(boolean reset) {
+        long[] snapshot = metricsSnapshot;
+        java.util.Arrays.fill(snapshot, 0L);
+        if (!libLoaded) return snapshot;
         try {
             long[] metrics = rustGetMetrics(reset);
-            if (metrics == null || metrics.length < 3) return new long[] {0L, 0L, 0L, 0L, 0L};
-            if (metrics.length >= 5) return metrics;
-            return new long[] {metrics[0], metrics[1], metrics[2], 0L, 0L};
+            if (metrics == null || metrics.length == 0) return snapshot;
+            int len = Math.min(snapshot.length, metrics.length);
+            System.arraycopy(metrics, 0, snapshot, 0, len);
+            return snapshot;
         } catch (UnsatisfiedLinkError e) {
-            return new long[] {0L, 0L, 0L, 0L, 0L};
+            return snapshot;
         }
     }
     // ─── DNS Cache Methods ──────────────────────────────────────────────────

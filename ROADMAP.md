@@ -53,6 +53,7 @@ Single source of truth for active direction and completed status. This file and 
 - Particle paths: native scratch buffer reuse, Rayon only for larger batches, spawn cutoff squared-distance cache at 20Hz.
 - April 23 pass: particle cutoff scaling fixed so low-FPS/heavy-mod modes tighten distance as intended (reduced particle load under stress).
 - LOD mesh/GPU paths skip empty inputs early in Java and Rust.
+- April 24 pass: frustum/chunk/metric JNI stats now reuse per-thread snapshot buffers; `NativeStatsRenderer` no longer over-reads 5-field metric snapshots; `PieChartRenderer` dropped per-render line-array churn.
 
 ### Build + Packaging + Networking
 
@@ -154,4 +155,4 @@ Ship only when one or more gates are met without regressions:
 
 ---
 
-Last Updated: April 23, 2026
+Last Updated: April 24, 2026

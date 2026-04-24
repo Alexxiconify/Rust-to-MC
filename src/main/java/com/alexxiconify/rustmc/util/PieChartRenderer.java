@@ -25,30 +25,28 @@ public final class PieChartRenderer {
         // Refresh cached stats at most every 250ms
         long now = System.currentTimeMillis();
         if ((!cacheValid || now - lastUpdateMs > UPDATE_INTERVAL_MS) && !refreshStats()) return; // no data
-        String[] lines = {
-            "Timing Info",
-            cachedAvgLabel,
-            cachedMinMaxLabel,
-            cachedSlowLabel,
-            cachedRenderLabel,
-            cachedTickLabel,
-            cachedNetLabel,
-            cachedGpuLabel,
-            cachedOtherLabel
-        };
-        int maxWidth = 0;
-        for (String line : lines) {
-            maxWidth = Math.max(maxWidth, textRenderer.getWidth(line));
-        }
+        int maxWidth = textRenderer.getWidth("Timing Info");
+        maxWidth = Math.max(maxWidth, textRenderer.getWidth(cachedAvgLabel));
+        maxWidth = Math.max(maxWidth, textRenderer.getWidth(cachedMinMaxLabel));
+        maxWidth = Math.max(maxWidth, textRenderer.getWidth(cachedSlowLabel));
+        maxWidth = Math.max(maxWidth, textRenderer.getWidth(cachedRenderLabel));
+        maxWidth = Math.max(maxWidth, textRenderer.getWidth(cachedTickLabel));
+        maxWidth = Math.max(maxWidth, textRenderer.getWidth(cachedNetLabel));
+        maxWidth = Math.max(maxWidth, textRenderer.getWidth(cachedGpuLabel));
+        maxWidth = Math.max(maxWidth, textRenderer.getWidth(cachedOtherLabel));
         int x = screenW - maxWidth - 10;
         int y = 6;
-        int height = lines.length * 10 + 6;
+        int height = 9 * 10 + 6;
         context.fill(x - 4, y - 3, x + maxWidth + 4, y + height, 0x70000000);
-        context.drawTextWithShadow(textRenderer, lines[0], x, y, 0xFF33CCFF);
-        for (int i = 1; i < lines.length; i++) {
-            int color = i <= 3 ? 0xFFCCCCCC : 0xFFAAAAAA;
-            context.drawTextWithShadow(textRenderer, lines[i], x, y + i * 10, color);
-        }
+        context.drawTextWithShadow(textRenderer, "Timing Info", x, y, 0xFF33CCFF);
+        context.drawTextWithShadow(textRenderer, cachedAvgLabel, x, y + 10, 0xFFCCCCCC);
+        context.drawTextWithShadow(textRenderer, cachedMinMaxLabel, x, y + 20, 0xFFCCCCCC);
+        context.drawTextWithShadow(textRenderer, cachedSlowLabel, x, y + 30, 0xFFCCCCCC);
+        context.drawTextWithShadow(textRenderer, cachedRenderLabel, x, y + 40, 0xFFAAAAAA);
+        context.drawTextWithShadow(textRenderer, cachedTickLabel, x, y + 50, 0xFFAAAAAA);
+        context.drawTextWithShadow(textRenderer, cachedNetLabel, x, y + 60, 0xFFAAAAAA);
+        context.drawTextWithShadow(textRenderer, cachedGpuLabel, x, y + 70, 0xFFAAAAAA);
+        context.drawTextWithShadow(textRenderer, cachedOtherLabel, x, y + 80, 0xFFAAAAAA);
     }
     //
      // Refreshes cached stats from the native frame history ring buffer.
