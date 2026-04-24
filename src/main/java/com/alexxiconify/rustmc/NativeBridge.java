@@ -49,6 +49,7 @@ public class NativeBridge {
     private static final java.util.concurrent.atomic.AtomicLong chunkIngestFailures = new java.util.concurrent.atomic.AtomicLong(0L);
     private static final java.util.concurrent.atomic.AtomicLong chunkIngestTotalNanos = new java.util.concurrent.atomic.AtomicLong(0L);
     private static final int DNS_PARALLEL_THRESHOLD = 16;
+    private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
 
     public static final class FrameHistorySnapshot {
         private final float[] history;
@@ -382,16 +383,8 @@ public class NativeBridge {
     //
      // Batch frustum test with margin.
     public static byte[] batchFrustumTest(long ptr, double[] aabbs, double margin) {
-        if (aabbs == null) return new byte[0];
-        int count = aabbs.length / 6;
-        if (!libLoaded) return new byte[0];
-        try {
-            byte[] out = rustBatchFrustumTest(ptr, aabbs, count, margin);
-            recordBatchFrustumResult(out, count);
-            return out;
-        } catch (UnsatisfiedLinkError e) {
-            return new byte[0];
-        }
+        if (aabbs == null) return EMPTY_BYTE_ARRAY;
+        return batchFrustumTest(ptr, aabbs, aabbs.length / 6, margin);
     }
     private static native boolean rustDHCull(double minY, double maxY, double surfaceY);
     private static native boolean rustDHCullFused(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double surfaceY);
@@ -678,11 +671,11 @@ public class NativeBridge {
     }
     public static byte[] batchFrustumTest(long ptr, double[] aabbs, int count, double margin) {
         if (aabbs == null || count <= 0) {
-            return new byte[0];
+            return EMPTY_BYTE_ARRAY;
         }
         int safeCount = Math.min(count, aabbs.length / 6);
         if (safeCount == 0) {
-            return new byte[0];
+            return EMPTY_BYTE_ARRAY;
         }
         if (!libLoaded || ptr == 0) {
             return allVisibleBatchFrustumResult(safeCount);

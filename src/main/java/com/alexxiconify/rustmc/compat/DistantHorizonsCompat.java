@@ -1,14 +1,13 @@
 package com.alexxiconify.rustmc.compat;
 import com.alexxiconify.rustmc.RustMC;
 import net.fabricmc.loader.api.FabricLoader;
-//
- //  Reflection-based integration with Distant Horizons.
- //  API methods like {@link #computeRustAmbientOcclusion} and {@link #computeRustAmbientOcclusionDirect}
- //  are public API for DH vertex builders to offload AO to Rust's wgpu compute pipeline.
+//  Reflection-based integration with Distant Horizons. API methods like {@link #computeRustAmbientOcclusion} and {@link #computeRustAmbientOcclusionDirect} are public API for DH vertex builders to offload AO to Rust's wgpu compute pipeline.
 @SuppressWarnings({"java:S3776", "java:S112", "java:S1168", "java:S1854", "java:S1905"})
 public class DistantHorizonsCompat {
     private static final String DH_MOD_ID = "distanthorizons";
     private static final String DH_API_CLASS = "com.seibel.distanthorizons.api.DhApi";
+    private static final String MATRIX_VALUES_AS_ARRAY_METHOD = "getValuesAsArray";
+    private static final String MATRIX_TO_ARRAY_METHOD = "toArray";
     private static final double DH_SURFACE_Y = 54.0;
     private static final double DH_AGGRESSIVE_MARGIN = -2.0;
     private static final double DH_MIN_MARGIN = -2.0;
@@ -76,6 +75,7 @@ public class DistantHorizonsCompat {
     private static final java.util.concurrent.ConcurrentHashMap<Class<?>, BoundsFields> BOUNDS_FIELD_CACHE =
         new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.concurrent.atomic.AtomicBoolean dhApiShapeLogged = new java.util.concurrent.atomic.AtomicBoolean(false);
+    private static final java.util.concurrent.atomic.AtomicBoolean dhBoundsShapeLogged = new java.util.concurrent.atomic.AtomicBoolean(false);
     private static final java.util.concurrent.atomic.AtomicInteger unknownProxyMethodCount = new java.util.concurrent.atomic.AtomicInteger(0);
     @SuppressWarnings("java:S3776")
     public static void registerFrustumCuller() {
@@ -147,7 +147,7 @@ public class DistantHorizonsCompat {
             case PRIORITY -> Integer.MAX_VALUE;
             case UPDATE -> handleFrustumUpdate(args);
             case INTERSECT -> handleFrustumIntersects(args);
-            case EQUALS -> proxy == args[0];
+            case EQUALS -> args != null && args.length == 1 && proxy == args[0];
             case HASHCODE -> System.identityHashCode(proxy);
             case TOSTRING -> "RustMC-DH-FrustumCuller";
             default -> {
@@ -232,50 +232,59 @@ public class DistantHorizonsCompat {
         if (mat == null) {
             return null;
         }
-        if (getValuesAsArrayMethod == null) {
-            try {
-                getValuesAsArrayMethod = mat.getClass().getMethod("getValuesAsArray");
-            } catch (NoSuchMethodException ignored) {
-                // Method not present in this DH version
-            }
-        }
-        if (getValuesAsArrayMethod != null) {
-            Object out = getValuesAsArrayMethod.invoke(mat);
-            if (out instanceof float[] arr && arr.length >= 16) {
-                return arr;
-            }
-        }
+        float[] values = tryInvokeNoArgFloatArray(mat, MATRIX_VALUES_AS_ARRAY_METHOD);
+        if (values != null) return values;
+        values = tryInvokeNoArgFloatArray(mat, MATRIX_TO_ARRAY_METHOD);
+        if (values != null) return values;
+        return tryInvokeMatrixGet(mat);
+    }
 
-        if (matrixToArrayMethod == null) {
-            try {
-                matrixToArrayMethod = mat.getClass().getMethod("toArray");
-            } catch (NoSuchMethodException ignored) {
-                // Method not present in this DH version
+    private static float[] tryInvokeNoArgFloatArray(Object mat, String methodName) throws Exception {
+        java.lang.reflect.Method method = switch (methodName) {
+            case MATRIX_VALUES_AS_ARRAY_METHOD -> getValuesAsArrayMethod;
+            case MATRIX_TO_ARRAY_METHOD -> matrixToArrayMethod;
+            default -> null;
+        };
+        if (method == null) {
+            method = resolveNoArgMethod(mat, methodName);
+            if (method == null) {
+                return null;
+            }
+            if (MATRIX_VALUES_AS_ARRAY_METHOD.equals(methodName)) {
+                getValuesAsArrayMethod = method;
+            } else if (MATRIX_TO_ARRAY_METHOD.equals(methodName)) {
+                matrixToArrayMethod = method;
             }
         }
-        if (matrixToArrayMethod != null) {
-            Object out = matrixToArrayMethod.invoke(mat);
-            if (out instanceof float[] arr && arr.length >= 16) {
-                return arr;
-            }
+        Object out = method.invoke(mat);
+        if (out instanceof float[] arr && arr.length >= 16) {
+            return arr;
         }
+        return null;
+    }
 
+    private static java.lang.reflect.Method resolveNoArgMethod(Object mat, String methodName) {
+        try {
+            return mat.getClass().getMethod(methodName);
+        } catch (NoSuchMethodException ignored) {
+            return null;
+        }
+    }
+
+    private static float[] tryInvokeMatrixGet(Object mat) throws Exception {
         if (matrixGetMethod == null) {
             try {
                 matrixGetMethod = mat.getClass().getMethod("get", float[].class);
             } catch (NoSuchMethodException ignored) {
-                // Method not present in this DH version
+                return null;
             }
         }
-        if (matrixGetMethod != null) {
-            float[] out = new float[16];
-            Object ret = matrixGetMethod.invoke(mat, (Object) out);
-            if (ret instanceof float[] arr && arr.length >= 16) {
-                return arr;
-            }
-            return out;
+        float[] out = new float[16];
+        Object ret = matrixGetMethod.invoke(mat, (Object) out);
+        if (ret instanceof float[] arr && arr.length >= 16) {
+            return arr;
         }
-        return null;
+        return out;
     }
 
     private static long fingerprintMatrix(float[] vpArray) {
@@ -362,15 +371,9 @@ public class DistantHorizonsCompat {
 
     private static java.util.Optional<SectionBounds> resolveIntersectBounds(Object[] args) {
         if (args.length == 1 && args[0] != null) {
-            Object box = args[0];
-            try {
-                BoundsFields fields = BOUNDS_FIELD_CACHE.computeIfAbsent(box.getClass(), DistantHorizonsCompat::resolveBoundsFields);
-                return java.util.Optional.of(new SectionBounds(
-                    fields.minX().getDouble(box), fields.minY().getDouble(box), fields.minZ().getDouble(box),
-                    fields.maxX().getDouble(box), fields.maxY().getDouble(box), fields.maxZ().getDouble(box)
-                ));
-            } catch (Exception e) {
-                return java.util.Optional.empty();
+            java.util.Optional<SectionBounds> singleArgBounds = resolveSingleArgBounds(args[0]);
+            if (singleArgBounds.isPresent()) {
+                return singleArgBounds;
             }
         }
         if (args.length >= 6
@@ -396,6 +399,74 @@ public class DistantHorizonsCompat {
             ));
         }
         return java.util.Optional.empty();
+    }
+
+    private static java.util.Optional<SectionBounds> resolveSingleArgBounds(Object arg) {
+        if (arg instanceof double[] vals && vals.length >= 6) {
+            return java.util.Optional.of(new SectionBounds(vals[0], vals[1], vals[2], vals[3], vals[4], vals[5]));
+        }
+        if (arg instanceof float[] vals && vals.length >= 6) {
+            return java.util.Optional.of(new SectionBounds(vals[0], vals[1], vals[2], vals[3], vals[4], vals[5]));
+        }
+        if (arg instanceof Number[] vals && vals.length >= 6) {
+            return java.util.Optional.of(new SectionBounds(
+                vals[0].doubleValue(), vals[1].doubleValue(), vals[2].doubleValue(),
+                vals[3].doubleValue(), vals[4].doubleValue(), vals[5].doubleValue()
+            ));
+        }
+        java.util.Optional<SectionBounds> fieldBounds = resolveBoundsFromFields(arg);
+        if (fieldBounds.isPresent()) {
+            return fieldBounds;
+        }
+        return resolveBoundsFromGetters(arg);
+    }
+
+    private static java.util.Optional<SectionBounds> resolveBoundsFromFields(Object box) {
+        try {
+            BoundsFields fields = BOUNDS_FIELD_CACHE.computeIfAbsent(box.getClass(), DistantHorizonsCompat::resolveBoundsFields);
+            return java.util.Optional.of(new SectionBounds(
+                fields.minX().getDouble(box), fields.minY().getDouble(box), fields.minZ().getDouble(box),
+                fields.maxX().getDouble(box), fields.maxY().getDouble(box), fields.maxZ().getDouble(box)
+            ));
+        } catch (RuntimeException | IllegalAccessException ignored) {
+            return java.util.Optional.empty();
+        }
+    }
+
+    private static java.util.Optional<SectionBounds> resolveBoundsFromGetters(Object box) {
+        try {
+            Double minX = invokeNumericGetter(box, "getMinX", "minX");
+            Double minY = invokeNumericGetter(box, "getMinY", "minY");
+            Double minZ = invokeNumericGetter(box, "getMinZ", "minZ");
+            Double maxX = invokeNumericGetter(box, "getMaxX", "maxX");
+            Double maxY = invokeNumericGetter(box, "getMaxY", "maxY");
+            Double maxZ = invokeNumericGetter(box, "getMaxZ", "maxZ");
+            if (minX == null || minY == null || minZ == null || maxX == null || maxY == null || maxZ == null) {
+                return java.util.Optional.empty();
+            }
+            return java.util.Optional.of(new SectionBounds(minX, minY, minZ, maxX, maxY, maxZ));
+        } catch (Exception ignored) {
+            return java.util.Optional.empty();
+        }
+    }
+
+    private static Double invokeNumericGetter(Object target, String... methodNames) {
+        Class<?> cls = target.getClass();
+        for (String methodName : methodNames) {
+            try {
+                java.lang.reflect.Method method = cls.getMethod(methodName);
+                Object value = method.invoke(target);
+                if (value instanceof Number n) {
+                    return n.doubleValue();
+                }
+            } catch (Exception ignored) {
+                // Try next getter signature.
+            }
+        }
+        if (dhBoundsShapeLogged.compareAndSet(false, true)) {
+            RustMC.LOGGER.debug("[Rust-MC] DH intersect bounds shape not recognized for {}", cls.getName());
+        }
+        return null;
     }
 
     private static BoundsFields resolveBoundsFields(Class<?> cls) {

@@ -38,6 +38,15 @@ Historical record. Active plan lives in [`ROADMAP.md`](../ROADMAP.md); fast file
 
 ### April 24, 2026
 
+#### Single-Pass Roadmap Sweep (Frustum/DH + JNI + Compat Noise)
+
+- `src/main/java/com/alexxiconify/rustmc/MixinManager.java` mixin condition ownership semantics corrected so `MatrixMixin` and `LightingMixin` only apply when Rust-MC owns the path.
+- `src/main/java/com/alexxiconify/rustmc/compat/DistantHorizonsCompat.java` DH frustum proxy now handles null/variant intersect arg shapes (array payloads, object getter forms) more defensively and keeps conservative visible fallback on unresolved shapes.
+- `src/main/java/com/alexxiconify/rustmc/compat/DistantHorizonsCompat.java` matrix extraction path refactored into helper methods to reduce complexity warnings while preserving legacy/new DH API support.
+- `src/main/java/com/alexxiconify/rustmc/NativeBridge.java` batch frustum JNI wrappers now share one fallback path and reuse a shared empty-byte constant to trim wrapper churn.
+- `src/main/java/com/alexxiconify/rustmc/ModBridge.java` removed large dead commented compat stub block/suppression noise, retaining only actively used mod flags and ownership predicates.
+- Validation: `./gradlew.bat :versions:mc1_21_11:build` passed.
+
 #### JNI Stats Snapshot Reuse + HUD Render Churn Trim
 
 - `src/main/java/com/alexxiconify/rustmc/NativeBridge.java` now reuses per-thread snapshot buffers for frustum counters, chunk ingest stats, and metrics reads, and swaps frame-history cache churn from atomic snapshot plumbing to a lighter volatile cache.

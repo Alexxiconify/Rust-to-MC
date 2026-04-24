@@ -22,12 +22,13 @@ Active plan only. History lives in [`docs/completed-changes.md`](docs/completed-
 - UI/debug overlays now focus on Debug HUD Frame Graph + Timing Info overlay (F6), with JNI metrics in Mod Menu status.
 - Native lighting coexist mode stays user-controlled for modded lighting stacks.
 - Particle and DNS hot paths now keep Java multicore fallbacks available when native path is unavailable or repeatedly slower.
+- Single-pass (Apr 24): DH frustum proxy now handles more intersect argument shapes safely; mixin ownership gating corrected; JNI batch frustum wrappers now avoid duplicate fallback paths/empty-array churn; dead compat stub block removed from `ModBridge`.
 
 ## Now
 
-1. Validate frustum/DH edge cases.
-2. Cut JNI crossings and allocations where payoff is real.
-3. Remove dead config, compat, and logging noise.
+1. Validate frustum/DH edge cases. (in progress: proxy arg-shape/null hardening landed)
+2. Cut JNI crossings and allocations where payoff is real. (in progress: batch frustum wrapper consolidation landed)
+3. Remove dead config, compat, and logging noise. (in progress: `ModBridge` dead compat stub sweep landed)
 4. Expand native packet/chunk work only with profiling proof.
 5. Keep chunk ingest preview gated and sampled.
 6. If Rust path overhead is higher than Java on a hot path, prefer Java multicore/multithread optimization first.
