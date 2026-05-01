@@ -19,7 +19,11 @@ Active plan only. History lives in [`docs/completed-changes.md`](docs/completed-
 - Client-only optimization surface; server-only mixins removed.
 - Native bridge covers frustum, particle, lighting, audio/compression, DH/LOD paths.
 - Chunk ingest stays preview-only behind `enableChunkIngestOffload`.
-- UI/debug overlays now focus on Debug HUD Frame Graph + Timing Info overlay (F6), with JNI metrics in Mod Menu status.
+- [x] Consolidate HUD overlays into `DiagnosticHudRenderer`
+- [x] Streamline configuration with `DiagnosticMode` enum
+- [x] Optimize keybinds (F7 for HUD cycling, F8 for Sparkline)
+- [ ] Implement Chunk Ingest offloading to Rust
+- [ ] Native lighting integration (Experimental)
 - Native lighting coexist mode stays user-controlled for modded lighting stacks.
 - Particle and DNS hot paths now keep Java multicore fallbacks available when native path is unavailable or repeatedly slower.
 - Instrumentation pass (Apr 24): DH frustum validation instrumentation added (refresh reasons, move tracking); `PieChartRenderer` timing overlay expanded with DH/Frustum diagnostics; player position fallback implemented for `1.21.11` camera API transition.
@@ -29,11 +33,22 @@ Active plan only. History lives in [`docs/completed-changes.md`](docs/completed-
 - DH Performance Fused Path (May 1): Eliminated significant JNI overhead and hot-path Java allocations in the Distant Horizons (DH) rendering path. Implemented `rustDHCullFused` in Rust to consolidate frustum, vertical cave-gate, and occlusion checks into a single JNI crossing. Removed expensive Java-side trigonometric calculations and per-section ConcurrentHashMap caching in `DistantHorizonsCompat`. Restored Metrics HUD observability by fixing the frame-history refresh logic in `DebugHudMixin`. Net result: Restored FPS to ~200+ target while maintaining absolute world coordinate consistency.
 - Frame telemetry migration (May 1): Removed in-house `NativeBridge.FrameHistorySnapshot`, `getFrameHistorySnapshot()`, `rollFrustumFrameCounters()`, and `getLastFrustumFrameCounters()`. `DebugHudMixin` now drives the sparkline and `PieChartRenderer` from a local Java ring buffer fed by `mc.getCurrentFps()`. `ClientFrameMetricsMixin` has been removed entirely. `ModMenuIntegration` status panel now shows MC's live FPS in place of the removed frustum frame counters. Net result: zero in-house frame collection overhead on the hot path.
 - Architectural Performance Pass (May 1): Optimized `ClientPlayNetworkHandlerMixin` with reflection-free `ChunkDataS2CPacketAccessor`, eliminating reflection overhead on the chunk ingest path. Removed `MatrixMixin` regression where JNI crossing for 4x4 math was slower than Java JIT. Refactored `ParticleTickDispatcher` Java fallback to replace expensive `IntStream.parallel()` with a manual partitioning loop, reducing allocation and stream overhead. Fixed cognitive complexity and variable declaration lints in `DistantHorizonsCompat`.
+
+### Q2 2026: Optimization & Maintenance
+
+- [x] Bump Rust MSRV to 1.89 for AVX-512 support
+- [x] Upgrade core dependencies (wgpu 24.0, jni 0.22, glam 0.32)
+- [x] Profile and optimize JNI boundary overhead
+- [x] Implement particle distance culling
+
 - iGPU/Zen 4 Optimization Pass (May 1): Implemented a two-tier culling strategy to maximize FPS on integrated graphics (Framework 16 7040). Tier 1: Java-side "Shadow Frustum" using normalized planes culls ~80-90% of sections without a JNI crossing. Tier 2: AVX-512 and AVX2 vectorized Rust frustum culling for precise intersection tests. Integrated a per-frame Visibility Cache in `DistantHorizonsCompat` with spatial hashing, eliminating redundant culling. Fixed the Metrics HUD display logic in `DebugHudMixin` to restore live telemetry for JNI calls, light updates, and chunk traffic.
+- Particle Performance & UX Pass (May 1): Finalized the adaptive particle culling architecture. Implemented camera-aware distance culling in `particles.rs` using a squared distance threshold passed from Java. Added high-performance hardware presets (LOW_END_IGPU, MID_RANGE, HIGH_END_DGPU) to `RustMCConfig` and integrated them into the ModMenu/YACL UI. Updated `ParticleTickDispatcher` to fetch camera coordinates once per batch, ensuring the native core skips updates for distant, non-visible effects. Resolved JNI signature conflicts and refined the Java-side bridge for cleaner parameter passing.
+- Native Metrics & Config Stabilization (May 1): Finalized the native telemetry and configuration framework for high-performance iGPU monitoring. Updated the `NativeStatsRenderer` refresh interval to 100ms (10Hz) with adjusted scaling (10x) for real-time diagnostic visibility. Performed a comprehensive audit of `RustMCConfig`, pruning redundant fields (`bridgeC2ME`, `enableDebugHudGraph`) and merging debug HUD toggles into a unified `enableSparklineGraph`. Fixed a critical visibility bug in `DebugHudMixin` that prevented the native metrics HUD from rendering when other overlays were disabled. Increased the chunk ingest sampling rate in `ClientPlayNetworkHandlerMixin` to 1/8 packets and decoupled it from logging settings to ensure consistent native-side data flow.
+- Core Dependency & Compute Modernization (May 1): Successfully migrated the native core to `wgpu 24.0`, `jni 0.22`, and `glam 0.32`. Refactored GPU compute pipelines (`wgpu_mesher.rs`, `wgpu_ao.rs`) to use thread-local buffer pooling, eliminating global `Mutex` contention in parallel LOD generation and ambient occlusion paths. Implemented the `jni 0.22` mutable environment model across the entire native bridge, adopting `get_primitive_array_critical` for low-latency array access. Integrated `wgpu::MemoryHints::Performance` and explicit backend selection to optimize driver-level scheduling on modern multi-core systems.
 
 ## Now
 
-1. Expand native packet/chunk work only with profiling proof. (in progress: chunk ingest stats tracking active)
+1. Expand native packet/chunk work only with profiling proof. (in progress: chunk ingest sampling increased to 1/8)
 2. Keep chunk ingest preview gated and sampled.
 3. Render cache locality improvements.
 4. If Rust path overhead is higher than Java on a hot path, prefer Java multicore/multithread optimization first.

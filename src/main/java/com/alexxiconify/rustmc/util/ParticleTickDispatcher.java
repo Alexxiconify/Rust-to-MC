@@ -19,12 +19,28 @@ public final class ParticleTickDispatcher {
     public static void tick(double[] positions, double[] velocities, double gravity) {
         int count = getCount(positions, velocities);
         if (count <= 0) return;
+
+        double camX = 0;
+        double camY = 0;
+        double camZ = 0;
+        double maxDistSq = 1e18;
+        if (RustMC.CONFIG.isEnableParticleCulling()) {
+            var mc = net.minecraft.client.MinecraftClient.getInstance();
+            if (mc.gameRenderer != null && mc.gameRenderer.getCamera() != null) {
+                var camPos = mc.gameRenderer.getCamera().getCameraPos();
+                camX = camPos.x;
+                camY = camPos.y;
+                camZ = camPos.z;
+                maxDistSq = (double) RustMC.CONFIG.getParticleCullingDistance() * RustMC.CONFIG.getParticleCullingDistance();
+            }
+        }
+
         if (shouldUseJavaFallback()) {
             tickJavaParallel(positions, velocities, count, gravity);
             return;
         }
         long startNs = count >= PARALLEL_THRESHOLD ? System.nanoTime() : 0L;
-        if (invokeNative(positions, velocities, gravity)) {
+        if (invokeNative(positions, velocities, gravity, camX, camY, camZ, maxDistSq)) {
             trackNativeTiming(startNs);
             return;
         }
@@ -43,9 +59,9 @@ public final class ParticleTickDispatcher {
         return !NativeBridge.isReady() || preferJavaFallback.get();
     }
 
-    private static boolean invokeNative(double[] positions, double[] velocities, double gravity) {
+    private static boolean invokeNative(double[] positions, double[] velocities, double gravity, double camX, double camY, double camZ, double maxDistSq) {
         try {
-            NativeBridge.tickParticlesNative(positions, velocities, gravity);
+            NativeBridge.tickParticlesNative(positions, velocities, gravity, camX, camY, camZ, maxDistSq);
             return true;
         } catch (UnsatisfiedLinkError ignored) {
             return false;

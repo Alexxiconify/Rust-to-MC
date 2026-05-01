@@ -39,7 +39,6 @@ public class MixinManager implements IMixinConfigPlugin {
     }
     static {
         MIXIN_CONDITIONS = Map.ofEntries(
-            Map.entry(PKG + "performance.MatrixMixin", () -> !ModBridge.isMathOwned()),
             Map.entry(PKG + "performance.LightingMixin", () -> !ModBridge.isLightingOwned()),
             Map.entry(PKG + "performance.ChunkBuilderMixin", () -> RustMC.CONFIG.isEnableChunkBuilderExpand() && !ModBridge.SODIUM),
             Map.entry(PKG + "integration.ClientRedstoneSkipMixin", RustMC.CONFIG :: isEnableClientRedstoneSkip),

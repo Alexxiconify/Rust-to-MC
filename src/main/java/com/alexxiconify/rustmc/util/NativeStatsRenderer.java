@@ -18,7 +18,7 @@ public final class NativeStatsRenderer {
     };
     public static void render(DrawContext context) {
         long now = System.currentTimeMillis();
-        if (now - lastUpdate > 500) {
+        if (now - lastUpdate > 100) {
             metrics = NativeBridge.getMetrics(true);
             lastUpdate = now;
         }
@@ -28,11 +28,11 @@ public final class NativeStatsRenderer {
         int y = context.getScaledWindowHeight() - 60;
         for (int i = 0; i < LABELS.length; i++) {
             long val = (i < metrics.length) ? metrics[i] : 0;
-            String text = LABELS[i] + (val * 2) + "/s";
+            String text = LABELS[i] + (val * 10) + "/s";
             if (i == 4) { // Bytes to KB
-                text = LABELS[i] + String.format("%.1f KB/s", (val * 2) / 1024.0);
+                text = LABELS[i] + String.format("%.1f KB/s", (val * 10) / 1024.0);
             }
-            context.drawTextWithShadow(tr, text, x, y, 0x00FF00);
+            context.drawTextWithShadow(tr, text, x, y, 0xFF00FF00);
             y += 10;
         }
     }

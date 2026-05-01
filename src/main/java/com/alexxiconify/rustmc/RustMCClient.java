@@ -13,8 +13,8 @@ import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
 // Client-side initializer for Rust-MC. Registers keybinds for toggling overlays: F6 — Metrics HUD.  F8 — Frame-time sparkline graph
 public class RustMCClient implements ClientModInitializer {
-    private KeyBinding toggleNativeMetrics;
-    private KeyBinding toggleFrameGraph;
+    private KeyBinding toggleDiagnosticMode;
+    private KeyBinding toggleSparkline;
     @Override
     public void onInitializeClient() {
         registerKeybinds();
@@ -29,35 +29,39 @@ public class RustMCClient implements ClientModInitializer {
     private void registerKeybinds() {
         // Use a stable alphanumeric namespace for category translation compatibility with Controlling.
         KeyBinding.Category rustCategory = KeyBinding.Category.create(Identifier.of("rustmc", "keybinds"));
-        toggleNativeMetrics = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.rustmc.toggle_ram_bar",
-                InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_F6, rustCategory));
-        toggleFrameGraph = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.rustmc.toggle_frame_graph",
+        toggleDiagnosticMode = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.rustmc.toggle_diagnostic_mode",
+                InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_F7, rustCategory));
+        toggleSparkline = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.rustmc.toggle_sparkline",
                 InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_F8, rustCategory));
     }
     private void handleKeybinds(MinecraftClient client) {
         RustMCConfig cfg = RustMC.CONFIG;
         boolean changed = false;
-        while (toggleNativeMetrics.wasPressed()) {
-            boolean enabled = !cfg.isEnablePieChart();
-            cfg.setEnablePieChart(enabled);
-            String state = enabled ? "ON" : "OFF";
-            RustMC.LOGGER.info("[Rust-MC] Timing info overlay: {}", state);
-            showActionBar(client, "Rust-MC Timing Overlay: " + state);
+        while (toggleDiagnosticMode.wasPressed()) {
+            RustMCConfig.DiagnosticMode next = cycleMode(cfg.getDiagnosticMode());
+            cfg.setDiagnosticMode(next);
+            RustMC.LOGGER.info("[Rust-MC] Diagnostic mode: {}", next);
+            showActionBar(client, "Rust-MC Diagnostics: " + next.name());
             changed = true;
         }
-        while (toggleFrameGraph.wasPressed()) {
-            cfg.setDebugHudGraphEnabled(!cfg.isDebugHudGraphEnabled());
-            String state = cfg.isDebugHudGraphEnabled() ? "ON" : "OFF";
-            RustMC.LOGGER.info("[Rust-MC] Frame graph: {}", state);
-            showActionBar(client, "Rust-MC Frame Graph: " + state);
+        while (toggleSparkline.wasPressed()) {
+            cfg.setEnableSparklineGraph(!cfg.isEnableSparklineGraph());
+            String state = cfg.isEnableSparklineGraph() ? "ON" : "OFF";
+            RustMC.LOGGER.info("[Rust-MC] Sparkline graph: {}", state);
+            showActionBar(client, "Rust-MC Sparkline: " + state);
             changed = true;
         }
         // Persist to disk so the toggle survives restarts
         if (changed) {
             RustMC.saveConfig();
         }
+    }
+
+    private RustMCConfig.DiagnosticMode cycleMode(RustMCConfig.DiagnosticMode current) {
+        RustMCConfig.DiagnosticMode[] values = RustMCConfig.DiagnosticMode.values();
+        return values[(current.ordinal() + 1) % values.length];
     }
 
 

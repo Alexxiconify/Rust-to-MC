@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Mixin(ClientPlayNetworkHandler.class)
 public class ClientPlayNetworkHandlerMixin {
     @Unique private static final long VALIDATION_LOG_INTERVAL_NS = 5_000_000_000L;
-    @Unique private static final int SNAPSHOT_SAMPLE_MASK = 0x1F; // 1 out of 32 packets
+    @Unique private static final int SNAPSHOT_SAMPLE_MASK = 0x07; // 1 out of 8 packets
     @Unique private static volatile long lastValidationLogNs;
     @Unique private static final AtomicInteger ingestSequence = new AtomicInteger(0);
 
@@ -29,8 +29,7 @@ public class ClientPlayNetworkHandlerMixin {
         if (!com.alexxiconify.rustmc.RustMC.CONFIG.isEnableChunkIngestOffload()) {
             return;
         }
-        boolean validationEnabled = RustMC.CONFIG.isEnableChunkIngestValidation();
-        boolean shouldSampleSnapshot = validationEnabled && ((ingestSequence.incrementAndGet() & SNAPSHOT_SAMPLE_MASK) == 0);
+        boolean shouldSampleSnapshot = (ingestSequence.incrementAndGet() & SNAPSHOT_SAMPLE_MASK) == 0;
         
         if (!shouldSampleSnapshot) {
             return;
@@ -45,7 +44,10 @@ public class ClientPlayNetworkHandlerMixin {
             return;
         }
         NativeBridge.processChunkData(payload, chunkX, chunkZ);
-        maybeLogValidationStats(chunkX, chunkZ, payload.length);
+        
+        if (RustMC.CONFIG.isEnableChunkIngestValidation()) {
+            maybeLogValidationStats(chunkX, chunkZ, payload.length);
+        }
     }
 
     @Unique

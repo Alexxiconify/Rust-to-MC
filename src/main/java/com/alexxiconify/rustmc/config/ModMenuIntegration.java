@@ -12,6 +12,8 @@ import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.YetAnotherConfigLib;
 import dev.isxander.yacl3.api.controller.BooleanControllerBuilder;
 import dev.isxander.yacl3.api.controller.ColorControllerBuilder;
+import dev.isxander.yacl3.api.controller.EnumControllerBuilder;
+import dev.isxander.yacl3.api.controller.IntegerFieldControllerBuilder;
 import net.minecraft.text.Text;
 import java.awt.Color;
 import java.util.function.Consumer;
@@ -205,9 +207,24 @@ public class ModMenuIntegration implements ModMenuApi {
     private void addNativeFeatureOptions(ConfigCategory.Builder builder, RustMCConfig cfg) {
         builder
             .option(buildSectionHeader("Native Features", "Core native feature toggles."))
-            .option(buildBooleanOption("Native F3 Hooks",
-                "Enable Rust-backed F3/debug calculations where available.",
-                cfg::isUseNativeF3, v -> cfg.setUseNativeF3(v != null && v)))
+            .option(Option.<RustMCConfig.HardwarePreset>createBuilder()
+                .name(Text.literal("Hardware Optimization Preset"))
+                .description(OptionDescription.of(Text.literal(
+                    "Quickly adjust multiple settings for your hardware.\nLOW_END_IGPU: Aggressive culling, optimized for AMD 7040/integrated gfx.\nMID_RANGE: Balanced performance and quality.\nHIGH_END_DGPU: Maximum quality, uses native path for high-throughput.")))
+                .binding(RustMCConfig.HardwarePreset.MID_RANGE, cfg::getHardwarePreset, cfg::setHardwarePreset)
+                .controller(opt -> EnumControllerBuilder.create(opt)
+                    .formatValue(val -> Text.literal(val.name())))
+                .build())
+            .option(buildBooleanOption("Debug HUD Sparkline Graph",
+                "Shows frame-time graph overlay for quick pacing checks.",
+                cfg::isEnableSparklineGraph, v -> cfg.setEnableSparklineGraph(v != null && v)))
+            .option(Option.<RustMCConfig.DiagnosticMode>createBuilder()
+                .name(Text.literal("Diagnostic HUD Mode"))
+                .description(OptionDescription.of(Text.literal("Select which diagnostic information to display on the HUD.")))
+                .binding(RustMCConfig.DiagnosticMode.HIDDEN, cfg::getDiagnosticMode, cfg::setDiagnosticMode)
+                .controller(opt -> EnumControllerBuilder.create(opt)
+                    .formatValue(val -> Text.literal(val.name())))
+                .build())
             .option(buildBooleanOption("Native Lighting (Experimental)",
                 "Routes client lighting updates through Rust worker path when native core is ready.\n" +
                     "Supports coexist mode with modded lighting stacks; disable if your pack shows lighting conflicts.",
@@ -216,12 +233,6 @@ public class ModMenuIntegration implements ModMenuApi {
                 "When ON, keep Rust lighting hook active even when intrusive lighting mods are detected.\n" +
                     "When OFF, Rust lighting yields to Starlight/ScalableLux ownership.",
                 cfg::isExperimentalCoexistEnabled, v -> cfg.setExperimentalCoexistEnabled(v != null && v)))
-            .option(buildBooleanOption("Debug HUD Frame Graph",
-                "Shows frame-time graph overlay for quick pacing checks.",
-                cfg::isDebugHudGraphEnabled, v -> cfg.setDebugHudGraphEnabled(v != null && v)))
-            .option(buildBooleanOption("Timing Info Overlay",
-                "Shows text-only render/load timing summary overlay. F6 keybind toggles this overlay.",
-                cfg::isEnablePieChart, v -> cfg.setEnablePieChart(v != null && v)))
             .option(buildBooleanOption("DNS Cache (Server Pings)",
                 "Caches DNS lookups permanently via Rust to speed up server list pings. Persistent across sessions.\nCached entries: " + NativeBridge.dnsCacheSize(),
                 cfg::isEnableDnsCache, v -> cfg.setEnableDnsCache(v != null && v)))
@@ -236,6 +247,13 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildBooleanOption("Particle Distance Culling",
                 "Skip rendering particles beyond view distance threshold.",
                 cfg::isEnableParticleCulling, v -> cfg.setEnableParticleCulling(v != null && v)))
+            .option(Option.<Integer>createBuilder()
+                .name(Text.literal("Particle Culling Distance"))
+                .description(OptionDescription.of(Text.literal("Distance (blocks) beyond which environmental particles are culled. Lower = more FPS on iGPUs.")))
+                .binding(64, cfg::getParticleCullingDistance, cfg::setParticleCullingDistance)
+                .controller(opt -> IntegerFieldControllerBuilder.create(opt)
+                    .min(16).max(512))
+                .build())
             .option(buildBooleanOption("Expand Chunk Builder Threads",
                 "Use more CPU cores for chunk building (yields to Sodium if present).",
                 cfg::isEnableChunkBuilderExpand, v -> cfg.setEnableChunkBuilderExpand(v != null && v)))
@@ -275,8 +293,6 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(buildSectionHeader("Mod Bridges", "Subsystem ownership handoff to other mods."))
             .option(buildBooleanOption("Sodium Bridge", "Defer rendering-related math to Sodium when present.",
                 cfg::isBridgeSodium, v -> cfg.setBridgeSodium(v != null && v)))
-            .option(buildBooleanOption("C2ME Bridge", "Disable native math/noise/lighting hooks when C2ME is installed.",
-                cfg::isBridgeC2ME, v -> cfg.setBridgeC2ME(v != null && v)))
             .option(buildBooleanOption("Lithium Bridge", "Disable native pathfinding when Lithium is installed.",
                 cfg::isBridgeLithium, v -> cfg.setBridgeLithium(v != null && v)));
     }

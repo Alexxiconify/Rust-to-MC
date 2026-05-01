@@ -252,17 +252,17 @@ public class NativeBridge {
         if (!libLoaded || width <= 0 || height <= 0) return new int[0];
         return rustSampleBiomes(seed, x, z, width, height);
     }
-    private static native void rustTickParticles(double[] positions, double[] velocities, int count, double gravity);
+    private static native void rustTickParticles(double[] positions, double[] velocities, int count, double gravity, double camX, double camY, double camZ, double maxDistSq);
     //
      // Parallelizes particle physics (gravity, velocity decay).
      // Ideal for mods that spawn thousands of environmental particles.
-    public static void tickParticlesNative(double[] positions, double[] velocities, double gravity) {
+    public static void tickParticlesNative(double[] positions, double[] velocities, double gravity, double camX, double camY, double camZ, double maxDistSq) {
         if (!libLoaded) return;
         if (positions == null || velocities == null) return;
         if (positions.length == 0 || velocities.length == 0) return;
         int count = Math.min(positions.length, velocities.length) / 3;
         if (count <= 0) return;
-        rustTickParticles(positions, velocities, count, gravity);
+        rustTickParticles(positions, velocities, count, gravity, camX, camY, camZ, maxDistSq);
     }
 
     public static void tickParticlesAdaptive(double[] positions, double[] velocities, double gravity) {

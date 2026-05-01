@@ -5,7 +5,7 @@ public class RustMCConfig {
     public static final String CURRENT_CONFIG_VERSION = "2.7.1";
     private String configVersion = CURRENT_CONFIG_VERSION;
     // Math/debug overlays
-    private boolean useNativeF3       = true;
+    private boolean enableSparklineGraph   = true;
     // World / system features
     private boolean useNativeLighting    = true;
     private boolean useFastLoadingScreen = true;
@@ -21,17 +21,26 @@ public class RustMCConfig {
     private boolean enableImmediatelyFastCompat = true;
     private boolean enableClientRedstoneSkip   = true;
     private boolean enableDhCaveCulling        = true;
-    private boolean enableDebugHudGraph        = false;
-    private boolean enablePieChart             = false;
-    // Legacy field kept for JSON compatibility; timing overlay now owns this surface.
-    private boolean enableNativeMetricsHud     = false;
+    private int particleCullingDistance        = 64;
+    public enum HardwarePreset {
+        LOW_END_IGPU, // Aggressive culling, low detail
+        MID_RANGE,    // Balanced
+        HIGH_END_DGPU // Maximum quality
+    }
+    private HardwarePreset hardwarePreset      = HardwarePreset.MID_RANGE;
+    public enum DiagnosticMode {
+        HIDDEN,
+        TIMING,
+        NATIVE,
+        ALL
+    }
+    private DiagnosticMode diagnosticMode      = DiagnosticMode.HIDDEN;
     // DNS / Server List
     private boolean enableDnsCache             = true;
     private boolean enableChunkIngestOffload   = false;
     private boolean enableChunkIngestValidation = false;
     // Mod bridges
     private boolean bridgeSodium    = true;
-    private boolean bridgeC2ME      = true;
     private boolean bridgeLithium   = true;
     // Loading screen colors
     private int loadingBarBgColor      = 0xFF1A1A1A;
@@ -47,7 +56,7 @@ public class RustMCConfig {
 
     public void copyFrom(RustMCConfig o) {
         this.configVersion = o.configVersion;
-        this.useNativeF3 = o.useNativeF3;
+        this.enableSparklineGraph = o.enableSparklineGraph;
         this.useNativeLighting = o.useNativeLighting;
         this.useFastLoadingScreen = o.useFastLoadingScreen;
         this.enableParticleCulling = o.enableParticleCulling;
@@ -61,15 +70,13 @@ public class RustMCConfig {
         this.enableImmediatelyFastCompat = o.enableImmediatelyFastCompat;
         this.enableClientRedstoneSkip = o.enableClientRedstoneSkip;
         this.enableDhCaveCulling = o.enableDhCaveCulling;
-        this.enableDebugHudGraph = o.enableDebugHudGraph;
-        boolean overlayEnabled = o.enablePieChart || o.enableNativeMetricsHud;
-        this.enablePieChart = overlayEnabled;
-        this.enableNativeMetricsHud = overlayEnabled;
+        this.particleCullingDistance = o.particleCullingDistance;
+        this.hardwarePreset = o.hardwarePreset;
+        this.diagnosticMode = o.diagnosticMode;
         this.enableDnsCache = o.enableDnsCache;
         this.enableChunkIngestOffload = o.enableChunkIngestOffload;
         this.enableChunkIngestValidation = o.enableChunkIngestValidation;
         this.bridgeSodium = o.bridgeSodium;
-        this.bridgeC2ME = o.bridgeC2ME;
         this.bridgeLithium = o.bridgeLithium;
         this.loadingBarBgColor = o.loadingBarBgColor;
         this.loadingBarLowColor = o.loadingBarLowColor;
@@ -83,7 +90,7 @@ public class RustMCConfig {
     }
     // Getters
     public String getConfigVersion()        { return configVersion; }
-    public boolean isUseNativeF3()          { return useNativeF3; }
+    public boolean isEnableSparklineGraph() { return enableSparklineGraph; }
     public boolean isUseNativeLighting()    { return useNativeLighting; }
     public boolean isUseFastLoadingScreen() { return useFastLoadingScreen; }
     public boolean isEnableParticleCulling()      { return enableParticleCulling; }
@@ -97,14 +104,13 @@ public class RustMCConfig {
     public boolean isEnableImmediatelyFastCompat() { return enableImmediatelyFastCompat; }
     public boolean isEnableClientRedstoneSkip()   { return enableClientRedstoneSkip; }
     public boolean isEnableDhCaveCulling()        { return enableDhCaveCulling; }
-    public boolean isDebugHudGraphEnabled()       { return enableDebugHudGraph; }
-    public boolean isEnablePieChart()             { return enablePieChart; }
-    public boolean isEnableNativeMetricsHud()     { return enablePieChart; }
+    public int getParticleCullingDistance()       { return particleCullingDistance; }
+    public HardwarePreset getHardwarePreset()     { return hardwarePreset; }
+    public DiagnosticMode getDiagnosticMode()     { return diagnosticMode; }
     public boolean isEnableDnsCache()             { return enableDnsCache; }
     public boolean isEnableChunkIngestOffload()   { return enableChunkIngestOffload; }
     public boolean isEnableChunkIngestValidation() { return enableChunkIngestValidation; }
     public boolean isBridgeSodium()         { return bridgeSodium; }
-    public boolean isBridgeC2ME()           { return bridgeC2ME; }
     public boolean isBridgeLithium()        { return bridgeLithium; }
     public int getLoadingBarBgColor()       { return loadingBarBgColor; }
     public int getLoadingBarLowColor()      { return loadingBarLowColor; }
@@ -116,7 +122,7 @@ public class RustMCConfig {
     public boolean isNativeReady()          { return nativeReady; }
     public boolean isExperimentalCoexistEnabled() { return experimentalCoexistEnabled; }
     public void setConfigVersion(String v)       { configVersion = v; }
-    public void setUseNativeF3(boolean v)          { useNativeF3 = v; }
+    public void setEnableSparklineGraph(boolean v) { enableSparklineGraph = v; }
     public void setUseNativeLighting(boolean v)    { useNativeLighting = v; }
     public void setUseFastLoadingScreen(boolean v) { useFastLoadingScreen = v; }
     public void setEnableParticleCulling(boolean v)      { enableParticleCulling = v; }
@@ -130,15 +136,13 @@ public class RustMCConfig {
     public void setEnableImmediatelyFastCompat(boolean v) { enableImmediatelyFastCompat = v; }
     public void setEnableClientRedstoneSkip(boolean v)   { enableClientRedstoneSkip = v; }
     public void setEnableDhCaveCulling(boolean v)        { enableDhCaveCulling = v; }
-    public void setDebugHudGraphEnabled(boolean v)       { enableDebugHudGraph = v; }
-    public void setEnablePieChart(boolean v)             { enablePieChart = v; enableNativeMetricsHud = v; }
-    public void setEnableNativeMetricsHud(boolean v)     { setEnablePieChart(v); }
-    public void setNativeStatsEnabled(boolean v)         { setEnablePieChart(v); }
+    public void setParticleCullingDistance(int v)       { particleCullingDistance = v; }
+    public void setHardwarePreset(HardwarePreset v)     { hardwarePreset = v; }
+    public void setDiagnosticMode(DiagnosticMode v)     { diagnosticMode = v; }
     public void setEnableDnsCache(boolean v)             { enableDnsCache = v; }
     public void setEnableChunkIngestOffload(boolean v)   { enableChunkIngestOffload = v; }
     public void setEnableChunkIngestValidation(boolean v) { enableChunkIngestValidation = v; }
     public void setBridgeSodium(boolean v)         { bridgeSodium = v; }
-    public void setBridgeC2ME(boolean v)           { bridgeC2ME = v; }
     public void setBridgeLithium(boolean v)        { bridgeLithium = v; }
     public void setLoadingBarBgColor(int v)        { loadingBarBgColor = v; }
     public void setLoadingBarLowColor(int v)       { loadingBarLowColor = v; }

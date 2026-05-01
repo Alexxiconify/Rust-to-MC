@@ -68,12 +68,6 @@ public class ModBridge {
         return DISTANT_HORIZONS;
     }
 
-    public static boolean isMathOwned() {
-        if (!RustMC.CONFIG.isBridgeC2ME()) {
-            return false;
-        }
-        return C2ME || MOONRISE || MODERNFIX || FERRITECORE || SERVERCORE || LITHIUM;
-    }
 
     public static boolean isPathfindingOwned() {
         return (LITHIUM || MOONRISE || VMP || SERVERCORE)

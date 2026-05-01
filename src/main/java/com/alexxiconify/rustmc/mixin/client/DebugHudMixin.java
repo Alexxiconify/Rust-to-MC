@@ -1,8 +1,9 @@
 package com.alexxiconify.rustmc.mixin.client;
+import com.alexxiconify.rustmc.config.RustMCConfig;
 import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
-import com.alexxiconify.rustmc.util.PieChartRenderer;
+import com.alexxiconify.rustmc.util.DiagnosticHudRenderer;
 import com.alexxiconify.rustmc.util.RenderState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -39,19 +40,20 @@ public class DebugHudMixin {
         if (!NativeBridge.isReady()) return;
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.world == null || mc.player == null) return;
-        if (!RustMC.CONFIG.isDebugHudGraphEnabled() && !RustMC.CONFIG.isEnablePieChart()) return;
+        RustMCConfig.DiagnosticMode mode = RustMC.CONFIG.getDiagnosticMode();
+        boolean hasDiagnostics = mode != RustMCConfig.DiagnosticMode.HIDDEN;
+        if (!RustMC.CONFIG.isEnableSparklineGraph() && !hasDiagnostics) return;
 
         refreshHistoryCache(mc);
 
-        if (RustMC.CONFIG.isDebugHudGraphEnabled() && RustMC.CONFIG.isUseNativeF3() && !ModBridge.isHudOwned()) {
+        if (RustMC.CONFIG.isEnableSparklineGraph() && !ModBridge.isHudOwned()) {
             drawSparkline(context, mc);
         }
-        if (RustMC.CONFIG.isEnablePieChart() && mc.textRenderer != null) {
-            int screenW = context.getScaledWindowWidth();
-            PieChartRenderer.draw(context, mc.textRenderer, screenW);
-        }
-        if (RustMC.CONFIG.isEnableNativeMetricsHud()) {
-            com.alexxiconify.rustmc.util.NativeStatsRenderer.render(context);
+
+        if (hasDiagnostics && mc.textRenderer != null) {
+            boolean showTiming = mode == RustMCConfig.DiagnosticMode.TIMING || mode == RustMCConfig.DiagnosticMode.ALL;
+            boolean showNative = mode == RustMCConfig.DiagnosticMode.NATIVE || mode == RustMCConfig.DiagnosticMode.ALL;
+            DiagnosticHudRenderer.render(context, mc.textRenderer, showTiming, showNative);
         }
     }
 
