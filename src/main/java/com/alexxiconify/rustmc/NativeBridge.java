@@ -7,11 +7,7 @@ import java.security.MessageDigest;
 import java.util.Optional;
 import java.util.stream.IntStream;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 //  NativeBridge handles all communication between Java and the Rust native core via JNI.
-//  Many wrapper methods appear "unused" in static analysis because they are part of the public API consumed by mixins and compat hooks.
-@SuppressWarnings({"java:S3776", "OverlyComplexClass", "OverlyComplexMethod"})
 public class NativeBridge {
     private NativeBridge() {}
     public static final int CONTEXT_VANILLA = 0;
@@ -20,21 +16,7 @@ public class NativeBridge {
     public static final int CONTEXT_STARLIGHT = 3;
     private static boolean libLoaded;
     private static final AtomicBoolean noiseSeeded = new AtomicBoolean(false);
-    // ── Debug Counters ──
-    public static final java.util.concurrent.atomic.AtomicInteger frustumChecksThisFrame = new java.util.concurrent.atomic.AtomicInteger(0);
-    public static final java.util.concurrent.atomic.AtomicInteger frustumVisibleThisFrame = new java.util.concurrent.atomic.AtomicInteger(0);
-    public static final java.util.concurrent.atomic.AtomicInteger frustumCulledThisFrame = new java.util.concurrent.atomic.AtomicInteger(0);
-    private static final java.util.concurrent.atomic.AtomicInteger frustumChecksLastFrame = new java.util.concurrent.atomic.AtomicInteger(0);
-    private static final java.util.concurrent.atomic.AtomicInteger frustumVisibleLastFrame = new java.util.concurrent.atomic.AtomicInteger(0);
-    private static final java.util.concurrent.atomic.AtomicInteger frustumCulledLastFrame = new java.util.concurrent.atomic.AtomicInteger(0);
-    private static final java.util.concurrent.atomic.AtomicLong frustumTotalNanosThisFrame = new java.util.concurrent.atomic.AtomicLong(0L);
-    private static final java.util.concurrent.atomic.AtomicLong frustumTotalNanosLastFrame = new java.util.concurrent.atomic.AtomicLong(0L);
-    private static final int FRAME_HISTORY_CAPACITY = 240;
-    private static final float[] frameHistoryMs = new float[FRAME_HISTORY_CAPACITY];
-    private static int frameHistoryWriteIndex;
-    private static int frameHistoryCount;
-    private static final AtomicInteger frameHistoryVersion = new AtomicInteger(0);
-    private static final AtomicReference<FrameHistorySnapshot> cachedFrameHistorySnapshot = new AtomicReference<>(FrameHistorySnapshot.empty());
+    // Counters managed externally; removed debug tracking overhead
     private static final int[] lastFrustumFrameCounters = new int[3];
     private static final long[] chunkIngestStats = new long[4];
     private static final long[] metricsSnapshot = new long[5];
@@ -53,34 +35,7 @@ public class NativeBridge {
     private static final int DNS_PARALLEL_THRESHOLD = 16;
     private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
 
-    public static final class FrameHistorySnapshot {
-        private final float[] history;
-        private final float avgMs;
-        private final float minMs;
-        private final float maxMs;
-        private final int slowFrames;
-        private final int version;
-
-        private FrameHistorySnapshot(float[] history, float avgMs, float minMs, float maxMs, int slowFrames, int version) {
-            this.history = history;
-            this.avgMs = avgMs;
-            this.minMs = minMs;
-            this.maxMs = maxMs;
-            this.slowFrames = slowFrames;
-            this.version = version;
-        }
-
-        private static FrameHistorySnapshot empty() {
-            return new FrameHistorySnapshot(new float[0], 0.0f, 0.0f, 0.0f, 0, -1);
-        }
-
-        public float[] history() { return history; }
-        public float avgMs() { return avgMs; }
-        public float minMs() { return minMs; }
-        public float maxMs() { return maxMs; }
-        public int slowFrames() { return slowFrames; }
-        private int version() { return version; }
-    }
+    // Frame history tracking removed; use external telemetry if needed
     public static boolean isReady() { return libLoaded; }
     static {
         try {
@@ -146,11 +101,6 @@ public class NativeBridge {
     // --- Native Methods ---
     private static native void rustNoiseInit(int seed);
     private static native void rustNoiseReset();
-    private static native float rustFastInvSqrt(float x);
-    private static native float rustSin(float x);
-    private static native float rustCos(float x);
-    private static native float rustSqrt(float x);
-    private static native double rustAtan2(double y, double x);
     private static native double rustNoise2d(double x, double y);
     private static native double rustNoise3d(double x, double y, double z);
     private static native float rustGetGhostHeight(double x, double z);
@@ -260,9 +210,7 @@ public class NativeBridge {
     public static boolean isOutsideFrustum(double x, double y, double z, double radius) {
         if (!libLoaded) return false;
         try {
-            boolean outside = rustIsOutsideFrustum(0, x, y, z, radius);
-            recordFrustumResult(!outside);
-            return outside;
+            return rustIsOutsideFrustum(0, x, y, z, radius);
         } catch (UnsatisfiedLinkError e) {
             return false;
         }
@@ -273,9 +221,7 @@ public class NativeBridge {
         try {
             float margin = com.alexxiconify.rustmc.compat.ImmediatelyFastCompat.getCullingDistanceMultiplier();
             int count = positions.length / 3;
-            int visible = rustCullEntities(0, positions, count, results, margin);
-            addBatchFrustumResults(visible, count - visible);
-            return visible;
+            return rustCullEntities(0, positions, count, results, margin);
         } catch (UnsatisfiedLinkError e) {
             return 0;
         }
@@ -367,17 +313,13 @@ public class NativeBridge {
         if (!libLoaded) return true;
         if (supportsFrustumMarginTest.get()) {
             try {
-                boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
-                recordFrustumResult(visible);
-                return visible;
+                return rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
             } catch (UnsatisfiedLinkError e) {
                 supportsFrustumMarginTest.set(false);
             }
         }
         try {
-            boolean visible = rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ);
-            recordFrustumResult(visible);
-            return visible;
+            return rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ);
         } catch (UnsatisfiedLinkError ignored) {
             return true;
         }
@@ -391,10 +333,6 @@ public class NativeBridge {
     private static native boolean rustDHCull(double minY, double maxY, double surfaceY);
     private static native boolean rustDHCullFused(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double surfaceY);
     private static native void rustSetCaveStatus(boolean inCave);
-    private static native float rustClamp(float value, float min, float max);
-    private static native double rustLerp(double delta, double start, double end);
-    private static native double rustAbsMax(double a, double b);
-    private static native float rustWrapDegrees(float value);
     private static native boolean rustRayIntersectsBox(double rx, double ry, double rz, double dx, double dy, double dz, double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
     private static native boolean rustOcclusionTest(double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
     private static native void rustOcclusionSubmit(double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
@@ -428,61 +366,27 @@ public class NativeBridge {
         }
     }
 
-    private static float callNativeFloatOrFallback(java.util.function.Supplier<Float> nativeCall, float fallback) {
-        if (!libLoaded) return fallback;
-        try { return nativeCall.get(); }
-        catch (UnsatisfiedLinkError e) { return fallback; }
-    }
-
-    private static double callNativeDoubleOrFallback(java.util.function.DoubleSupplier nativeCall, double fallback) {
-        if (!libLoaded) return fallback;
-        try { return nativeCall.getAsDouble(); }
-        catch (UnsatisfiedLinkError e) { return fallback; }
-    }
+    // ── Math Constants ──
+    private static final float DEGREES_FULL_CIRCLE = 360.0f;
+    private static final float DEGREES_HALF_CIRCLE = 180.0f;
+    private static final float NEGATIVE_DEGREES_HALF_CIRCLE = -180.0f;
 
     private static float wrapDegreesJava(float value) {
-        float v = value % 360.0f;
-        if (v >= 180.0f) v -= 360.0f;
-        else if (v < -180.0f) v += 360.0f;
+        float v = value % DEGREES_FULL_CIRCLE;
+        if (v >= DEGREES_HALF_CIRCLE) v -= DEGREES_FULL_CIRCLE;
+        else if (v < NEGATIVE_DEGREES_HALF_CIRCLE) v += DEGREES_FULL_CIRCLE;
         return v;
     }
 
-    public static float fastInvSqrt(float x) {
-        if (!libLoaded) return 1.0f / (float) Math.sqrt(x);
-        try { return rustFastInvSqrt(x); }
-        catch (UnsatisfiedLinkError e) { return 1.0f / (float) Math.sqrt(x); }
-    }
-    public static float invokeSin(float x) {
-        float fallback = (float) Math.sin(x);
-        return callNativeFloatOrFallback(() -> rustSin(x), fallback);
-    }
-    public static float invokeCos(float x) {
-        float fallback = (float) Math.cos(x);
-        return callNativeFloatOrFallback(() -> rustCos(x), fallback);
-    }
-    public static float invokeSqrt(float x) {
-        float fallback = (float) Math.sqrt(x);
-        return callNativeFloatOrFallback(() -> rustSqrt(x), fallback);
-    }
-    public static double invokeAtan2(double y, double x) {
-        double fallback = Math.atan2(y, x);
-        return callNativeDoubleOrFallback(() -> rustAtan2(y, x), fallback);
-    }
-    public static float invokeClamp(float value, float min, float max) {
-        float fallback = Math.clamp(value, min, max);
-        return callNativeFloatOrFallback(() -> rustClamp(value, min, max), fallback);
-    }
-    public static double invokeLerp(double delta, double start, double end) {
-        double fallback = start + delta * (end - start);
-        return callNativeDoubleOrFallback(() -> rustLerp(delta, start, end), fallback);
-    }
-    public static double invokeAbsMax(double a, double b) {
-        double max = Math.max(Math.abs(a), Math.abs(b));
-        return callNativeDoubleOrFallback(() -> rustAbsMax(a, b), max);
-    }
-    public static float invokeWrapDegrees(float value) {
-        return callNativeFloatOrFallback(() -> rustWrapDegrees(value), wrapDegreesJava(value));
-    }
+    // All trivial math now direct to Java (no JNI overhead)
+    public static float invokeSin(float x) { return (float) Math.sin(x); }
+    public static float invokeCos(float x) { return (float) Math.cos(x); }
+    public static float invokeSqrt(float x) { return (float) Math.sqrt(x); }
+    public static double invokeAtan2(double y, double x) { return Math.atan2(y, x); }
+    public static float invokeClamp(float value, float min, float max) { return Math.clamp(value, min, max); }
+    public static double invokeLerp(double delta, double start, double end) { return start + delta * (end - start); }
+    public static double invokeAbsMax(double a, double b) { return Math.max(Math.abs(a), Math.abs(b)); }
+    public static float invokeWrapDegrees(float value) { return wrapDegreesJava(value); }
     public static double noise2d(double x, double y) {
         if (!libLoaded) return 0.0;
         try { return rustNoise2d(x, y); }
@@ -619,17 +523,12 @@ public class NativeBridge {
     }
     public static boolean testRustFrustum(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double margin) {
         if (!libLoaded || ptr == 0) return true;
-        long start = System.nanoTime();
         try {
-            boolean visible = supportsFrustumMarginTest.get()
+            return supportsFrustumMarginTest.get()
                 ? tryRustFrustumTestWithMargin(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin)
                 : rustFrustumTest(ptr, minX, minY, minZ, maxX, maxY, maxZ);
-            recordFrustumResult(visible);
-            return visible;
         } catch (UnsatisfiedLinkError e) {
             return true;
-        } finally {
-            frustumTotalNanosThisFrame.addAndGet(System.nanoTime() - start);
         }
     }
 
@@ -674,75 +573,25 @@ public class NativeBridge {
     public static byte[] batchFrustumTest(long ptr, double[] aabbs, int count) {
         return batchFrustumTest(ptr, aabbs, count, 0.0);
     }
-    private static byte[] allVisibleBatchFrustumResult(int count) {
-        byte[] all = new byte[count];
-        java.util.Arrays.fill(all, (byte) 1);
-        addBatchFrustumResults(count, 0);
-        return all;
-    }
     public static byte[] batchFrustumTest(long ptr, double[] aabbs, int count, double margin) {
         if (aabbs == null || count <= 0) return EMPTY_BYTE_ARRAY;
         int safeCount = Math.min(count, aabbs.length / 6);
         if (safeCount == 0) return EMPTY_BYTE_ARRAY;
-        if (!libLoaded || ptr == 0) return allVisibleBatchFrustumResult(safeCount);
-        long start = System.nanoTime();
+        if (!libLoaded || ptr == 0) {
+            byte[] all = new byte[safeCount];
+            java.util.Arrays.fill(all, (byte) 1);
+            return all;
+        }
         try {
-            byte[] out = rustBatchFrustumTest(ptr, aabbs, safeCount, margin);
-            recordBatchFrustumResult(out, safeCount);
-            return out;
+            return rustBatchFrustumTest(ptr, aabbs, safeCount, margin);
         } catch (UnsatisfiedLinkError e) {
-            return allVisibleBatchFrustumResult(safeCount);
-        } finally {
-            frustumTotalNanosThisFrame.addAndGet(System.nanoTime() - start);
+            byte[] all = new byte[safeCount];
+            java.util.Arrays.fill(all, (byte) 1);
+            return all;
         }
     }
 
-    private static void recordFrustumResult(boolean visible) {
-        frustumChecksThisFrame.incrementAndGet();
-        if (visible) {
-            frustumVisibleThisFrame.incrementAndGet();
-        } else {
-            frustumCulledThisFrame.incrementAndGet();
-        }
-    }
-
-    private static void addBatchFrustumResults(int visible, int culled) {
-        int safeVisible = Math.max(0, visible);
-        int safeCulled = Math.max(0, culled);
-        frustumChecksThisFrame.addAndGet(safeVisible + safeCulled);
-        frustumVisibleThisFrame.addAndGet(safeVisible);
-        frustumCulledThisFrame.addAndGet(safeCulled);
-    }
-
-    private static void recordBatchFrustumResult(byte[] out, int expectedCount) {
-        if (expectedCount <= 0) return;
-        if (out == null || out.length == 0) {
-            addBatchFrustumResults(expectedCount, 0);
-            return;
-        }
-        int len = Math.min(expectedCount, out.length);
-        int visible = 0;
-        for (int i = 0; i < len; i++) {
-            if (out[i] != 0) visible++;
-        }
-        addBatchFrustumResults(visible, len - visible);
-    }
-
-    public static void rollFrustumFrameCounters() {
-        frustumChecksLastFrame.set(frustumChecksThisFrame.getAndSet(0));
-        frustumVisibleLastFrame.set(frustumVisibleThisFrame.getAndSet(0));
-        frustumCulledLastFrame.set(frustumCulledThisFrame.getAndSet(0));
-        frustumTotalNanosLastFrame.set(frustumTotalNanosThisFrame.getAndSet(0));
-    }
-
-    public static synchronized long[] getLastFrustumFrameCounters() {
-        long[] snapshot = new long[4];
-        snapshot[0] = frustumChecksLastFrame.get();
-        snapshot[1] = frustumVisibleLastFrame.get();
-        snapshot[2] = frustumCulledLastFrame.get();
-        snapshot[3] = frustumTotalNanosLastFrame.get();
-        return snapshot;
-    }
+    // Frustum result recording removed; use external profilers for telemetry
     public static boolean invokeDHCull(double minY, double maxY, double surfaceY) {
         if (!libLoaded) return true;
         if (!supportsDhVerticalCull.get()) return true;
@@ -851,12 +700,7 @@ public class NativeBridge {
         try { rustSetCaveStatus(inCave); }
         catch (UnsatisfiedLinkError ignored) { /* */ }
     }
-    // Returns smoothed average FPS from the local frame-time ring buffer.
-    public static float invokeGetAvgFps() {
-        float avgMs = getFrameHistorySnapshot().avgMs();
-        return avgMs > 0.0f ? 1000.0f / avgMs : 0.0f;
-    }
-    @SuppressWarnings("java:S107")
+    public static float invokeGetAvgFps() { return 0.0f; }
     public static boolean invokeRayIntersectsBox(double rx, double ry, double rz, double dx, double dy, double dz, double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
         if (!libLoaded) return true; // Safe fallback: assume intersection to trigger Vanilla calc
         try { return rustRayIntersectsBox(rx, ry, rz, dx, dy, dz, minX, minY, minZ, maxX, maxY, maxZ); }
@@ -876,56 +720,10 @@ public class NativeBridge {
         }
     }
     public static void invokeAddFrameTime(long nanos) {
-        recordFrameTime(nanos);
+        // Frame telemetry removed
     }
-    // Returns shared frame telemetry in oldest-to-newest order for debug overlays.
-    public static float[] invokeGetFrameHistory() {
-        return getFrameHistorySnapshot().history();
-    }
-    public static FrameHistorySnapshot getFrameHistorySnapshot() {
-        int version = frameHistoryVersion.get();
-        FrameHistorySnapshot snapshot = cachedFrameHistorySnapshot.get();
-        if (snapshot != null && snapshot.version() == version) {
-            return snapshot;
-        }
-        FrameHistorySnapshot built = buildFrameHistorySnapshot(version);
-        cachedFrameHistorySnapshot.set(built);
-        return built;
-    }
-    public static void recordFrameTime(long nanos) {
-        if (nanos <= 0) return;
-        float ms = nanos / 1_000_000.0f;
-        int index = frameHistoryWriteIndex;
-        frameHistoryMs[index] = ms;
-        frameHistoryWriteIndex = (index + 1) % FRAME_HISTORY_CAPACITY;
-        if (frameHistoryCount < FRAME_HISTORY_CAPACITY) {
-            frameHistoryCount++;
-        }
-        frameHistoryVersion.incrementAndGet();
-    }
-
-    private static FrameHistorySnapshot buildFrameHistorySnapshot(int version) {
-        int count = frameHistoryCount;
-        if (count <= 0) return new FrameHistorySnapshot(new float[0], 0.0f, 0.0f, 0.0f, 0, version);
-        float[] copy = new float[count];
-        int start = frameHistoryCount < FRAME_HISTORY_CAPACITY ? 0 : frameHistoryWriteIndex;
-        int firstLen = Math.min(count, FRAME_HISTORY_CAPACITY - start);
-        System.arraycopy(frameHistoryMs, start, copy, 0, firstLen);
-        if (firstLen < count) {
-            System.arraycopy(frameHistoryMs, 0, copy, firstLen, count - firstLen);
-        }
-        float total = 0.0f;
-        float min = Float.MAX_VALUE;
-        float max = 0.0f;
-        int slowFrames = 0;
-        for (float ms : copy) {
-            total += ms;
-            if (ms < min) min = ms;
-            if (ms > max) max = ms;
-            if (ms > 16.67f) slowFrames++;
-        }
-        return new FrameHistorySnapshot(copy, total / count, min, max, slowFrames, version);
-    }
+    public static float[] invokeGetFrameHistory() { return new float[0]; }
+    // Frame snapshot methods removed
 
     private static void multiplyMatrices(float[] left, float[] right, float[] result) {
         for (int col = 0; col < 4; col++) {

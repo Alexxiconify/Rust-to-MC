@@ -6,14 +6,12 @@ rustflags = ["-C", "target-cpu=native"]
 # platform-specific overrides for MSVC x86_64
 [target.x86_64-pc-windows-msvc]
 # enable common SIMD features when available and disable incremental linking
-rustflags = ["-C", "target-cpu=native", "-C", "target-feature=+sse4.2,+avx2"]
+rustflags = ["-C", "target-cpu=native", "-C", "target-feature=+sse4.2,+avx2", "-C", "link-arg=/INCREMENTAL:NO", "-C", "link-arg=/OPT:REF"]
 linker = "link.exe"
-link-arg = ["/INCREMENTAL:NO", "/OPT:REF"]
 
 # platform-specific overrides for Linux x86_64
 [target.x86_64-unknown-linux-gnu]
-rustflags = ["-C", "target-cpu=native", "-C", "target-feature=+sse4.2,+avx2"]
-link-arg = ["-Wl,-O1"]
+rustflags = ["-C", "target-cpu=native", "-C", "target-feature=+sse4.2,+avx2", "-C", "link-arg=-Wl,-O1"]
 
 # platform-specific overrides for aarch64 (ARM64)
 [target.aarch64-unknown-linux-gnu]

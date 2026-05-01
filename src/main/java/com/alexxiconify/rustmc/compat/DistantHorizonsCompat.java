@@ -7,10 +7,21 @@ public class DistantHorizonsCompat {
     private static final String DH_API_CLASS = "com.seibel.distanthorizons.api.DhApi";
     private static final String MATRIX_VALUES_AS_ARRAY_METHOD = "getValuesAsArray";
     private static final String MATRIX_TO_ARRAY_METHOD = "toArray";
+    // ── Magic Constants ──
     private static final double DH_SURFACE_Y = 54.0;
     private static final double DH_AGGRESSIVE_MARGIN = -2.0;
     private static final double DH_MIN_MARGIN = -2.0;
     private static final double DH_MAX_MARGIN = 0.25;
+    // Tolerance thresholds
+    private static final double COORD_CHANGE_THRESHOLD = 1.0e-6;
+    private static final float ROTATION_CHANGE_THRESHOLD = 1.0e-4f;
+    private static final double OPTICS_CHANGE_THRESHOLD = 1.0e-4;
+    private static final double DIRECTION_EPSILON = 1.0e-6;
+    // Quantization
+    private static final double MATRIX_QUANTIZATION_SCALE = 1_000_000.0;
+    private static final double AABB_CACHE_QUANTIZATION = 8.0;
+    private static final double CENTER_OFFSET = 0.5;
+    private static final double FOV_ASPECT_RATIO = 16.0 / 9.0;
     private DistantHorizonsCompat() {}
     private static long rustFrustumPtr = 0;
     private static int currentMinY = -64;
@@ -24,11 +35,10 @@ public class DistantHorizonsCompat {
     private static float lastCameraYaw = 0.0f;
     private static float lastCameraPitch = 0.0f;
     private static double lastCameraMoveSq = 0.0;
-    private static double cachedCameraMinusX = 0.0;
-    private static double cachedCameraMinusY = 0.0;
-    private static double cachedCameraMinusZ = 0.0;
-    private static long lastVpFingerprint = 0L;
+ private static long lastVpFingerprint = 0L;
     private static boolean hasLastVpFingerprint = false;
+    // Small cache to avoid repeated JNI calls for static sections when camera/projection unchanged.
+    private static final java.util.concurrent.ConcurrentHashMap<Long, Boolean> dhVisibilityCache = new java.util.concurrent.ConcurrentHashMap<>();
     private static java.lang.reflect.Method matrixToArrayMethod = null;
     private static java.lang.reflect.Method matrixGetMethod = null;
     private static double lastFov = Double.NaN;
@@ -45,11 +55,11 @@ public class DistantHorizonsCompat {
     public static double getLastCameraMoveSq() { return lastCameraMoveSq; }
 
     private static boolean isDhMissing() {
-        return !FabricLoader.getInstance ( ).isModLoaded ( DH_MOD_ID );
+        return !FabricLoader.getInstance().isModLoaded(DH_MOD_ID);
     }
 
     private static boolean isDhNativeReady() {
-        return isDhMissing ( ) || !com.alexxiconify.rustmc.NativeBridge.isReady ( );
+        return isDhMissing() || !com.alexxiconify.rustmc.NativeBridge.isReady();
     }
 
     private enum ProxyMethodKind {
@@ -82,7 +92,7 @@ public class DistantHorizonsCompat {
     private static final java.util.concurrent.atomic.AtomicInteger unknownProxyMethodCount = new java.util.concurrent.atomic.AtomicInteger(0);
     @SuppressWarnings("java:S3776")
     public static void registerFrustumCuller() {
-        if ( isDhNativeReady ( ) ) return;
+        if (isDhNativeReady()) return;
         try {
             rustFrustumPtr = com.alexxiconify.rustmc.NativeBridge.createRustFrustum();
             if (rustFrustumPtr == 0) return;
@@ -218,6 +228,8 @@ public class DistantHorizonsCompat {
             float[] vpSnapshot = java.util.Arrays.copyOf(vpArray, vpArray.length);
             if (com.alexxiconify.rustmc.NativeBridge.updateRustFrustumTracked(rustFrustumPtr, vpSnapshot)) {
                 frustumInitialized = true;
+                // Clear visibility cache when frustum/projection is updated so cached results remain correct.
+                dhVisibilityCache.clear();
             }
         }
         return null;
@@ -265,7 +277,7 @@ public class DistantHorizonsCompat {
             }
         }
         float[] out = new float[16];
-        Object ret = matrixGetMethod.invoke(mat, out);
+        Object ret = matrixGetMethod.invoke( mat, out );
         if (ret instanceof float[] arr && arr.length >= 16) {
             return arr;
         }
@@ -276,61 +288,39 @@ public class DistantHorizonsCompat {
         int len = Math.min(16, vpArray.length);
         long hash = 0xcbf29ce484222325L;
         for (int i = 0; i < len; i++) {
-            int quantized = Math.round(vpArray[i] * 1_000_000.0f);
+            int quantized = Math.round(vpArray[i] * (float) MATRIX_QUANTIZATION_SCALE);
             hash ^= (quantized * 0x9E3779B9L) ^ i;
             hash *= 0x100000001b3L;
         }
         return hash;
     }
 
-    // Keep DH frustum strict to camera state for freecam support.
     private static boolean shouldRefreshFrustum(float[] vpArray) {
         net.minecraft.client.MinecraftClient mc2 = net.minecraft.client.MinecraftClient.getInstance();
         if (mc2 == null || mc2.world == null) return false;
         var camera = mc2.gameRenderer.getCamera();
         var pos = camera.getCameraPos();
-        double cx = pos.x;
-        double cy = pos.y;
-        double cz = pos.z;
-        float yaw = camera.getYaw();
-        float pitch = camera.getPitch();
+        double cx = pos.x, cy = pos.y, cz = pos.z;
+        float yaw = camera.getYaw(), pitch = camera.getPitch();
         double fov = mc2.options.getFov().getValue();
-        double aspect = mc2.getWindow().getFramebufferWidth() / Math.max(1.0, mc2.getWindow().getFramebufferHeight());
-        boolean moved = true;
-        boolean rotated = true;
-        boolean opticsChanged = true;
-        if (hasLastCameraState) {
-            double dx = cx - lastCameraX;
-            double dy = cy - lastCameraY;
-            double dz = cz - lastCameraZ;
-            lastCameraMoveSq = dx * dx + dy * dy + dz * dz;
-            moved = lastCameraMoveSq > 1.0e-6;
-            rotated = Math.abs(yaw - lastCameraYaw) > 1.0e-4f || Math.abs(pitch - lastCameraPitch) > 1.0e-4f;
-            opticsChanged = Math.abs(fov - lastFov) > 1.0e-4 || Math.abs(aspect - lastAspect) > 1.0e-4;
-        } else {
-            lastCameraMoveSq = 0.0;
-            lastRefreshReason = "JOIN";
-        }
-        cachedCameraMinusX = -cx;
-        cachedCameraMinusY = -cy;
-        cachedCameraMinusZ = -cz;
-        long vpFingerprint = fingerprintMatrix(vpArray);
-        boolean projectionChanged = hasLastVpFingerprint && vpFingerprint != lastVpFingerprint;
-        lastVpFingerprint = vpFingerprint;
-        hasLastVpFingerprint = true;
-        lastCameraX = cx;
-        lastCameraY = cy;
-        lastCameraZ = cz;
-        lastCameraYaw = yaw;
-        lastCameraPitch = pitch;
-        lastFov = fov;
-        lastAspect = aspect;
+
+        boolean moved = !hasLastCameraState || Math.hypot(Math.hypot(cx - lastCameraX, cy - lastCameraY), cz - lastCameraZ) > COORD_CHANGE_THRESHOLD;
+        boolean rotated = !hasLastCameraState || Math.abs(yaw - lastCameraYaw) > ROTATION_CHANGE_THRESHOLD || Math.abs(pitch - lastCameraPitch) > ROTATION_CHANGE_THRESHOLD;
+        boolean opticsChanged = Double.isNaN(lastFov) || Math.abs(fov - lastFov) > OPTICS_CHANGE_THRESHOLD;
+
+        lastCameraX = cx; lastCameraY = cy; lastCameraZ = cz;
+        lastCameraYaw = yaw; lastCameraPitch = pitch; lastFov = fov;
         hasLastCameraState = true;
-        if (moved) lastRefreshReason = "MOVE";
-        else if (rotated) lastRefreshReason = "ROT";
-        else if (opticsChanged) lastRefreshReason = "FOV";
-        else if (projectionChanged) lastRefreshReason = "PROJ";
-        return moved || rotated || opticsChanged || projectionChanged;
+
+        // Only compute fingerprint if camera/optics changed
+        if (moved || rotated || opticsChanged) {
+            long vpFingerprint = fingerprintMatrix(vpArray);
+            boolean projectionChanged = hasLastVpFingerprint && ( vpFingerprint != lastVpFingerprint );
+            lastVpFingerprint = vpFingerprint;
+            hasLastVpFingerprint = true;
+            return moved || rotated || opticsChanged || projectionChanged;
+        }
+        return false;
     }
     private static Object handleFrustumIntersects(Object[] args) {
         ensureFrustumCullerBound();
@@ -359,23 +349,23 @@ public class DistantHorizonsCompat {
                 return singleArgBounds;
             }
         }
-        if (args.length >= 6
-            && args[0] instanceof Number minXArg
-            && args[1] instanceof Number minYArg
-            && args[2] instanceof Number minZArg
-            && args[3] instanceof Number maxXArg
-            && args[4] instanceof Number maxYArg
-            && args[5] instanceof Number maxZArg) {
-            return java.util.Optional.of(new SectionBounds(
-                minXArg.doubleValue(), minYArg.doubleValue(), minZArg.doubleValue(),
-                maxXArg.doubleValue(), maxYArg.doubleValue(), maxZArg.doubleValue()
-            ));
+        // Fast path: 6+ args as doubles/floats (most common)
+        if (args.length >= 6) {
+            double minX = (args[0] instanceof Number n) ? n.doubleValue() : Double.NaN;
+            if (!Double.isNaN(minX)) {
+                double minY = (args[1] instanceof Number n) ? n.doubleValue() : Double.NaN;
+                double minZ = (args[2] instanceof Number n) ? n.doubleValue() : Double.NaN;
+                double maxX = (args[3] instanceof Number n) ? n.doubleValue() : Double.NaN;
+                double maxY = (args[4] instanceof Number n) ? n.doubleValue() : Double.NaN;
+                double maxZ = (args[5] instanceof Number n) ? n.doubleValue() : Double.NaN;
+                if (!Double.isNaN(maxZ)) {
+                    return java.util.Optional.of(new SectionBounds(minX, minY, minZ, maxX, maxY, maxZ));
+                }
+            }
         }
-        if (args.length >= 4
-            && args[0] instanceof Number minXArg
-            && args[1] instanceof Number minZArg
-            && args[2] instanceof Number maxXArg
-            && args[3] instanceof Number maxZArg) {
+        // Fallback: 4 args (minX, minZ, maxX, maxZ with inferred Y)
+        if (args.length >= 4 && args[0] instanceof Number minXArg && args[1] instanceof Number minZArg &&
+            args[2] instanceof Number maxXArg && args[3] instanceof Number maxZArg) {
             return java.util.Optional.of(new SectionBounds(
                 minXArg.doubleValue(), currentMinY, minZArg.doubleValue(),
                 maxXArg.doubleValue(), currentMaxY, maxZArg.doubleValue()
@@ -385,6 +375,7 @@ public class DistantHorizonsCompat {
     }
 
     private static java.util.Optional<SectionBounds> resolveSingleArgBounds(Object arg) {
+        // Fast path: arrays of numbers
         if (arg instanceof double[] vals && vals.length >= 6) {
             return java.util.Optional.of(new SectionBounds(vals[0], vals[1], vals[2], vals[3], vals[4], vals[5]));
         }
@@ -397,60 +388,18 @@ public class DistantHorizonsCompat {
                 vals[3].doubleValue(), vals[4].doubleValue(), vals[5].doubleValue()
             ));
         }
-        java.util.Optional<SectionBounds> fieldBounds = resolveBoundsFromFields(arg);
-        if (fieldBounds.isPresent()) {
-            return fieldBounds;
-        }
-        return resolveBoundsFromGetters(arg);
-    }
-
-    private static java.util.Optional<SectionBounds> resolveBoundsFromFields(Object box) {
+        // Try field access only (removed getter fallback)
         try {
-            BoundsFields fields = BOUNDS_FIELD_CACHE.computeIfAbsent(box.getClass(), DistantHorizonsCompat::resolveBoundsFields);
+            BoundsFields fields = BOUNDS_FIELD_CACHE.computeIfAbsent(arg.getClass(), DistantHorizonsCompat::resolveBoundsFields);
             return java.util.Optional.of(new SectionBounds(
-                fields.minX().getDouble(box), fields.minY().getDouble(box), fields.minZ().getDouble(box),
-                fields.maxX().getDouble(box), fields.maxY().getDouble(box), fields.maxZ().getDouble(box)
+                fields.minX().getDouble(arg), fields.minY().getDouble(arg), fields.minZ().getDouble(arg),
+                fields.maxX().getDouble(arg), fields.maxY().getDouble(arg), fields.maxZ().getDouble(arg)
             ));
-        } catch (RuntimeException | IllegalAccessException ignored) {
-            return java.util.Optional.empty();
-        }
+        } catch (RuntimeException | IllegalAccessException ignored) {}
+        return java.util.Optional.empty();
     }
 
-    private static java.util.Optional<SectionBounds> resolveBoundsFromGetters(Object box) {
-        try {
-            Double minX = invokeNumericGetter(box, "getMinX", "minX");
-            Double minY = invokeNumericGetter(box, "getMinY", "minY");
-            Double minZ = invokeNumericGetter(box, "getMinZ", "minZ");
-            Double maxX = invokeNumericGetter(box, "getMaxX", "maxX");
-            Double maxY = invokeNumericGetter(box, "getMaxY", "maxY");
-            Double maxZ = invokeNumericGetter(box, "getMaxZ", "maxZ");
-            if (minX == null || minY == null || minZ == null || maxX == null || maxY == null || maxZ == null) {
-                return java.util.Optional.empty();
-            }
-            return java.util.Optional.of(new SectionBounds(minX, minY, minZ, maxX, maxY, maxZ));
-        } catch (Exception ignored) {
-            return java.util.Optional.empty();
-        }
-    }
-
-    private static Double invokeNumericGetter(Object target, String... methodNames) {
-        Class<?> cls = target.getClass();
-        for (String methodName : methodNames) {
-            try {
-                java.lang.reflect.Method method = cls.getMethod(methodName);
-                Object value = method.invoke(target);
-                if (value instanceof Number n) {
-                    return n.doubleValue();
-                }
-            } catch (Exception ignored) {
-                // Try next getter signature.
-            }
-        }
-        if (dhBoundsShapeLogged.compareAndSet(false, true)) {
-            RustMC.LOGGER.debug("[Rust-MC] DH intersect bounds shape not recognized for {}", cls.getName());
-        }
-        return null;
-    }
+    // Bounds field resolution streamlined; no separate getter fallback needed
 
     private static BoundsFields resolveBoundsFields(Class<?> cls) {
         try {
@@ -479,35 +428,109 @@ public class DistantHorizonsCompat {
         if (!hasLastCameraState) {
             return true;
         }
-        // Hide DH chunks entirely below the surface gate.
-        if (isBelowDhSurfaceGate()) {
+        // Fast Java-side gates to avoid JNI calls for obvious outside/in cases.
+        // 1) If DH cave culling enabled and section entirely below surface, cull immediately.
+        if (RustMC.CONFIG.isEnableDhCaveCulling() && maxY < DH_SURFACE_Y) {
             return false;
         }
-        return com.alexxiconify.rustmc.NativeBridge.cullDistantHorizonsSection(
+
+        // AABB is in absolute/world coordinates. Compute angles relative to camera position.
+        double centerX = (minX + maxX) * CENTER_OFFSET;
+        double centerY = (minY + maxY) * CENTER_OFFSET;
+        double centerZ = (minZ + maxZ) * CENTER_OFFSET;
+        double dx = centerX - lastCameraX;
+        double dy = centerY - lastCameraY;
+        double dz = centerZ - lastCameraZ;
+
+        double horizDist = Math.sqrt(dx * dx + dz * dz);
+
+        // Compute horizontal angle between camera forward direction and section center using vector dot-product
+        double yawRad = Math.toRadians(lastCameraYaw);
+        double ffx = -Math.sin(yawRad); // camera forward X (XZ-plane)
+        double ffz = Math.cos(yawRad);  // camera forward Z (XZ-plane)
+        double dirLenXZ = Math.hypot(dx, dz);
+        double ffLen = Math.hypot(ffx, ffz);
+        double yawDiff = 0.0;
+        if (dirLenXZ > DIRECTION_EPSILON && ffLen > DIRECTION_EPSILON) {
+            double dot = (ffx * dx + ffz * dz) / (ffLen * dirLenXZ);
+            dot = Math.clamp(dot, -1.0, 1.0);
+            yawDiff = Math.toDegrees(Math.acos(dot));
+        }
+
+         // Prefer querying live client FOV when available for tighter tests.
+         double clientFov = Double.isNaN(lastFov) ? 70.0 : lastFov;
+         try {
+             net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+             if (mc != null) clientFov = mc.options.getFov().getValue();
+         } catch (Exception ignored) {}
+         double aspect = lastAspect <= 0.0 ? FOV_ASPECT_RATIO : lastAspect;
+         // Convert vertical FOV to horizontal FOV correctly: hFOV = 2 * atan(tan(vFOV/2) * aspect)
+         double vFovRad = Math.toRadians(clientFov);
+         double hFovRad = 2.0 * Math.atan(Math.tan(vFovRad * CENTER_OFFSET) * aspect);
+         double horizontalHalfFov = Math.toDegrees(hFovRad * CENTER_OFFSET);
+
+        // small safety margin in degrees to avoid popping at edges
+        double safetyDeg = 3.0;
+        // Fast-pass: anything substantially behind camera (yaw difference > 95deg) is culled immediately.
+        if (yawDiff > 95.0) {
+            return false;
+        }
+
+        if (yawDiff > horizontalHalfFov + safetyDeg) {
+            return false; // definitely outside horizontal FOV
+        }
+
+        // Pitch check
+        double pitchToCenter = Math.toDegrees(Math.atan2(dy, horizDist));
+        // Minecraft pitch: positive when looking down. Convert to elevation angle (positive up).
+        double cameraElevation = -lastCameraPitch;
+        double pitchDiff = Math.abs(pitchToCenter - cameraElevation);
+        double verticalHalfFov = clientFov / 2.0;
+        if (pitchDiff > verticalHalfFov + safetyDeg) {
+            return false; // definitely outside vertical FOV
+        }
+
+        // 3) Use a small cache keyed by AABB + projection fingerprint to avoid redundant JNI checks
+        long key = computeAabbCacheKey(minX, minY, minZ, maxX, maxY, maxZ, lastVpFingerprint);
+        Boolean cached = dhVisibilityCache.get(key);
+        if (cached != null) return cached;
+
+        // 4) Fall back to native fused test (frustum + vertical gate + occlusion) for final decision.
+        // Pass absolute world coordinates to native frustum test.
+        boolean visible = com.alexxiconify.rustmc.NativeBridge.cullDistantHorizonsSection(
             rustFrustumPtr,
-            minX + cachedCameraMinusX, minY + cachedCameraMinusY, minZ + cachedCameraMinusZ,
-            maxX + cachedCameraMinusX, maxY + cachedCameraMinusY, maxZ + cachedCameraMinusZ,
+            minX, minY, minZ,
+            maxX, maxY, maxZ,
             DH_SURFACE_Y,
             getAdaptiveMargin(),
             false
         );
+        dhVisibilityCache.put(key, visible);
+        return visible;
     }
 
-    private static boolean isBelowDhSurfaceGate() {
-        if (!RustMC.CONFIG.isEnableDhCaveCulling()) {
-            return false;
-        }
-        try {
-            net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
-            return mc != null && mc.player != null && mc.player.getY() < DH_SURFACE_Y;
-        } catch (Exception ignored) {
-            return false;
-        }
-    }
+     private static long computeAabbCacheKey(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, long vpFp) {
+         // Quantize coords to chunk-section granularity to keep key small and tolerant to small changes.
+         long hx = Math.round(minX * AABB_CACHE_QUANTIZATION);
+         long hy = Math.round(minY * AABB_CACHE_QUANTIZATION);
+         long hz = Math.round(minZ * AABB_CACHE_QUANTIZATION);
+         long hX = Math.round(maxX * AABB_CACHE_QUANTIZATION);
+         long hY = Math.round(maxY * AABB_CACHE_QUANTIZATION);
+         long hZ = Math.round(maxZ * AABB_CACHE_QUANTIZATION);
+         long key = 1469598103934665603L;
+         key ^= hx; key *= 0x100000001b3L;
+         key ^= hy; key *= 0x100000001b3L;
+         key ^= hz; key *= 0x100000001b3L;
+         key ^= hX; key *= 0x100000001b3L;
+         key ^= hY; key *= 0x100000001b3L;
+         key ^= hZ; key *= 0x100000001b3L;
+         key ^= vpFp; key *= 0x100000001b3L;
+         return key;
+     }
 
     private static double getAdaptiveMargin() {
         double margin = DH_AGGRESSIVE_MARGIN;
-        if (lastFov >= 100.0) {
+        if (!Double.isNaN(lastFov) && lastFov >= 100.0) {
             margin += 0.75;
         }
         if (lastCameraMoveSq > 16.0) {
@@ -520,7 +543,7 @@ public class DistantHorizonsCompat {
     //
       // Public API hook for DH vertex builders to offload Ambient Occlusion.
     public static float[] computeRustAmbientOcclusion(float[] vertexData) {
-        if ( isDhNativeReady ( ) ) {
+        if (isDhNativeReady()) {
             return new float[0];
         }
         int vertexCount = vertexData.length / 8; // 8 floats per vertex struct in WGSL
@@ -528,7 +551,7 @@ public class DistantHorizonsCompat {
         return com.alexxiconify.rustmc.NativeBridge.invokeComputeAmbientOcclusion(vertexData, vertexCount);
     }
     public static float[] computeRustAmbientOcclusionDirect(java.nio.ByteBuffer vertexData, int vertexCount) {
-        if ( isDhNativeReady ( ) ) {
+        if (isDhNativeReady()) {
             return new float[0];
         }
         if (vertexCount == 0) return new float[0];
@@ -538,7 +561,7 @@ public class DistantHorizonsCompat {
     //
       // Hints DH API to use higher thread count for LOD generation.
     public static void optimizeLodThreading() {
-        if ( isDhMissing ( ) ) return;
+        if (isDhMissing()) return;
         try {
             Class<?> apiClass = Class.forName(DH_API_CLASS);
             Object dhApi = apiClass.getField("Inst").get(null);
@@ -578,7 +601,7 @@ public class DistantHorizonsCompat {
     //
       // Pre-warms DH LOD file cache for current world.
     public static void prefetchLodData() {
-        if ( isDhMissing ( ) ) return;
+        if (isDhMissing()) return;
         Thread.ofPlatform().daemon(true).name("rustmc-dh-prefetch").start(() -> {
             try {
                 // Trigger DH's internal data cache warmup by touching the API

@@ -111,12 +111,12 @@ No analysis performed (specialized GPU code, minimal JVM overhead).
 
 ## Performance Impact Estimate
 
-| Area | Before | After | Gain |
-|------|--------|-------|------|
-| Math JNI calls (per 1M pixels) | 8-12 JNI | 0 JNI | 100% eliminated |
-| Matrix fingerprint (per frame, static scene) | 1 compute | ~0.2 computes | ~80% reduction |
-| Bounds resolution (per DH section) | ~4-6µs | ~2-3µs | ~50% faster |
-| Overall JNI call rate (idle) | ~100-200k/s | ~95-185k/s | ~5-15k fewer calls/sec |
+| Area                                         | Before      | After         | Gain                   |
+|----------------------------------------------|-------------|---------------|------------------------|
+| Math JNI calls (per 1M pixels)               | 8-12 JNI    | 0 JNI         | 100% eliminated        |
+| Matrix fingerprint (per frame, static scene) | 1 compute   | ~0.2 computes | ~80% reduction         |
+| Bounds resolution (per DH section)           | ~4-6µs      | ~2-3µs        | ~50% faster            |
+| Overall JNI call rate (idle)                 | ~100-200k/s | ~95-185k/s    | ~5-15k fewer calls/sec |
 
 ---
 

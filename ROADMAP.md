@@ -24,6 +24,7 @@ Active plan only. History lives in [`docs/completed-changes.md`](docs/completed-
 - Particle and DNS hot paths now keep Java multicore fallbacks available when native path is unavailable or repeatedly slower.
 - Instrumentation pass (Apr 24): DH frustum validation instrumentation added (refresh reasons, move tracking); `PieChartRenderer` timing overlay expanded with DH/Frustum diagnostics; player position fallback implemented for `1.21.11` camera API transition.
 - Observability & Hygiene pass (Apr 24): Expanded `PieChartRenderer` with live cull ratios and JNI timing; unified frame metric return types as `long[]` across `NativeBridge` and `ModMenu`; resolved architectural hygiene lints (nested try extraction).
+- Codebase optimization pass (May 1): Eliminated JNI wrappers for trivial math (sin/cos/sqrt/atan2/clamp/lerp) in favor of vanilla Java Math; lazy matrix fingerprint computation (only on camera change); reduced bounds resolution reflection overhead in DH compat; removed redundant Optional boxing patterns.
 
 ## Now
 
@@ -63,4 +64,4 @@ Active plan only. History lives in [`docs/completed-changes.md`](docs/completed-
 
 ---
 
-Last Updated: April 24, 2026
+Last Updated: May 1, 2026
