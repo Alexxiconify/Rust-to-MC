@@ -4,7 +4,6 @@ import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.IntStream;
 
 // Adaptive particle tick dispatcher: prefer native path, switch to Java multicore fallback after repeated slow native batches.
 public final class ParticleTickDispatcher {
@@ -72,21 +71,35 @@ public final class ParticleTickDispatcher {
 
     private static void tickJavaParallel(double[] positions, double[] velocities, int count, double gravity) {
         if (count >= PARALLEL_THRESHOLD && Runtime.getRuntime().availableProcessors() > 2) {
-            IntStream.range(0, count).parallel().forEach(i -> {
-                int base = i * 3;
-                velocities[base + 1] -= gravity;
-                positions[base] += velocities[base];
-                positions[base + 1] += velocities[base + 1];
-                positions[base + 2] += velocities[base + 2];
-            });
+            // Use a lightweight parallel loop via a custom task or similar if needed,
+            // but for now, even a clean manual loop for chunks of particles is better than IntStream.
+            int cores = Runtime.getRuntime().availableProcessors();
+            int chunkSize = (count + cores - 1) / cores;
+            
+            java.util.concurrent.CompletableFuture<?>[] futures = new java.util.concurrent.CompletableFuture[cores];
+            for (int c = 0; c < cores; c++) {
+                final int start = c * chunkSize;
+                final int end = Math.min(start + chunkSize, count);
+                futures[c] = java.util.concurrent.CompletableFuture.runAsync(() -> {
+                    for (int i = start; i < end; i++) {
+                        tickSingle(positions, velocities, i, gravity);
+                    }
+                });
+            }
+            java.util.concurrent.CompletableFuture.allOf(futures).join();
             return;
         }
+        
         for (int i = 0; i < count; i++) {
-            int base = i * 3;
-            velocities[base + 1] -= gravity;
-            positions[base] += velocities[base];
-            positions[base + 1] += velocities[base + 1];
-            positions[base + 2] += velocities[base + 2];
+            tickSingle(positions, velocities, i, gravity);
         }
+    }
+
+    private static void tickSingle(double[] positions, double[] velocities, int i, double gravity) {
+        int base = i * 3;
+        velocities[base + 1] -= gravity;
+        positions[base] += velocities[base];
+        positions[base + 1] += velocities[base + 1];
+        positions[base + 2] += velocities[base + 2];
     }
 }

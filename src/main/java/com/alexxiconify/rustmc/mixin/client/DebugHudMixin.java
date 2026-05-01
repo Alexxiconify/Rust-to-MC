@@ -40,6 +40,9 @@ public class DebugHudMixin {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.world == null || mc.player == null) return;
         if (!RustMC.CONFIG.isDebugHudGraphEnabled() && !RustMC.CONFIG.isEnablePieChart()) return;
+
+        refreshHistoryCache(mc);
+
         if (RustMC.CONFIG.isDebugHudGraphEnabled() && RustMC.CONFIG.isUseNativeF3() && !ModBridge.isHudOwned()) {
             drawSparkline(context, mc);
         }
@@ -87,7 +90,6 @@ public class DebugHudMixin {
 
     @Unique
     private static void drawSparkline(DrawContext context, MinecraftClient mc) {
-        refreshHistoryCache(mc);
         int graphW = HISTORY_SIZE;
         int graphH = 40;
         int x0 = 2;

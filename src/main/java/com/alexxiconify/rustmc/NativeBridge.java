@@ -664,33 +664,23 @@ public class NativeBridge {
 
     // DH section visibility: frustum first, optional vertical gate for absolute space,
     // then DH-only occlusion where only frustum-kept chunks can occlude other DH chunks.
-    public static boolean cullDistantHorizonsSection(long ptr,
-                                                     double minX, double minY, double minZ,
-                                                     double maxX, double maxY, double maxZ,
-                                                     double surfaceY, double margin,
-                                                     boolean applyVerticalGate) {
+    public static boolean cullDistantHorizonsSection(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double surfaceY, double margin, boolean applyVerticalGate) {
         if (!libLoaded || ptr == 0) return true;
-        boolean visibleByFrustum = testRustFrustum(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
-        if (!visibleByFrustum) {
-            return false;
+
+        // Fused path: handles frustum, vertical gate (if context is cave), and occlusion in one JNI call.
+        // We use margin=0 for DH since they have their own adaptive margin logic usually.
+        if (supportsDhFusedCull.get()) {
+            return invokeDHCullFused(ptr, minX, minY, minZ, maxX, maxY, maxZ, surfaceY);
         }
+
+        // Fallback path
+        boolean visibleByFrustum = testRustFrustum(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
+        if (!visibleByFrustum) return false;
 
         double refY = applyVerticalGate ? getDhReferenceY() : Double.NaN;
-        boolean visibleByVertical = passesDhVerticalGate(
-            applyVerticalGate,
-            refY,
-            minY,
-            maxY,
-            surfaceY
-        );
-        if (!visibleByVertical) {
-            return false;
-        }
+        if (!passesDhVerticalGate(applyVerticalGate, refY, minY, maxY, surfaceY)) return false;
 
-        boolean occluded = isDHOccluded(minX, minY, minZ, maxX, maxY, maxZ);
-        if (occluded) {
-            return false;
-        }
+        if (isDHOccluded(minX, minY, minZ, maxX, maxY, maxZ)) return false;
         submitDHOccluder(minX, minY, minZ, maxX, maxY, maxZ);
         return true;
     }

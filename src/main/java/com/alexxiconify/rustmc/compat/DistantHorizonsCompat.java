@@ -9,19 +9,12 @@ public class DistantHorizonsCompat {
     private static final String MATRIX_TO_ARRAY_METHOD = "toArray";
     // ── Magic Constants ──
     private static final double DH_SURFACE_Y = 54.0;
-    private static final double DH_AGGRESSIVE_MARGIN = -2.0;
-    private static final double DH_MIN_MARGIN = -2.0;
-    private static final double DH_MAX_MARGIN = 0.25;
     // Tolerance thresholds
     private static final double COORD_CHANGE_THRESHOLD = 1.0e-6;
     private static final float ROTATION_CHANGE_THRESHOLD = 1.0e-4f;
     private static final double OPTICS_CHANGE_THRESHOLD = 1.0e-4;
-    private static final double DIRECTION_EPSILON = 1.0e-6;
     // Quantization
     private static final double MATRIX_QUANTIZATION_SCALE = 1_000_000.0;
-    private static final double AABB_CACHE_QUANTIZATION = 8.0;
-    private static final double CENTER_OFFSET = 0.5;
-    private static final double FOV_ASPECT_RATIO = 16.0 / 9.0;
     private DistantHorizonsCompat() {}
     private static long rustFrustumPtr = 0;
     private static int currentMinY = -64;
@@ -38,11 +31,10 @@ public class DistantHorizonsCompat {
  private static long lastVpFingerprint = 0L;
     private static boolean hasLastVpFingerprint = false;
     // Small cache to avoid repeated JNI calls for static sections when camera/projection unchanged.
-    private static final java.util.concurrent.ConcurrentHashMap<Long, Boolean> dhVisibilityCache = new java.util.concurrent.ConcurrentHashMap<>();
+    // Cache removed to eliminate ConcurrentHashMap overhead on hot path.
     private static java.lang.reflect.Method matrixToArrayMethod = null;
     private static java.lang.reflect.Method matrixGetMethod = null;
     private static double lastFov = Double.NaN;
-    private static double lastAspect = Double.NaN;
     private static Object dhOverridesInjector = null;
     private static java.lang.reflect.Method dhBindMethod = null;
     private static Class<?> dhCullingFrustumClass = null;
@@ -88,7 +80,6 @@ public class DistantHorizonsCompat {
     private static final java.util.concurrent.ConcurrentHashMap<Class<?>, BoundsFields> BOUNDS_FIELD_CACHE =
         new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.concurrent.atomic.AtomicBoolean dhApiShapeLogged = new java.util.concurrent.atomic.AtomicBoolean(false);
-    private static final java.util.concurrent.atomic.AtomicBoolean dhBoundsShapeLogged = new java.util.concurrent.atomic.AtomicBoolean(false);
     private static final java.util.concurrent.atomic.AtomicInteger unknownProxyMethodCount = new java.util.concurrent.atomic.AtomicInteger(0);
     @SuppressWarnings("java:S3776")
     public static void registerFrustumCuller() {
@@ -417,129 +408,23 @@ public class DistantHorizonsCompat {
     }
 
     // Force single camera-minus transform path (best-performing mode).
-    private static boolean cullDhSectionInAnySpace(double minX, double minY, double minZ,
-                                                   double maxX, double maxY, double maxZ) {
+    private static boolean cullDhSectionInAnySpace(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
         return testCameraMinusSpace(minX, minY, minZ, maxX, maxY, maxZ);
     }
 
 
     private static boolean testCameraMinusSpace(double minX, double minY, double minZ,
                                                 double maxX, double maxY, double maxZ) {
-        if (!hasLastCameraState) {
+        if (!hasLastCameraState || rustFrustumPtr == 0) {
             return true;
         }
-        // Fast Java-side gates to avoid JNI calls for obvious outside/in cases.
-        // 1) If DH cave culling enabled and section entirely below surface, cull immediately.
-        if (RustMC.CONFIG.isEnableDhCaveCulling() && maxY < DH_SURFACE_Y) {
-            return false;
-        }
-
-        // AABB is in absolute/world coordinates. Compute angles relative to camera position.
-        double centerX = (minX + maxX) * CENTER_OFFSET;
-        double centerY = (minY + maxY) * CENTER_OFFSET;
-        double centerZ = (minZ + maxZ) * CENTER_OFFSET;
-        double dx = centerX - lastCameraX;
-        double dy = centerY - lastCameraY;
-        double dz = centerZ - lastCameraZ;
-
-        double horizDist = Math.sqrt(dx * dx + dz * dz);
-
-        // Compute horizontal angle between camera forward direction and section center using vector dot-product
-        double yawRad = Math.toRadians(lastCameraYaw);
-        double ffx = -Math.sin(yawRad); // camera forward X (XZ-plane)
-        double ffz = Math.cos(yawRad);  // camera forward Z (XZ-plane)
-        double dirLenXZ = Math.hypot(dx, dz);
-        double ffLen = Math.hypot(ffx, ffz);
-        double yawDiff = 0.0;
-        if (dirLenXZ > DIRECTION_EPSILON && ffLen > DIRECTION_EPSILON) {
-            double dot = (ffx * dx + ffz * dz) / (ffLen * dirLenXZ);
-            dot = Math.clamp(dot, -1.0, 1.0);
-            yawDiff = Math.toDegrees(Math.acos(dot));
-        }
-
-         // Prefer querying live client FOV when available for tighter tests.
-         double clientFov = Double.isNaN(lastFov) ? 70.0 : lastFov;
-         try {
-             net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
-             if (mc != null) clientFov = mc.options.getFov().getValue();
-         } catch (Exception ignored) {}
-         double aspect = lastAspect <= 0.0 ? FOV_ASPECT_RATIO : lastAspect;
-         // Convert vertical FOV to horizontal FOV correctly: hFOV = 2 * atan(tan(vFOV/2) * aspect)
-         double vFovRad = Math.toRadians(clientFov);
-         double hFovRad = 2.0 * Math.atan(Math.tan(vFovRad * CENTER_OFFSET) * aspect);
-         double horizontalHalfFov = Math.toDegrees(hFovRad * CENTER_OFFSET);
-
-        // small safety margin in degrees to avoid popping at edges
-        double safetyDeg = 3.0;
-        // Fast-pass: anything substantially behind camera (yaw difference > 95deg) is culled immediately.
-        if (yawDiff > 95.0) {
-            return false;
-        }
-
-        if (yawDiff > horizontalHalfFov + safetyDeg) {
-            return false; // definitely outside horizontal FOV
-        }
-
-        // Pitch check
-        double pitchToCenter = Math.toDegrees(Math.atan2(dy, horizDist));
-        // Minecraft pitch: positive when looking down. Convert to elevation angle (positive up).
-        double cameraElevation = -lastCameraPitch;
-        double pitchDiff = Math.abs(pitchToCenter - cameraElevation);
-        double verticalHalfFov = clientFov / 2.0;
-        if (pitchDiff > verticalHalfFov + safetyDeg) {
-            return false; // definitely outside vertical FOV
-        }
-
-        // 3) Use a small cache keyed by AABB + projection fingerprint to avoid redundant JNI checks
-        long key = computeAabbCacheKey(minX, minY, minZ, maxX, maxY, maxZ, lastVpFingerprint);
-        Boolean cached = dhVisibilityCache.get(key);
-        if (cached != null) return cached;
-
-        // 4) Fall back to native fused test (frustum + vertical gate + occlusion) for final decision.
-        // Pass absolute world coordinates to native frustum test.
-        boolean visible = com.alexxiconify.rustmc.NativeBridge.cullDistantHorizonsSection(
-            rustFrustumPtr,
-            minX, minY, minZ,
-            maxX, maxY, maxZ,
-            DH_SURFACE_Y,
-            getAdaptiveMargin(),
-            false
+        return com.alexxiconify.rustmc.NativeBridge.cullDistantHorizonsSection(
+            rustFrustumPtr, minX, minY, minZ, maxX, maxY, maxZ,
+            DH_SURFACE_Y, 0.0, RustMC.CONFIG.isEnableDhCaveCulling()
         );
-        dhVisibilityCache.put(key, visible);
-        return visible;
     }
 
-     private static long computeAabbCacheKey(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, long vpFp) {
-         // Quantize coords to chunk-section granularity to keep key small and tolerant to small changes.
-         long hx = Math.round(minX * AABB_CACHE_QUANTIZATION);
-         long hy = Math.round(minY * AABB_CACHE_QUANTIZATION);
-         long hz = Math.round(minZ * AABB_CACHE_QUANTIZATION);
-         long hX = Math.round(maxX * AABB_CACHE_QUANTIZATION);
-         long hY = Math.round(maxY * AABB_CACHE_QUANTIZATION);
-         long hZ = Math.round(maxZ * AABB_CACHE_QUANTIZATION);
-         long key = 1469598103934665603L;
-         key ^= hx; key *= 0x100000001b3L;
-         key ^= hy; key *= 0x100000001b3L;
-         key ^= hz; key *= 0x100000001b3L;
-         key ^= hX; key *= 0x100000001b3L;
-         key ^= hY; key *= 0x100000001b3L;
-         key ^= hZ; key *= 0x100000001b3L;
-         key ^= vpFp; key *= 0x100000001b3L;
-         return key;
-     }
 
-    private static double getAdaptiveMargin() {
-        double margin = DH_AGGRESSIVE_MARGIN;
-        if (!Double.isNaN(lastFov) && lastFov >= 100.0) {
-            margin += 0.75;
-        }
-        if (lastCameraMoveSq > 16.0) {
-            margin += 1.25;
-        } else if (lastCameraMoveSq > 4.0) {
-            margin += 0.75;
-        }
-        return Math.clamp(margin, DH_MIN_MARGIN, DH_MAX_MARGIN);
-    }
     //
       // Public API hook for DH vertex builders to offload Ambient Occlusion.
     public static float[] computeRustAmbientOcclusion(float[] vertexData) {
