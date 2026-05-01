@@ -1,19 +1,16 @@
 package com.alexxiconify.rustmc.compat;
 import com.alexxiconify.rustmc.RustMC;
+import com.alexxiconify.rustmc.NativeBridge;
 import net.fabricmc.loader.api.FabricLoader;
-// Reflection-based integration with Distant Horizons. API for DH vertex builders to offload AO to Rust.
 public class DistantHorizonsCompat {
     private static final String DH_MOD_ID = "distanthorizons";
     private static final String DH_API_CLASS = "com.seibel.distanthorizons.api.DhApi";
     private static final String MATRIX_VALUES_AS_ARRAY_METHOD = "getValuesAsArray";
     private static final String MATRIX_TO_ARRAY_METHOD = "toArray";
-    // ── Magic Constants ──
     private static final double DH_SURFACE_Y = 54.0;
-    // Tolerance thresholds
     private static final double COORD_CHANGE_THRESHOLD = 1.0e-6;
     private static final float ROTATION_CHANGE_THRESHOLD = 1.0e-4f;
     private static final double OPTICS_CHANGE_THRESHOLD = 1.0e-4;
-    // Quantization
     private static final double MATRIX_QUANTIZATION_SCALE = 1_000_000.0;
     private DistantHorizonsCompat() {}
     private static long rustFrustumPtr = 0;
@@ -28,10 +25,8 @@ public class DistantHorizonsCompat {
     private static float lastCameraYaw = 0.0f;
     private static float lastCameraPitch = 0.0f;
     private static double lastCameraMoveSq = 0.0;
- private static long lastVpFingerprint = 0L;
+    private static long lastVpFingerprint = 0L;
     private static boolean hasLastVpFingerprint = false;
-    // Small cache to avoid repeated JNI calls for static sections when camera/projection unchanged.
-    // Cache removed to eliminate ConcurrentHashMap overhead on hot path.
     private static java.lang.reflect.Method matrixToArrayMethod = null;
     private static java.lang.reflect.Method matrixGetMethod = null;
     private static double lastFov = Double.NaN;
@@ -42,18 +37,13 @@ public class DistantHorizonsCompat {
     private static long lastRebindNanos = 0L;
     private static String lastRefreshReason = "INIT";
     private static final long REBIND_INTERVAL_NANOS = java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+    private static final java.util.concurrent.ConcurrentHashMap<Long, Boolean> VISIBILITY_CACHE = new java.util.concurrent.ConcurrentHashMap<>(1024);
+    private static final float[] SHADOW_PLANES = new float[24]; // 6 planes * 4 components
     public static String getLastRefreshReason() { return lastRefreshReason; }
     public static boolean isFrustumInitialized() { return frustumInitialized; }
     public static double getLastCameraMoveSq() { return lastCameraMoveSq; }
-
-    private static boolean isDhMissing() {
-        return !FabricLoader.getInstance().isModLoaded(DH_MOD_ID);
-    }
-
-    private static boolean isDhNativeReady() {
-        return isDhMissing() || !com.alexxiconify.rustmc.NativeBridge.isReady();
-    }
-
+    private static boolean isDhMissing() {return !FabricLoader.getInstance().isModLoaded(DH_MOD_ID);}
+    private static boolean isDhNativeReady() {return isDhMissing() || !NativeBridge.isReady();}
     private enum ProxyMethodKind {
         PRIORITY,
         UPDATE,
@@ -63,7 +53,6 @@ public class DistantHorizonsCompat {
         TOSTRING,
         UNKNOWN
     }
-
     private record BoundsFields(java.lang.reflect.Field minX,
                                 java.lang.reflect.Field minY,
                                 java.lang.reflect.Field minZ,
@@ -71,10 +60,8 @@ public class DistantHorizonsCompat {
                                 java.lang.reflect.Field maxY,
                                 java.lang.reflect.Field maxZ) {
     }
-
     private record SectionBounds(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
     }
-
     private static final java.util.concurrent.ConcurrentHashMap<java.lang.reflect.Method, ProxyMethodKind> PROXY_METHOD_KIND_CACHE =
         new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.concurrent.ConcurrentHashMap<Class<?>, BoundsFields> BOUNDS_FIELD_CACHE =
@@ -85,7 +72,7 @@ public class DistantHorizonsCompat {
     public static void registerFrustumCuller() {
         if (isDhNativeReady()) return;
         try {
-            rustFrustumPtr = com.alexxiconify.rustmc.NativeBridge.createRustFrustum();
+            rustFrustumPtr = NativeBridge.createRustFrustum();
             if (rustFrustumPtr == 0) return;
             hasLastCameraState = false;
             frustumInitialized = false;
@@ -108,7 +95,7 @@ public class DistantHorizonsCompat {
         } catch (Exception e) {
             RustMC.LOGGER.debug("[Rust-MC] Could not register DH frustum culler ({}), skipping.", e.getMessage());
             if (rustFrustumPtr != 0) {
-                com.alexxiconify.rustmc.NativeBridge.destroyRustFrustum(rustFrustumPtr);
+                NativeBridge.destroyRustFrustum(rustFrustumPtr);
                 rustFrustumPtr = 0;
             }
             frustumInitialized = false;
@@ -217,10 +204,10 @@ public class DistantHorizonsCompat {
         if (vpArray.length < 16) return null;
         if (!frustumInitialized || shouldRefreshFrustum(vpArray)) {
             float[] vpSnapshot = java.util.Arrays.copyOf(vpArray, vpArray.length);
-            if (com.alexxiconify.rustmc.NativeBridge.updateRustFrustumTracked(rustFrustumPtr, vpSnapshot)) {
+            if (NativeBridge.updateRustFrustumTracked(rustFrustumPtr, vpSnapshot)) {
                 frustumInitialized = true;
-                // Clear visibility cache when frustum/projection is updated so cached results remain correct.
-                dhVisibilityCache.clear();
+                VISIBILITY_CACHE.clear();
+                updateShadowPlanes(vpSnapshot);
             }
         }
         return null;
@@ -288,30 +275,40 @@ public class DistantHorizonsCompat {
 
     private static boolean shouldRefreshFrustum(float[] vpArray) {
         net.minecraft.client.MinecraftClient mc2 = net.minecraft.client.MinecraftClient.getInstance();
-        if (mc2 == null || mc2.world == null) return false;
+        if (mc2 == null || mc2.world == null) {
+            return false;
+        }
         var camera = mc2.gameRenderer.getCamera();
         var pos = camera.getCameraPos();
-        double cx = pos.x, cy = pos.y, cz = pos.z;
-        float yaw = camera.getYaw(), pitch = camera.getPitch();
+        double cx = pos.x;
+        double cy = pos.y;
+        double cz = pos.z;
+        float yaw = camera.getYaw();
+        float pitch = camera.getPitch();
         double fov = mc2.options.getFov().getValue();
 
         boolean moved = !hasLastCameraState || Math.hypot(Math.hypot(cx - lastCameraX, cy - lastCameraY), cz - lastCameraZ) > COORD_CHANGE_THRESHOLD;
         boolean rotated = !hasLastCameraState || Math.abs(yaw - lastCameraYaw) > ROTATION_CHANGE_THRESHOLD || Math.abs(pitch - lastCameraPitch) > ROTATION_CHANGE_THRESHOLD;
         boolean opticsChanged = Double.isNaN(lastFov) || Math.abs(fov - lastFov) > OPTICS_CHANGE_THRESHOLD;
 
-        lastCameraX = cx; lastCameraY = cy; lastCameraZ = cz;
-        lastCameraYaw = yaw; lastCameraPitch = pitch; lastFov = fov;
+        lastCameraX = cx;
+        lastCameraY = cy;
+        lastCameraZ = cz;
+        lastCameraYaw = yaw;
+        lastCameraPitch = pitch;
+        lastFov = fov;
         hasLastCameraState = true;
 
         // Only compute fingerprint if camera/optics changed
-        if (moved || rotated || opticsChanged) {
-            long vpFingerprint = fingerprintMatrix(vpArray);
-            boolean projectionChanged = hasLastVpFingerprint && ( vpFingerprint != lastVpFingerprint );
+        long vpFingerprint = fingerprintMatrix(vpArray);
+        boolean projectionChanged = !hasLastVpFingerprint || (vpFingerprint != lastVpFingerprint);
+        
+        if (projectionChanged) {
             lastVpFingerprint = vpFingerprint;
             hasLastVpFingerprint = true;
-            return moved || rotated || opticsChanged || projectionChanged;
         }
-        return false;
+
+        return moved || rotated || opticsChanged || projectionChanged;
     }
     private static Object handleFrustumIntersects(Object[] args) {
         ensureFrustumCullerBound();
@@ -322,44 +319,64 @@ public class DistantHorizonsCompat {
         if (args == null || args.length == 0) {
             return true;
         }
-        java.util.Optional<SectionBounds> boundsOpt = resolveIntersectBounds(args);
-        if (boundsOpt.isEmpty()) {
-            return true;
-        }
-        SectionBounds bounds = boundsOpt.get();
-        return cullDhSectionInAnySpace(
-            Math.min(bounds.minX(), bounds.maxX()), Math.min(bounds.minY(), bounds.maxY()), Math.min(bounds.minZ(), bounds.maxZ()),
-            Math.max(bounds.minX(), bounds.maxX()), Math.max(bounds.minY(), bounds.maxY()), Math.max(bounds.minZ(), bounds.maxZ())
-        );
+        return resolveIntersectBounds(args)
+                .map(bounds -> {
+                    long key = hashBounds(bounds);
+                    return VISIBILITY_CACHE.computeIfAbsent(key, k -> {
+                        double minX = Math.min(bounds.minX(), bounds.maxX());
+                        double minY = Math.min(bounds.minY(), bounds.maxY());
+                        double minZ = Math.min(bounds.minZ(), bounds.maxZ());
+                        double maxX = Math.max(bounds.minX(), bounds.maxX());
+                        double maxY = Math.max(bounds.minY(), bounds.maxY());
+                        double maxZ = Math.max(bounds.minZ(), bounds.maxZ());
+                        
+                        if (isOutsideShadowFrustum(minX, minY, minZ, maxX, maxY, maxZ)) {
+                            return false;
+                        }
+                        
+                        return cullDhSectionInAnySpace(minX, minY, minZ, maxX, maxY, maxZ);
+                    });
+                })
+                .orElse(true);
+    }
+
+    private static long hashBounds(SectionBounds b) {
+        long h = Double.doubleToRawLongBits(b.minX());
+        h = h * 31 + Double.doubleToRawLongBits(b.minY());
+        h = h * 31 + Double.doubleToRawLongBits(b.minZ());
+        return h;
     }
 
     private static java.util.Optional<SectionBounds> resolveIntersectBounds(Object[] args) {
         if (args.length == 1 && args[0] != null) {
-            java.util.Optional<SectionBounds> singleArgBounds = resolveSingleArgBounds(args[0]);
-            if (singleArgBounds.isPresent()) {
-                return singleArgBounds;
-            }
+            return resolveSingleArgBounds(args[0]);
         }
-        // Fast path: 6+ args as doubles/floats (most common)
         if (args.length >= 6) {
-            double minX = (args[0] instanceof Number n) ? n.doubleValue() : Double.NaN;
-            if (!Double.isNaN(minX)) {
-                double minY = (args[1] instanceof Number n) ? n.doubleValue() : Double.NaN;
-                double minZ = (args[2] instanceof Number n) ? n.doubleValue() : Double.NaN;
-                double maxX = (args[3] instanceof Number n) ? n.doubleValue() : Double.NaN;
-                double maxY = (args[4] instanceof Number n) ? n.doubleValue() : Double.NaN;
-                double maxZ = (args[5] instanceof Number n) ? n.doubleValue() : Double.NaN;
-                if (!Double.isNaN(maxZ)) {
-                    return java.util.Optional.of(new SectionBounds(minX, minY, minZ, maxX, maxY, maxZ));
-                }
-            }
+            return resolveSixArgBounds(args);
         }
-        // Fallback: 4 args (minX, minZ, maxX, maxZ with inferred Y)
-        if (args.length >= 4 && args[0] instanceof Number minXArg && args[1] instanceof Number minZArg &&
-            args[2] instanceof Number maxXArg && args[3] instanceof Number maxZArg) {
+        if (args.length >= 4) {
+            return resolveFourArgBounds(args);
+        }
+        return java.util.Optional.empty();
+    }
+
+    private static java.util.Optional<SectionBounds> resolveSixArgBounds(Object[] args) {
+        if (args[0] instanceof Number minX && args[1] instanceof Number minY && args[2] instanceof Number minZ &&
+            args[3] instanceof Number maxX && args[4] instanceof Number maxY && args[5] instanceof Number maxZ) {
             return java.util.Optional.of(new SectionBounds(
-                minXArg.doubleValue(), currentMinY, minZArg.doubleValue(),
-                maxXArg.doubleValue(), currentMaxY, maxZArg.doubleValue()
+                minX.doubleValue(), minY.doubleValue(), minZ.doubleValue(),
+                maxX.doubleValue(), maxY.doubleValue(), maxZ.doubleValue()
+            ));
+        }
+        return java.util.Optional.empty();
+    }
+
+    private static java.util.Optional<SectionBounds> resolveFourArgBounds(Object[] args) {
+        if (args[0] instanceof Number minX && args[1] instanceof Number minZ &&
+            args[2] instanceof Number maxX && args[3] instanceof Number maxZ) {
+            return java.util.Optional.of(new SectionBounds(
+                minX.doubleValue(), currentMinY, minZ.doubleValue(),
+                maxX.doubleValue(), currentMaxY, maxZ.doubleValue()
             ));
         }
         return java.util.Optional.empty();
@@ -386,7 +403,9 @@ public class DistantHorizonsCompat {
                 fields.minX().getDouble(arg), fields.minY().getDouble(arg), fields.minZ().getDouble(arg),
                 fields.maxX().getDouble(arg), fields.maxY().getDouble(arg), fields.maxZ().getDouble(arg)
             ));
-        } catch (RuntimeException | IllegalAccessException ignored) {}
+        } catch (RuntimeException | IllegalAccessException ignored) {
+            // Fallback to empty optional if field access fails for this specific DH version
+        }
         return java.util.Optional.empty();
     }
 
@@ -418,7 +437,7 @@ public class DistantHorizonsCompat {
         if (!hasLastCameraState || rustFrustumPtr == 0) {
             return true;
         }
-        return com.alexxiconify.rustmc.NativeBridge.cullDistantHorizonsSection(
+        return NativeBridge.cullDistantHorizonsSection(
             rustFrustumPtr, minX, minY, minZ, maxX, maxY, maxZ,
             DH_SURFACE_Y, 0.0, RustMC.CONFIG.isEnableDhCaveCulling()
         );
@@ -433,14 +452,14 @@ public class DistantHorizonsCompat {
         }
         int vertexCount = vertexData.length / 8; // 8 floats per vertex struct in WGSL
         if (vertexCount == 0) return new float[0];
-        return com.alexxiconify.rustmc.NativeBridge.invokeComputeAmbientOcclusion(vertexData, vertexCount);
+        return NativeBridge.invokeComputeAmbientOcclusion(vertexData, vertexCount);
     }
     public static float[] computeRustAmbientOcclusionDirect(java.nio.ByteBuffer vertexData, int vertexCount) {
         if (isDhNativeReady()) {
             return new float[0];
         }
         if (vertexCount == 0) return new float[0];
-        return com.alexxiconify.rustmc.NativeBridge.invokeComputeAmbientOcclusionDirect(vertexData, vertexCount);
+        return NativeBridge.invokeComputeAmbientOcclusionDirect(vertexData, vertexCount);
     }
     // ── LOD Loading Optimization ────────────────────────────────────────────
     //
@@ -507,16 +526,41 @@ public class DistantHorizonsCompat {
         if ( isDhNativeReady ( ) ) return;
         // Never mutate DH/user cache task buffers in native relight paths.
         long[] taskSnapshot = java.util.Arrays.copyOf(lightTasks, lightTasks.length);
-        com.alexxiconify.rustmc.NativeBridge.propagateLightDH(taskSnapshot, taskSnapshot.length);
+        NativeBridge.propagateLightDH(taskSnapshot, taskSnapshot.length);
     }
     //
      // Offloads DH LOD meshing to Rust GPU path when detail level is high-value for batching.
     public static int[] generateGpuLod(int[] blocks, int chunkX, int chunkZ, int detail) {
-        if (!com.alexxiconify.rustmc.NativeBridge.isReady() || detail > 2 || blocks == null || blocks.length == 0) {
-            return new int[0];
-        }
-        // Copy blocks so native meshing cannot alter DH LOD cache arrays.
         int[] blockSnapshot = java.util.Arrays.copyOf(blocks, blocks.length);
-        return com.alexxiconify.rustmc.NativeBridge.generateLodMeshGpu(blockSnapshot, chunkX, chunkZ, detail);
+        return NativeBridge.generateLodMeshGpu(blockSnapshot, chunkX, chunkZ, detail);
+    }
+
+    private static void updateShadowPlanes(float[] vp) {
+        for (int i = 0; i < 4; ++i) SHADOW_PLANES[0 + i] = vp[3 + i] + vp[0 + i];
+        for (int i = 0; i < 4; ++i) SHADOW_PLANES[4 + i] = vp[3 + i] - vp[0 + i];
+        for (int i = 0; i < 4; ++i) SHADOW_PLANES[8 + i] = vp[3 + i] + vp[1 + i];
+        for (int i = 0; i < 4; ++i) SHADOW_PLANES[12+ i] = vp[3 + i] - vp[1 + i];
+        for (int i = 0; i < 4; ++i) SHADOW_PLANES[16+ i] = vp[3 + i] + vp[2 + i];
+        for (int i = 0; i < 4; ++i) SHADOW_PLANES[20+ i] = vp[3 + i] - vp[2 + i];
+        
+        // Normalize planes for better precision in float space
+        for (int i = 0; i < 6; i++) {
+            int o = i * 4;
+            float mag = (float)Math.sqrt(SHADOW_PLANES[o]*SHADOW_PLANES[o] + SHADOW_PLANES[o+1]*SHADOW_PLANES[o+1] + SHADOW_PLANES[o+2]*SHADOW_PLANES[o+2]);
+            if (mag > 1e-6f) {
+                SHADOW_PLANES[o] /= mag; SHADOW_PLANES[o+1] /= mag; SHADOW_PLANES[o+2] /= mag; SHADOW_PLANES[o+3] /= mag;
+            }
+        }
+    }
+
+    private static boolean isOutsideShadowFrustum(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        for (int i = 0; i < 6; i++) {
+            int offset = i * 4;
+            float px = SHADOW_PLANES[offset] >= 0 ? (float)maxX : (float)minX;
+            float py = SHADOW_PLANES[offset+1] >= 0 ? (float)maxY : (float)minY;
+            float pz = SHADOW_PLANES[offset+2] >= 0 ? (float)maxZ : (float)minZ;
+            if (SHADOW_PLANES[offset] * px + SHADOW_PLANES[offset+1] * py + SHADOW_PLANES[offset+2] * pz + SHADOW_PLANES[offset+3] < -0.5f) return true;
+        }
+        return false;
     }
 }

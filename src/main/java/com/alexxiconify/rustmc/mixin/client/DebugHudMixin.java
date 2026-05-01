@@ -50,6 +50,9 @@ public class DebugHudMixin {
             int screenW = context.getScaledWindowWidth();
             PieChartRenderer.draw(context, mc.textRenderer, screenW);
         }
+        if (RustMC.CONFIG.isEnableNativeMetricsHud()) {
+            com.alexxiconify.rustmc.util.NativeStatsRenderer.render(context);
+        }
     }
 
     @Unique
