@@ -1,5 +1,4 @@
 package com.alexxiconify.rustmc.util;
-import com.alexxiconify.rustmc.NativeBridge;
 import net.minecraft.client.gui.DrawContext;
 
 //  Draws a compact text-only timing overlay. Keeps the existing toggle/config plumbing but removes the pie graphic itself.
@@ -53,20 +52,19 @@ public final class PieChartRenderer {
         context.drawTextWithShadow(textRenderer, cachedFrustumLabel, x, y + 100, 0xFFFFFF55);
         context.drawTextWithShadow(textRenderer, cachedJniLabel, x, y + 110, 0xFFFFAA55);
     }
-    // Refreshes cached stats from the native frame history ring buffer.  Returns false if no history is available.
+    // Refreshes cached stats from the local frame history ring buffer.
     private static boolean refreshStats() {
-        NativeBridge.FrameHistorySnapshot snapshot = NativeBridge.getFrameHistorySnapshot();
-        float[] history = snapshot.history();
+        float[] history = com.alexxiconify.rustmc.mixin.client.DebugHudMixin.getFrameHistory();
         if (history == null || history.length == 0) {
             cacheValid = false;
             return false;
         }
 
-        float avg = snapshot.avgMs();
-        float min = snapshot.minMs();
-        float max = snapshot.maxMs();
-        int slowFrames = 0;
-        for (float f : history) if (f > 16.6f) slowFrames++;
+        float avg = com.alexxiconify.rustmc.mixin.client.DebugHudMixin.getAvgMs();
+        float min = com.alexxiconify.rustmc.mixin.client.DebugHudMixin.getMinMs();
+        float max = com.alexxiconify.rustmc.mixin.client.DebugHudMixin.getMaxMs();
+        int slowFrames = com.alexxiconify.rustmc.mixin.client.DebugHudMixin.getSlowFramesCount();
+
         // Estimate category proportions heuristically from frame variance
         float renderPct = Math.min(0.55f, 0.35f + (avg - 8f) * 0.005f);
         float tickPct   = Math.min(0.25f, 0.15f + (slowFrames / (float) history.length) * 0.1f);
@@ -93,15 +91,8 @@ public final class PieChartRenderer {
             boolean init = com.alexxiconify.rustmc.compat.DistantHorizonsCompat.isFrustumInitialized();
             double move = com.alexxiconify.rustmc.compat.DistantHorizonsCompat.getLastCameraMoveSq();
             cachedDhLabel = "DH: ACTIVE (" + reason + ")";
-            long[] fStats = NativeBridge.getLastFrustumFrameCounters();
-            if (fStats[0] > 0) {
-                float cRate = (float) fStats[2] / fStats[0] * 100f;
-                cachedFrustumLabel = "Frust: " + fStats[2] + "/" + fStats[0] + " (" + Math.round(cRate) + "%)";
-                cachedJniLabel = "JNI: " + formatMsValue((fStats[3] / 1000.0f) / 1000.0f) + "ms";
-            } else {
-                cachedFrustumLabel = "Frust: " + (init ? "READY" : "WAIT") + " m=" + formatMsValue((float)move);
-                cachedJniLabel = "JNI: 0.0ms";
-            }
+            cachedFrustumLabel = "Frust: " + (init ? "READY" : "WAIT") + " m=" + formatMsValue((float)move);
+            cachedJniLabel = "JNI: ACTIVE";
         } else {
             cachedDhLabel = "DH: NOT FOUND";
             cachedFrustumLabel = "Frust: N/A";

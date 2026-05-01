@@ -23,6 +23,16 @@ public class DebugHudMixin {
     @Unique private static String cachedStatsText = "0.0ms avg | 0.0 min | 0.0 max";
     @Unique private static long lastHistoryUpdateMs;
     @Unique private static final long HISTORY_UPDATE_INTERVAL_MS = 100; // 10 Hz refresh
+    @Unique private static float avgMs = 0;
+    @Unique private static float minMs = 0;
+    @Unique private static float maxMs = 0;
+    @Unique private static int slowFramesCount = 0;
+
+    public static float[] getFrameHistory() { return frameHistory; }
+    public static float getAvgMs() { return avgMs; }
+    public static float getMinMs() { return minMs; }
+    public static float getMaxMs() { return maxMs; }
+    public static int getSlowFramesCount() { return slowFramesCount; }
 
     @Inject(method = "render", at = @At("TAIL"), require = 0)
     private void onRenderTail(DrawContext context, CallbackInfo ci) {
@@ -52,14 +62,25 @@ public class DebugHudMixin {
         float min = Float.MAX_VALUE;
         float max = 0;
         int count = 0;
+        int slow = 0;
         for (float v : frameHistory) {
             if (v <= 0) continue;
-            sum += v; min = Math.min(min, v); max = Math.max(max, v); count++;
+            sum += v;
+            min = Math.min(min, v);
+            max = Math.max(max, v);
+            if (v > 16.6f) slow++;
+            count++;
         }
         if (count == 0) {
+            avgMs = minMs = maxMs = 0;
+            slowFramesCount = 0;
             cachedStatsText = "0.0ms avg | 0.0 min | 0.0 max";
         } else {
-            cachedStatsText = "%.1fms avg | %.1f min | %.1f max".formatted(sum / count, min, max);
+            avgMs = sum / count;
+            minMs = min;
+            maxMs = max;
+            slowFramesCount = slow;
+            cachedStatsText = "%.1fms avg | %.1f min | %.1f max".formatted(avgMs, minMs, maxMs);
         }
         lastHistoryUpdateMs = now;
     }

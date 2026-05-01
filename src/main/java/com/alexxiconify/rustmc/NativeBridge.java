@@ -17,7 +17,6 @@ public class NativeBridge {
     private static boolean libLoaded;
     private static final AtomicBoolean noiseSeeded = new AtomicBoolean(false);
     // Counters managed externally; removed debug tracking overhead
-    private static final int[] lastFrustumFrameCounters = new int[3];
     private static final long[] chunkIngestStats = new long[4];
     private static final long[] metricsSnapshot = new long[5];
     // Cache optional native symbol availability to avoid repeated exception fallbacks in hot culling paths.
