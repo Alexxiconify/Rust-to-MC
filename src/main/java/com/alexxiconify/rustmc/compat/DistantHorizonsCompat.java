@@ -24,8 +24,7 @@ public class DistantHorizonsCompat {
     private static double lastCameraZ = 0.0;
     private static float lastCameraYaw = 0.0f;
     private static float lastCameraPitch = 0.0f;
-    private static double lastCameraMoveSq = 0.0;
-    private static long lastVpFingerprint = 0L;
+ private static long lastVpFingerprint = 0L;
     private static boolean hasLastVpFingerprint = false;
     private static java.lang.reflect.Method matrixToArrayMethod = null;
     private static java.lang.reflect.Method matrixGetMethod = null;
@@ -35,13 +34,16 @@ public class DistantHorizonsCompat {
     private static Class<?> dhCullingFrustumClass = null;
     private static Object dhProxyInstance = null;
     private static long lastRebindNanos = 0L;
-    private static String lastRefreshReason = "INIT";
-    private static final long REBIND_INTERVAL_NANOS = java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+ private static final long REBIND_INTERVAL_NANOS = java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
     private static final java.util.concurrent.ConcurrentHashMap<Long, Boolean> VISIBILITY_CACHE = new java.util.concurrent.ConcurrentHashMap<>(1024);
     private static final float[] SHADOW_PLANES = new float[24]; // 6 planes * 4 components
-    public static String getLastRefreshReason() { return lastRefreshReason; }
+    public static String getLastRefreshReason() {
+     String lastRefreshReason = "INIT";
+     return lastRefreshReason; }
     public static boolean isFrustumInitialized() { return frustumInitialized; }
-    public static double getLastCameraMoveSq() { return lastCameraMoveSq; }
+    public static double getLastCameraMoveSq() {
+     double lastCameraMoveSq = 0.0;
+     return lastCameraMoveSq; }
     private static boolean isDhMissing() {return !FabricLoader.getInstance().isModLoaded(DH_MOD_ID);}
     private static boolean isDhNativeReady() {return isDhMissing() || !NativeBridge.isReady();}
     private enum ProxyMethodKind {
@@ -255,7 +257,7 @@ public class DistantHorizonsCompat {
             }
         }
         float[] out = new float[16];
-        Object ret = matrixGetMethod.invoke( mat, out );
+        Object ret = matrixGetMethod.invoke( mat, ( Object ) out );
         if (ret instanceof float[] arr && arr.length >= 16) {
             return arr;
         }
@@ -302,7 +304,7 @@ public class DistantHorizonsCompat {
         // Only compute fingerprint if camera/optics changed
         long vpFingerprint = fingerprintMatrix(vpArray);
         boolean projectionChanged = !hasLastVpFingerprint || (vpFingerprint != lastVpFingerprint);
-        
+
         if (projectionChanged) {
             lastVpFingerprint = vpFingerprint;
             hasLastVpFingerprint = true;
@@ -329,11 +331,11 @@ public class DistantHorizonsCompat {
                         double maxX = Math.max(bounds.minX(), bounds.maxX());
                         double maxY = Math.max(bounds.minY(), bounds.maxY());
                         double maxZ = Math.max(bounds.minZ(), bounds.maxZ());
-                        
+
                         if (isOutsideShadowFrustum(minX, minY, minZ, maxX, maxY, maxZ)) {
                             return false;
                         }
-                        
+
                         return cullDhSectionInAnySpace(minX, minY, minZ, maxX, maxY, maxZ);
                     });
                 })
@@ -536,13 +538,13 @@ public class DistantHorizonsCompat {
     }
 
     private static void updateShadowPlanes(float[] vp) {
-        for (int i = 0; i < 4; ++i) SHADOW_PLANES[0 + i] = vp[3 + i] + vp[0 + i];
-        for (int i = 0; i < 4; ++i) SHADOW_PLANES[4 + i] = vp[3 + i] - vp[0 + i];
+        for (int i = 0; i < 4; ++i) SHADOW_PLANES[ i ] = vp[3 + i] + vp[ i ];
+        for (int i = 0; i < 4; ++i) SHADOW_PLANES[4 + i] = vp[3 + i] - vp[ i ];
         for (int i = 0; i < 4; ++i) SHADOW_PLANES[8 + i] = vp[3 + i] + vp[1 + i];
         for (int i = 0; i < 4; ++i) SHADOW_PLANES[12+ i] = vp[3 + i] - vp[1 + i];
         for (int i = 0; i < 4; ++i) SHADOW_PLANES[16+ i] = vp[3 + i] + vp[2 + i];
         for (int i = 0; i < 4; ++i) SHADOW_PLANES[20+ i] = vp[3 + i] - vp[2 + i];
-        
+
         // Normalize planes for better precision in float space
         for (int i = 0; i < 6; i++) {
             int o = i * 4;

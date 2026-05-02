@@ -7,31 +7,30 @@
   "plugin": "com.alexxiconify.rustmc.MixinManager",
   "mixins": [
     "BootstrapMixin",
-    "performance.MatrixMixin",
-    "CrashReportSectionMixin"
+    "CrashReportSectionMixin",
+    "accessor.ChunkDataS2CPacketAccessor"
   ],
   "client": [
-    "performance.LightingMixin",
+    "BoxMixin",
     "FrustumMixin",
     "ParticleManagerMixin",
-    "performance.ChunkBuilderMixin",
-    "BoxMixin",
-    "client.ClientFrameMetricsMixin",
     "client.DebugHudMixin",
-    "client.ResourceReloadMixin",
     "client.RenderBudgetMixin",
-    "network.ServerPingerMixin",
-    "network.ServerAddressMixin",
-    "network.ClientPlayNetworkHandlerMixin",
-    "screen.SplashOverlayMixin",
-    "screen.LevelLoadingScreenMixin",
-    "screen.WindowMixin",
-    "network.MultiplayerScreenMixin",
-    "integration.RenderUtilsMixin",
-    "integration.MiniHUDLightUpdateMixin",
+    "client.ResourceReloadMixin",
     "integration.ClientRedstoneSkipMixin",
+    "integration.EntityRenderCompatMixin",
+    "integration.MiniHUDLightUpdateMixin",
+    "integration.RenderUtilsMixin",
     "integration.TickSyncCompatMixin",
-    "integration.EntityRenderCompatMixin"
+    "network.ClientPlayNetworkHandlerMixin",
+    "network.MultiplayerScreenMixin",
+    "network.ServerAddressMixin",
+    "network.ServerPingerMixin",
+    "performance.ChunkBuilderMixin",
+    "performance.LightingMixin",
+    "screen.LevelLoadingScreenMixin",
+    "screen.SplashOverlayMixin",
+    "screen.WindowMixin"
   ],
   "injectors": {
     "defaultRequire": 0

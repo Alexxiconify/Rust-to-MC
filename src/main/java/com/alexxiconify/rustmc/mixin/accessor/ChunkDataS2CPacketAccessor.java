@@ -12,6 +12,5 @@ public interface ChunkDataS2CPacketAccessor {
     @Accessor("chunkZ")
     int getZ();
 
-    @Accessor("chunkData")
     Object getChunkData();
 }

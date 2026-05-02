@@ -276,7 +276,7 @@ public class NativeBridge {
         if (positions == null || velocities == null) return;
         if (positions.length == 0 || velocities.length == 0) return;
         int count = Math.min(positions.length, velocities.length) / 3;
-        if (count <= 0) return;
+        if ( count == 0 ) return;
         long start = 0L;
         boolean track = RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.RustMCConfig.DiagnosticMode.TIMING
             || RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.RustMCConfig.DiagnosticMode.ALL;
@@ -743,9 +743,7 @@ public class NativeBridge {
             return new float[0];
         }
     }
-    public static void invokeAddFrameTime(long nanos) {
-        // Frame telemetry removed
-    }
+
     public static float[] invokeGetFrameHistory() { return new float[0]; }
     // Frame snapshot methods removed
 

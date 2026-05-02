@@ -6,8 +6,10 @@ param(
 
 Write-Host "Collecting profiling artifacts (Duration: $DurationSeconds s)"
 
-$root = Split-Path -Parent $MyInvocation.MyCommand.Definition
-Set-Location $root
+# Resolve repository root (script lives in scripts/)
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$repoRoot = Resolve-Path (Join-Path $scriptDir '..')
+Set-Location $repoRoot
 
 # Build rust with symbols for profiling (temporary)
 Write-Host "Building rust_mc_core with debug info..."

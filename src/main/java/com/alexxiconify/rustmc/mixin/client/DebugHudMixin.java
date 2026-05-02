@@ -18,6 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(DebugHud.class)
 public class DebugHudMixin {
     // ── Local ring buffer populated from mc.getCurrentFps() ──
+    @Unique
     private static final int HISTORY_SIZE = 240;
     @Unique private static final float[] frameHistory = new float[HISTORY_SIZE];
     @Unique private static int historyHead = 0;
@@ -29,11 +30,16 @@ public class DebugHudMixin {
     @Unique private static float maxMs = 0;
     @Unique private static int slowFramesCount = 0;
 
-    public static float[] getFrameHistory() { return frameHistory; }
-    public static float getAvgMs() { return avgMs; }
-    public static float getMinMs() { return minMs; }
-    public static float getMaxMs() { return maxMs; }
-    public static int getSlowFramesCount() { return slowFramesCount; }
+    @Unique
+    public static float[] getFrameHistory ( ) { return frameHistory; }
+    @Unique
+    public static float getAvgMs ( ) { return avgMs; }
+    @Unique
+    public static float getMinMs ( ) { return minMs; }
+    @Unique
+    public static float getMaxMs ( ) { return maxMs; }
+    @Unique
+    public static int getSlowFramesCount ( ) { return slowFramesCount; }
 
     @Inject(method = "render", at = @At("TAIL"), require = 0)
     private void onRenderTail(DrawContext context, CallbackInfo ci) {
