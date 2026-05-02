@@ -250,7 +250,7 @@ public class ModMenuIntegration implements ModMenuApi {
             .option(Option.<Integer>createBuilder()
                 .name(Text.literal("Particle Culling Distance"))
                 .description(OptionDescription.of(Text.literal("Distance (blocks) beyond which environmental particles are culled. Lower = more FPS on iGPUs.")))
-                .binding(64, cfg::getParticleCullingDistance, cfg::setParticleCullingDistance)
+                .binding(64, (java.util.function.Supplier<Integer>) cfg::getParticleCullingDistance, (java.util.function.Consumer<Integer>) cfg::setParticleCullingDistance)
                 .controller(opt -> IntegerFieldControllerBuilder.create(opt)
                     .min(16).max(512))
                 .build())

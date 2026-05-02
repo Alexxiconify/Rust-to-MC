@@ -66,9 +66,12 @@ public class RustMCClient implements ClientModInitializer {
 
 
     private static void showActionBar(MinecraftClient client, String message) {
-        if (client == null || client.player == null) {
+        if (client == null) {
             return;
         }
-        client.player.sendMessage(Text.literal(message), true);
+        var player = client.player;
+        if (player != null) {
+            player.sendMessage(Text.literal(message), true);
+        }
     }
 }

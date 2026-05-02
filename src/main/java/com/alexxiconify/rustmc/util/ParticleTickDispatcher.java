@@ -1,11 +1,11 @@
 package com.alexxiconify.rustmc.util;
 
-import com.alexxiconify.rustmc.NativeBridge;
-import com.alexxiconify.rustmc.RustMC;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import com.alexxiconify.rustmc.NativeBridge;
+import com.alexxiconify.rustmc.RustMC;
 
 // Adaptive particle tick dispatcher: prefer native path, switch to Java multicore fallback after repeated slow native batches.
 public final class ParticleTickDispatcher {
@@ -16,9 +16,8 @@ public final class ParticleTickDispatcher {
     private static final long NATIVE_SLOW_NS = 2_500_000L;
     private static final int SLOW_STREAK_LIMIT = 3;
     // Reusable CompletableFuture array (per-thread static to avoid per-tick allocation)
-    @SuppressWarnings({"java:S5164", "unchecked"})
-    private static final ThreadLocal<CompletableFuture<?>[]> FUTURES_POOL =
-        (ThreadLocal<CompletableFuture<?>[]>) ThreadLocal.withInitial( () -> new CompletableFuture[Runtime.getRuntime().availableProcessors()]);
+    private static final int CORES = Runtime.getRuntime().availableProcessors();
+    private static final ThreadLocal<CompletableFuture<?>[]> FUTURES_POOL = ThreadLocal.withInitial(() -> new CompletableFuture[CORES]);
 
     private ParticleTickDispatcher() {}
 
@@ -91,21 +90,25 @@ public final class ParticleTickDispatcher {
     }
 
     private static void tickJavaParallel(double[] positions, double[] velocities, int count, double gravity) {
-        if (count >= PARALLEL_THRESHOLD && Runtime.getRuntime().availableProcessors() > 2) {
-            int cores = Runtime.getRuntime().availableProcessors();
-            int chunkSize = (count + cores - 1) / cores;
-
-            java.util.concurrent.CompletableFuture<?>[] futures = FUTURES_POOL.get();
-            for (int c = 0; c < cores; c++) {
-                final int start = c * chunkSize;
-                final int end = Math.min(start + chunkSize, count);
-                futures[c] = java.util.concurrent.CompletableFuture.runAsync(() -> {
-                    for (int i = start; i < end; i++) {
-                        tickSingle(positions, velocities, i, gravity);
-                    }
-                });
+        if (count >= PARALLEL_THRESHOLD && CORES > 2) {
+            int chunkSize = (count + CORES - 1) / CORES;
+            CompletableFuture<?>[] futures = FUTURES_POOL.get();
+            
+            try {
+                for (int c = 0; c < CORES; c++) {
+                    final int start = c * chunkSize;
+                    final int end = Math.min(start + chunkSize, count);
+                    futures[c] = CompletableFuture.runAsync(() -> {
+                        for (int i = start; i < end; i++) {
+                            tickSingle(positions, velocities, i, gravity);
+                        }
+                    });
+                }
+                CompletableFuture.allOf(futures).join();
+            } finally {
+                // Properly clean up the ThreadLocal to prevent memory leaks in pooled threads
+                FUTURES_POOL.remove();
             }
-            java.util.concurrent.CompletableFuture.allOf(java.util.Arrays.copyOfRange(futures, 0, cores)).join();
             return;
         }
 

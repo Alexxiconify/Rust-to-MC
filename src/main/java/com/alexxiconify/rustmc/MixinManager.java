@@ -85,7 +85,7 @@ public class MixinManager implements IMixinConfigPlugin {
         long elapsed = System.nanoTime() - start;
         applyStartNanos.remove();
         String group = classifyMixin(mixinClassName);
-        groupTimings.merge( group, elapsed, Long :: sum );
+        groupTimings.merge(group, elapsed, (oldValue, newValue) -> oldValue + newValue);
     }
     @SuppressWarnings({"java:S3776", "CognitiveComplexity"})
     private static String classifyMixin(String mixinClassName) {

@@ -567,17 +567,16 @@ public class NativeBridge {
     private record ClientFrustumContext(double fovScale, double camX, double camY, double camZ) {}
 
     private static double getDhReferenceY() {
-        // Quick fast-path check for null client first
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.player == null) {
+        if (client == null) {
             return Double.NaN;
         }
-        try {
-            return client.player.getY();
-        } catch (Exception ignored) {
+        var player = client.player;
+        if (player == null) {
             return Double.NaN;
         }
-    }
+    return player.getY();
+}
 
     private static ClientFrustumContext getClientFrustumContext() {
         try {

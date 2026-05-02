@@ -98,7 +98,6 @@ public class RustMC implements ModInitializer {
 
         public ScheduledExecutorService get() { return executor; }
     }
-    @SuppressWarnings("resource")
     private void setupDiagnosticTask() {
         final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1, task ->
           Thread.ofVirtual().name("rustmc-diagnostics").unstarted(task));

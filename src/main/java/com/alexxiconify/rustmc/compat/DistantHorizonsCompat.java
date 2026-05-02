@@ -12,6 +12,8 @@ public class DistantHorizonsCompat {
     private static final float ROTATION_CHANGE_THRESHOLD = 1.0e-4f;
     private static final double OPTICS_CHANGE_THRESHOLD = 1.0e-4;
     private static final double MATRIX_QUANTIZATION_SCALE = 1_000_000.0;
+    private static final int SHADOW_PLANE_ARRAY_SIZE = 24;
+    private static final int SHADOW_PLANE_COUNT = 6;
     private DistantHorizonsCompat() {}
     private static long rustFrustumPtr = 0;
     private static int currentMinY = -64;
@@ -24,7 +26,7 @@ public class DistantHorizonsCompat {
     private static double lastCameraZ = 0.0;
     private static float lastCameraYaw = 0.0f;
     private static float lastCameraPitch = 0.0f;
- private static long lastVpFingerprint = 0L;
+    private static long lastVpFingerprint = 0L;
     private static boolean hasLastVpFingerprint = false;
     private static java.lang.reflect.Method matrixToArrayMethod = null;
     private static java.lang.reflect.Method matrixGetMethod = null;
@@ -34,24 +36,27 @@ public class DistantHorizonsCompat {
     private static Class<?> dhCullingFrustumClass = null;
     private static Object dhProxyInstance = null;
     private static long lastRebindNanos = 0L;
- private static final long REBIND_INTERVAL_NANOS = java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+    private static final String LAST_REFRESH_REASON = "INIT";
+    private static final double LAST_CAMERA_MOVE_SQ = 0.0;
+    private static final long REBIND_INTERVAL_NANOS = java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
     // Bounded cache with max size to prevent unbounded growth on large maps
-    private static final java.util.concurrent.ConcurrentHashMap<Long, Boolean> VISIBILITY_CACHE = new java.util.concurrent.ConcurrentHashMap<>(1024) {
-        private static final int MAX_SIZE = 8192;
-        @Override
-        public Boolean putIfAbsent(@org.jetbrains.annotations.NotNull Long key, @org.jetbrains.annotations.NotNull Boolean value) {
-            if (size() > MAX_SIZE) {
-                clear();
+    // Thread-safe LRU Cache
+    private static final java.util.Map<Long, Boolean> VISIBILITY_CACHE = java.util.Collections.synchronizedMap(
+        new java.util.LinkedHashMap<Long, Boolean>(1024, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(java.util.Map.Entry<Long, Boolean> eldest) {
+                return size() > 8192;
             }
-            return super.putIfAbsent(key, value);
         }
-    };
-    private static final float[] SHADOW_PLANES = new float[24]; // 6 planes * 4 components
+    );
+    private static final ThreadLocal<float[]> THREAD_SHADOW_PLANES = ThreadLocal.withInitial(() -> new float[SHADOW_PLANE_ARRAY_SIZE]);
     public static String getLastRefreshReason() {
-     return "INIT"; }
+        return LAST_REFRESH_REASON;
+    }
     public static boolean isFrustumInitialized() { return frustumInitialized; }
     public static double getLastCameraMoveSq() {
-     return 0.0; }
+        return LAST_CAMERA_MOVE_SQ;
+    }
     private static boolean isDhMissing() {return !FabricLoader.getInstance().isModLoaded(DH_MOD_ID);}
     private static boolean isDhNativeReady() {return isDhMissing() || !NativeBridge.isReady();}
     private enum ProxyMethodKind {
@@ -265,7 +270,7 @@ public class DistantHorizonsCompat {
             }
         }
         float[] out = new float[16];
-        Object ret = matrixGetMethod.invoke( mat, ( Object ) out );
+        Object ret = matrixGetMethod.invoke( mat, out );
         if (ret instanceof float[] arr && arr.length >= 16) {
             return arr;
         }
@@ -547,57 +552,59 @@ public class DistantHorizonsCompat {
     }
 
     private static void updateShadowPlanes(float[] vp) {
-        // Compute 6 planes in fewer loops + fused magnitude calc
+        float[] planes = THREAD_SHADOW_PLANES.get(); // Get thread-local array
         float vp3 = vp[3];
         float vp7 = vp[7];
         float vp11 = vp[11];
         float vp15 = vp[15];
 
-        // Planes 0,1 (left/right, X)
-        SHADOW_PLANES[0] = vp3 + vp[0]; SHADOW_PLANES[1] = vp7 + vp[4]; SHADOW_PLANES[2] = vp11 + vp[8];  SHADOW_PLANES[3] = vp15 + vp[12];
-        SHADOW_PLANES[4] = vp3 - vp[0]; SHADOW_PLANES[5] = vp7 - vp[4]; SHADOW_PLANES[6] = vp11 - vp[8];  SHADOW_PLANES[7] = vp15 - vp[12];
+        planes[0] = vp3 + vp[0]; planes[1] = vp7 + vp[4]; planes[2] = vp11 + vp[8];  planes[3] = vp15 + vp[12];
+        planes[4] = vp3 - vp[0]; planes[5] = vp7 - vp[4]; planes[6] = vp11 - vp[8];  planes[7] = vp15 - vp[12];
 
-        // Planes 2,3 (bottom/top, Y)
-        SHADOW_PLANES[8] = vp3 + vp[1]; SHADOW_PLANES[9] = vp7 + vp[5]; SHADOW_PLANES[10] = vp11 + vp[9]; SHADOW_PLANES[11] = vp15 + vp[13];
-        SHADOW_PLANES[12]= vp3 - vp[1]; SHADOW_PLANES[13]= vp7 - vp[5]; SHADOW_PLANES[14]= vp11 - vp[9]; SHADOW_PLANES[15]= vp15 - vp[13];
+        planes[8] = vp3 + vp[1]; planes[9] = vp7 + vp[5]; planes[10] = vp11 + vp[9]; planes[11] = vp15 + vp[13];
+        planes[12]= vp3 - vp[1]; planes[13]= vp7 - vp[5]; planes[14]= vp11 - vp[9]; planes[15]= vp15 - vp[13];
 
-        // Planes 4,5 (near/far, Z)
-        SHADOW_PLANES[16]= vp3 + vp[2]; SHADOW_PLANES[17]= vp7 + vp[6]; SHADOW_PLANES[18]= vp11 + vp[10]; SHADOW_PLANES[19]= vp15 + vp[14];
-        SHADOW_PLANES[20]= vp3 - vp[2]; SHADOW_PLANES[21]= vp7 - vp[6]; SHADOW_PLANES[22]= vp11 - vp[10]; SHADOW_PLANES[23]= vp15 - vp[14];
+        planes[16]= vp3 + vp[2]; planes[17]= vp7 + vp[6]; planes[18]= vp11 + vp[10]; planes[19]= vp15 + vp[14];
+        planes[20]= vp3 - vp[2]; planes[21]= vp7 - vp[6]; planes[22]= vp11 - vp[10]; planes[23]= vp15 - vp[14];
 
-        // Fast 1-pass normalization using fused mag calculation
         for (int i = 0; i < 6; i++) {
             int o = i * 4;
-            float x = SHADOW_PLANES[o], y = SHADOW_PLANES[o+1], z = SHADOW_PLANES[o+2];
+            float x = planes[o];
+            float y = planes[o+1];
+            float z = planes[o+2];
             float magSq = x*x + y*y + z*z;
             if (magSq > 1e-12f) {
                 float invMag = (float)Math.sqrt(1.0f / magSq);
-                SHADOW_PLANES[o] *= invMag;
-                SHADOW_PLANES[o+1] *= invMag;
-                SHADOW_PLANES[o+2] *= invMag;
-                SHADOW_PLANES[o+3] *= invMag;
+                planes[o]   *= invMag;
+                planes[o+1] *= invMag;
+                planes[o+2] *= invMag;
+                planes[o+3] *= invMag;
             }
         }
     }
 
     private static boolean isOutsideShadowFrustum(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
-        // Cache local references to avoid repeated array indexing in tight loop
-        float[] planes = SHADOW_PLANES;
-        for (int i = 0; i < 6; i++) {
-            int o = i * 4;
-            float nx = planes[o];
-            float ny = planes[o+1];
-            float nz = planes[o+2];
-            float d = planes[o+3];
+        float[] planes = THREAD_SHADOW_PLANES.get();
+        try {
+            for (int i = 0; i < SHADOW_PLANE_COUNT; i++) {
+                int o = i * 4;
+                float nx = planes[o];
+                float ny = planes[o+1];
+                float nz = planes[o+2];
+                float d = planes[o+3];
 
-            float px = nx >= 0 ? (float)maxX : (float)minX;
-            float py = ny >= 0 ? (float)maxY : (float)minY;
-            float pz = nz >= 0 ? (float)maxZ : (float)minZ;
+                float px = nx >= 0 ? (float)maxX : (float)minX;
+                float py = ny >= 0 ? (float)maxY : (float)minY;
+                float pz = nz >= 0 ? (float)maxZ : (float)minZ;
 
-            if (nx * px + ny * py + nz * pz + d < -0.5f) {
-                return true;
+                if (nx * px + ny * py + nz * pz + d < -0.5f) {
+                    return true;
+                }
             }
+            return false;
+        } finally {
+            // Ensure the thread-local is cleared after processing
+            THREAD_SHADOW_PLANES.remove();
         }
-        return false;
     }
 }
