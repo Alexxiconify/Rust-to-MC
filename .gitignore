@@ -67,6 +67,7 @@ replay_*/
 hs_err_pid*
 replay_pid*
 *.patch
+health
 
 # ─── Temp / generated files ───────────────────────────────────────────────────
 PumpkinTemp/
@@ -84,7 +85,8 @@ libs/
 *.class
 *.pyc
 *.pyo
-
+health/
+*.etl
 # ─── Test & coverage output ───────────────────────────────────────────────────
 test-results/
 coverage/
