@@ -169,7 +169,7 @@ public class NativeBridge {
     private static native void rustFrustumUpdate(long ptr, float[] vpMatrix, double fovScale, double camX, double camY, double camZ);
     private static native void rustUpdateFrustumAndCave(long ptr, float[] vpMatrix, double fovScale, double camX, double camY, double camZ, boolean inCave);
     private static native boolean rustIsOutsideFrustum(long ptr, double x, double y, double z, double radius);
-    private static native int rustCullEntities(long ptr, double[] positions, int count, boolean[] results, float margin);
+    private static native int rustBatchCull(double[] aabbs, boolean[] results, int count);
     private static native int[] rustGenerateLodMeshGpu(int[] blocks, int chunkX, int chunkZ, int detail);
     private static native void rustFrustumDestroy(long ptr);
     // Updates the persistent Vanilla frustum in Rust's global context.
@@ -228,13 +228,14 @@ public class NativeBridge {
             return false;
         }
     }
-    public static int cullEntities(double[] positions, boolean[] results) {
-        if (positions == null || results == null) return 0;
+    public static int batchCull(double[] aabbs, boolean[] results) {
+        if (aabbs == null || results == null || aabbs.length / 6 != results.length) return 0;
         if (!libLoaded) return 0;
+
         try {
-            float margin = com.alexxiconify.rustmc.compat.ImmediatelyFastCompat.getCullingDistanceMultiplier();
-            int count = positions.length / 3;
-            return rustCullEntities(0, positions, count, results, margin);
+            // We pass the 6-float AABB definition directly to Rust
+            int entityCount = results.length;
+            return rustBatchCull(aabbs, results, entityCount);
         } catch (UnsatisfiedLinkError e) {
             return 0;
         }

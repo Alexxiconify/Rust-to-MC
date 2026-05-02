@@ -42,12 +42,12 @@ public class DistantHorizonsCompat {
     // Bounded cache with max size to prevent unbounded growth on large maps
     // Thread-safe LRU Cache
     private static final java.util.Map<Long, Boolean> VISIBILITY_CACHE = java.util.Collections.synchronizedMap(
-        new java.util.LinkedHashMap<Long, Boolean>(1024, 0.75f, true) {
-            @Override
-            protected boolean removeEldestEntry(java.util.Map.Entry<Long, Boolean> eldest) {
-                return size() > 8192;
-            }
-        }
+      new java.util.LinkedHashMap <> ( 1024 , 0.75f , true ) {
+       @Override
+       protected boolean removeEldestEntry ( java.util.Map.Entry < Long, Boolean > eldest ) {
+        return size ( ) > 8192;
+       }
+      }
     );
     private static final ThreadLocal<float[]> THREAD_SHADOW_PLANES = ThreadLocal.withInitial(() -> new float[SHADOW_PLANE_ARRAY_SIZE]);
     public static String getLastRefreshReason() {
