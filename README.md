@@ -52,3 +52,14 @@ The mod includes a `MixinManager` that automatically disables specific optimizat
 See our [ROADMAP.md](ROADMAP.md) for active optimization goals and planned work.
 
 For finished work and historical notes, see [docs/completed-changes.md](docs/completed-changes.md).
+
+## Profiling & Performance
+
+We provide a profiling guide and helper scripts in `docs/profiling.md` for Windows PowerShell. The guide covers:
+
+- Building Rust with symbols for profiling
+- Capturing JVM Flight Recorder (JFR) traces
+- Collecting Windows ETW traces (WPR/WPA)
+- Bundling artifacts for analysis
+
+If you plan to profile, start with `docs/profiling.md` and use the scripts in `scripts/` to collect and bundle artifacts.

@@ -2,6 +2,24 @@
 
 Active plan only. History lives in [`docs/completed-changes.md`](docs/completed-changes.md). Fast file map lives in [`docs/file-tree-index.md`](docs/file-tree-index.md).
 
+## Findings & Prioritized Actions (summary)
+
+This section highlights current performance findings and prioritized remediation items. Full profiling steps and artifact collection instructions live in [`docs/profiling.md`](docs/profiling.md).
+
+- Hotspots identified (investigate first):
+  - `NativeBridge::processChunkData` — chunk ingest path (high CPU, JNI crossing cost)
+  - `frustum.rs` / `Frustum::update_from_matrix` — culling math and coordinate transforms
+  - `particles.rs` / `ParticleTickDispatcher` — allocations & parallel stream overhead
+  - JNI boundary: frequent short JNI crossings and array copies
+
+- Prioritized actions (short-term):
+  1. Instrument and profile chunk ingest and frustum paths (owner: @dev, ETA: 3–6h, Risk: medium)
+  2. Validate fused DH cull path performance vs Java fallback (owner: @dev, ETA: 2–4h, Risk: low)
+  3. Replace `IntStream.parallel()` fallback with manual partitioning (owner: @dev, ETA: 1–2h, Risk: low)
+  4. Add CI checks for `cargo clippy` and `./gradlew build` (owner: infra, ETA: 2h, Risk: low)
+
+All original roadmap content retained below. See `docs/markdown-changelog.md` for a list of markdown edits.
+
 ## Scope
 
 - Move high-cost client hot paths from Java to Rust.

@@ -2,6 +2,8 @@
 
 This document lists all mods that Rust-MC currently tracks or plans to track for Mixin support, compatibility patching, or API integration.
 
+Note: Performance work and prioritized optimization actions are tracked in [`ROADMAP.md`](ROADMAP.md). See [`docs/profiling.md`](docs/profiling.md) for instructions on collecting profiling artifacts (JFR, ETW) that help validate compatibility and performance impact for each integration.
+
 ## Currently Supported / Implemented
 
 These mods have active compatibility hooks, native code dispatching, or mixin disabling logic implemented within Rust-MC.

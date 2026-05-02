@@ -31,6 +31,13 @@ public class NativeBridge {
     private static final java.util.concurrent.atomic.AtomicLong chunkIngestForwards = new java.util.concurrent.atomic.AtomicLong(0L);
     private static final java.util.concurrent.atomic.AtomicLong chunkIngestFailures = new java.util.concurrent.atomic.AtomicLong(0L);
     private static final java.util.concurrent.atomic.AtomicLong chunkIngestTotalNanos = new java.util.concurrent.atomic.AtomicLong(0L);
+    // Lightweight local timing metrics (nanos)
+    private static final java.util.concurrent.atomic.AtomicLong frustumCalls = new java.util.concurrent.atomic.AtomicLong(0L);
+    private static final java.util.concurrent.atomic.AtomicLong frustumTotalNanos = new java.util.concurrent.atomic.AtomicLong(0L);
+    private static final java.util.concurrent.atomic.AtomicLong particleCalls = new java.util.concurrent.atomic.AtomicLong(0L);
+    private static final java.util.concurrent.atomic.AtomicLong particleTotalNanos = new java.util.concurrent.atomic.AtomicLong(0L);
+    private static final java.util.concurrent.atomic.AtomicLong dhFusedCalls = new java.util.concurrent.atomic.AtomicLong(0L);
+    private static final java.util.concurrent.atomic.AtomicLong dhFusedTotalNanos = new java.util.concurrent.atomic.AtomicLong(0L);
     private static final int DNS_PARALLEL_THRESHOLD = 16;
     private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
 
@@ -192,7 +199,15 @@ public class NativeBridge {
         ClientFrustumContext ctx = getClientFrustumContext();
         if (ctx != null) {
             try {
+                long start = 0L;
+                boolean track = RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.RustMCConfig.DiagnosticMode.TIMING
+                    || RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.RustMCConfig.DiagnosticMode.ALL;
+                if (track) start = System.nanoTime();
                 rustUpdateFrustumAndCave(0, vpMatrix, ctx.fovScale(), ctx.camX(), ctx.camY(), ctx.camZ(), inCave);
+                if (track) {
+                    frustumCalls.incrementAndGet();
+                    frustumTotalNanos.addAndGet(System.nanoTime() - start);
+                }
                 return;
             } catch (UnsatisfiedLinkError ignored) {
                 // Fall through to separate native calls using the same captured context.
@@ -262,7 +277,18 @@ public class NativeBridge {
         if (positions.length == 0 || velocities.length == 0) return;
         int count = Math.min(positions.length, velocities.length) / 3;
         if (count <= 0) return;
-        rustTickParticles(positions, velocities, count, gravity, camX, camY, camZ, maxDistSq);
+        long start = 0L;
+        boolean track = RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.RustMCConfig.DiagnosticMode.TIMING
+            || RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.RustMCConfig.DiagnosticMode.ALL;
+        if (track) start = System.nanoTime();
+        try {
+            rustTickParticles(positions, velocities, count, gravity, camX, camY, camZ, maxDistSq);
+        } finally {
+            if (track) {
+                particleCalls.incrementAndGet();
+                particleTotalNanos.addAndGet(System.nanoTime() - start);
+            }
+        }
     }
 
     public static void tickParticlesAdaptive(double[] positions, double[] velocities, double gravity) {
@@ -604,8 +630,17 @@ public class NativeBridge {
     public static boolean invokeDHCullFused(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double surfaceY) {
         if (!libLoaded || ptr == 0) return false;
         if (!supportsDhFusedCull.get()) return false;
+        long start = 0L;
+        boolean track = RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.RustMCConfig.DiagnosticMode.TIMING
+            || RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.RustMCConfig.DiagnosticMode.ALL;
+        if (track) start = System.nanoTime();
         try {
-            return rustDHCullFused(ptr, minX, minY, minZ, maxX, maxY, maxZ, surfaceY);
+            boolean res = rustDHCullFused(ptr, minX, minY, minZ, maxX, maxY, maxZ, surfaceY);
+            if (track) {
+                dhFusedCalls.incrementAndGet();
+                dhFusedTotalNanos.addAndGet(System.nanoTime() - start);
+            }
+            return res;
         } catch (UnsatisfiedLinkError e) {
             supportsDhFusedCull.set(false);
             return false;
@@ -748,6 +783,21 @@ public class NativeBridge {
         } catch (UnsatisfiedLinkError e) {
             return snapshot;
         }
+    }
+
+    /**
+     * Returns lightweight local timing metrics collected on the Java side.
+     * Array layout: [frustumCalls, frustumTotalNanos, particleCalls, particleTotalNanos, dhFusedCalls, dhFusedTotalNanos]
+     */
+    public static synchronized long[] getLocalTimingMetrics() {
+        long[] out = new long[6];
+        out[0] = frustumCalls.get();
+        out[1] = frustumTotalNanos.get();
+        out[2] = particleCalls.get();
+        out[3] = particleTotalNanos.get();
+        out[4] = dhFusedCalls.get();
+        out[5] = dhFusedTotalNanos.get();
+        return out;
     }
     // ─── DNS Cache Methods ──────────────────────────────────────────────────
     //

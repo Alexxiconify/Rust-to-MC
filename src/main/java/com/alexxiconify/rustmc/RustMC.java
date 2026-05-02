@@ -74,6 +74,26 @@ public class RustMC implements ModInitializer {
         } else {
             LOGGER.warn("[Rust-MC] Native library not available – running in vanilla-fallback mode.");
         }
+        // Background diagnostics logger (enabled when DiagnosticMode is TIMING or ALL)
+        Thread.ofPlatform().daemon(true).name("rustmc-diagnostics").start(() -> {
+            try {
+                while (true) {
+                    try {
+                        var mode = CONFIG.getDiagnosticMode();
+                        if (mode == com.alexxiconify.rustmc.config.RustMCConfig.DiagnosticMode.TIMING
+                                || mode == com.alexxiconify.rustmc.config.RustMCConfig.DiagnosticMode.ALL) {
+                            long[] local = NativeBridge.getLocalTimingMetrics();
+                            long[] chunk = NativeBridge.getChunkIngestStats();
+                            LOGGER.info("[Rust-MC][DIAG] frustumCalls={} frustumTotalNs={} particleCalls={} particleTotalNs={} dhFusedCalls={} dhFusedTotalNs={} | chunkAttempts={} forwards={} failures={} avgIngestMicros={}",
+                                    local[0], local[1], local[2], local[3], local[4], local[5], chunk[0], chunk[1], chunk[2], chunk[3]);
+                        }
+                        Thread.sleep(5000);
+                    } catch (InterruptedException ignored) { break; }
+                }
+            } catch (Throwable t) {
+                LOGGER.debug("[Rust-MC] Diagnostics thread died: {}", t.getMessage());
+            }
+        });
         // Close Early Loading Bar if it's still open
         // Note: blame log finalization happens in detectGameReady() when "Game took" log fires
         if (FabricLoader.getInstance().getEnvironmentType() == net.fabricmc.api.EnvType.CLIENT) {
