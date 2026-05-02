@@ -728,7 +728,7 @@ public class NativeBridge {
         try { rustSetCaveStatus(inCave); }
         catch (UnsatisfiedLinkError ignored) { /* */ }
     }
-    public static float invokeGetAvgFps() { return 0.0f; }
+    public static final float AVG_FPS = 0.0f;
     public static boolean invokeRayIntersectsBox(double rx, double ry, double rz, double dx, double dy, double dz, double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
         if (!libLoaded) return true; // Safe fallback: assume intersection to trigger Vanilla calc
         try { return rustRayIntersectsBox(rx, ry, rz, dx, dy, dz, minX, minY, minZ, maxX, maxY, maxZ); }
