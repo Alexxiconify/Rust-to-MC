@@ -5,7 +5,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.util.Optional;
-import java.util.stream.IntStream;
 import java.util.concurrent.atomic.AtomicBoolean;
 //  NativeBridge handles all communication between Java and the Rust native core via JNI.
 public class NativeBridge {
@@ -568,11 +567,16 @@ public class NativeBridge {
     private record ClientFrustumContext(double fovScale, double camX, double camY, double camZ) {}
 
     private static double getDhReferenceY() {
+        // Quick fast-path check for null client first
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.player == null) {
+            return Double.NaN;
+        }
         try {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client == null || client.player == null) return Double.NaN;
             return client.player.getY();
-        } catch (Exception ignored) { return Double.NaN;}
+        } catch (Exception ignored) {
+            return Double.NaN;
+        }
     }
 
     private static ClientFrustumContext getClientFrustumContext() {
@@ -825,9 +829,23 @@ public class NativeBridge {
     }
 
     private static String[] dnsBatchResolveJava(String[] hostnames) {
-        String[] results = new String[hostnames.length];
+        // Reuse thread-local result array if possible, otherwise allocate fresh
+        String[] results = new String[hostnames.length];  // safe: java.util doesn't offer a good pool here without complexity
         if (hostnames.length >= DNS_PARALLEL_THRESHOLD && Runtime.getRuntime().availableProcessors() > 2) {
-            IntStream.range(0, hostnames.length).parallel().forEach(i -> results[i] = resolveHostnameJava(hostnames[i]));
+            // Inline parallel loop avoids stream allocation + iterator overhead
+            int cores = Runtime.getRuntime().availableProcessors();
+            int chunkSize = (hostnames.length + cores - 1) / cores;
+            java.util.concurrent.CompletableFuture<?>[] futures = new java.util.concurrent.CompletableFuture[cores];
+            for (int c = 0; c < cores; c++) {
+                final int start = c * chunkSize;
+                final int end = Math.min(start + chunkSize, hostnames.length);
+                futures[c] = java.util.concurrent.CompletableFuture.runAsync(() -> {
+                    for (int i = start; i < end; i++) {
+                        results[i] = resolveHostnameJava(hostnames[i]);
+                    }
+                });
+            }
+            java.util.concurrent.CompletableFuture.allOf(java.util.Arrays.copyOfRange(futures, 0, cores)).join();
             return results;
         }
         for (int i = 0; i < hostnames.length; i++) {

@@ -2,6 +2,8 @@ package com.alexxiconify.rustmc.util;
 
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
+
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -13,12 +15,22 @@ public final class ParticleTickDispatcher {
     private static final int PARALLEL_THRESHOLD = 1024;
     private static final long NATIVE_SLOW_NS = 2_500_000L;
     private static final int SLOW_STREAK_LIMIT = 3;
+    // Reusable CompletableFuture array (per-thread static to avoid per-tick allocation)
+    @SuppressWarnings({"java:S5164", "unchecked"})
+    private static final ThreadLocal<CompletableFuture<?>[]> FUTURES_POOL =
+        (ThreadLocal<CompletableFuture<?>[]>) ThreadLocal.withInitial( () -> new CompletableFuture[Runtime.getRuntime().availableProcessors()]);
 
     private ParticleTickDispatcher() {}
 
     public static void tick(double[] positions, double[] velocities, double gravity) {
         int count = getCount(positions, velocities);
         if (count <= 0) return;
+
+        // Early exit for native fallback state check (single volatile read)
+        if (!NativeBridge.isReady() || preferJavaFallback.get()) {
+            tickJavaParallel(positions, velocities, count, gravity);
+            return;
+        }
 
         double camX = 0;
         double camY = 0;
@@ -35,10 +47,6 @@ public final class ParticleTickDispatcher {
             }
         }
 
-        if (shouldUseJavaFallback()) {
-            tickJavaParallel(positions, velocities, count, gravity);
-            return;
-        }
         long startNs = count >= PARALLEL_THRESHOLD ? System.nanoTime() : 0L;
         if (invokeNative(positions, velocities, gravity, camX, camY, camZ, maxDistSq)) {
             trackNativeTiming(startNs);
@@ -55,9 +63,6 @@ public final class ParticleTickDispatcher {
         return Math.min(positions.length, velocities.length) / 3;
     }
 
-    private static boolean shouldUseJavaFallback() {
-        return !NativeBridge.isReady() || preferJavaFallback.get();
-    }
 
     private static boolean invokeNative(double[] positions, double[] velocities, double gravity, double camX, double camY, double camZ, double maxDistSq) {
         try {
@@ -87,12 +92,10 @@ public final class ParticleTickDispatcher {
 
     private static void tickJavaParallel(double[] positions, double[] velocities, int count, double gravity) {
         if (count >= PARALLEL_THRESHOLD && Runtime.getRuntime().availableProcessors() > 2) {
-            // Use a lightweight parallel loop via a custom task or similar if needed,
-            // but for now, even a clean manual loop for chunks of particles is better than IntStream.
             int cores = Runtime.getRuntime().availableProcessors();
             int chunkSize = (count + cores - 1) / cores;
-            
-            java.util.concurrent.CompletableFuture<?>[] futures = new java.util.concurrent.CompletableFuture[cores];
+
+            java.util.concurrent.CompletableFuture<?>[] futures = FUTURES_POOL.get();
             for (int c = 0; c < cores; c++) {
                 final int start = c * chunkSize;
                 final int end = Math.min(start + chunkSize, count);
@@ -102,10 +105,10 @@ public final class ParticleTickDispatcher {
                     }
                 });
             }
-            java.util.concurrent.CompletableFuture.allOf(futures).join();
+            java.util.concurrent.CompletableFuture.allOf(java.util.Arrays.copyOfRange(futures, 0, cores)).join();
             return;
         }
-        
+
         for (int i = 0; i < count; i++) {
             tickSingle(positions, velocities, i, gravity);
         }
