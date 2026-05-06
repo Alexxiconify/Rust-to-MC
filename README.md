@@ -1,12 +1,14 @@
 # Rust to MC
   
-Optimizing Minecraft by offloading heavy computations to native Rust code using Java's Foreign Function & Memory (FFM) API.
+Optimizing Minecraft by offloading heavy computations to native Rust code via a JNI native bridge.
 
 ## Features
 
 - **Native Math**: Fast inverse square root and trig functions (Client/Server).
 - **Efficient Networking**: Native Zlib compression/decompression (Client/Server).
 - **Fast Generation**: SIMD-accelerated Simplex noise (Server/Internal).
+- **Native Lighting**: (In Progress) Parallel light propagation (Server/Internal).
+- **Optimized Pathfinding**: (In Progress) High-performance A* implementation (Server).
 - **Native Lighting**: (In Progress) Parallel light propagation (Server/Internal).
 - **Optimized Pathfinding**: (In Progress) High-performance A* implementation (Server).
 

@@ -1,31 +1,28 @@
 # Output Style Guide
 
-Purpose: cut token cost. Keep meaning. Do by default in all outputs.
+Purpose: be concise and clear. Use this guide for outputs in this repo.
 
 ## Default Output
 
-- Facts first.
-- Short lines.
-- One thought each line.
-- Use bullets, not paragraphs.
-- Use exact names, paths, versions.
-- Drop fluff, pleasantry, hedging.
-- Keep technical terms exact.
-- Prefer active voice.
-- Prefer simple verbs.
-- Use backticks for file names, symbols, and paths.
+ - Facts first.
+ - Short lines.
+ - One thought per line.
+ - Use bullets, not paragraphs.
+ - Use exact names, paths, versions.
+ - Drop fluff and pleasantries.
+ - Keep technical terms exact.
+ - Prefer active voice and simple verbs.
+ - Use backticks for file names, symbols, and paths.
 
 ## Caveman Mode
 
-- Strip articles: a, an, the.
-- Strip filler: just, really, basically, actually, simply.
-- Strip connectives: however, therefore, because.
-- Strip passive voice.
-- Keep grammar only when clarity need it.
-- Fragments okay.
-- 2-5 words per sentence when possible.
-- Use facts, numbers, names, dates.
-- Use arrows for causality: `X -> Y`.
+ - Strip articles when safe (a, an, the).
+ - Avoid filler words: just, really, basically, actually.
+ - Prefer concise connectives; avoid long hedging.
+ - Prefer active voice; fragments OK when clear.
+ - Aim for 2-8 words per short line.
+ - Use facts, numbers, names, dates.
+ - Use arrows for causality: `X -> Y`.
 
 ## Output Shape
 
