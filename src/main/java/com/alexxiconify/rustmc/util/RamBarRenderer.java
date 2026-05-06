@@ -26,8 +26,7 @@ public final class RamBarRenderer {
         cachedRamText = "RAM " + usedMb + "MB / " + maxMb + "MB (" + pct + "%)";
         return cachedRamText;
     }
-    public static void drawRamBar(DrawContext context, TextRenderer textRenderer,
-                                  int screenW, int screenH, int bgColor) {
+    public static void drawRamBar(DrawContext context, TextRenderer textRenderer, int screenW, int screenH, int bgColor) {
         long used = RUNTIME.totalMemory() - RUNTIME.freeMemory();
         long max  = RUNTIME.maxMemory();
         float ratio = (float) used / max;
@@ -39,9 +38,9 @@ public final class RamBarRenderer {
         int bx   = (screenW - barW) / 2;
         // When AppleSkin is installed and compat is enabled, offset up to avoid its HUD overlay
         int yOffset = (ModBridge.APPLESKIN && RustMC.CONFIG.isEnableAppleSkinCompat()) ? 14 : 0;
-         int by   = screenH - 22 - yOffset;
-         context.fill(bx, by, bx + barW, by + barH, bgColor);
-         context.fill(bx, by, bx + (int)(barW * ratio), by + barH, ramColor(ratio));
+        int by   = screenH - 22 - yOffset;
+        context.fill(bx, by, bx + barW, by + barH, bgColor);
+        context.fill(bx, by, bx + (int)(barW * ratio), by + barH, ramColor(ratio));
         context.drawCenteredTextWithShadow(textRenderer, ramText(usedMb, maxMb, pct), screenW / 2, by + barH + 2,
                 RustMC.CONFIG.getLoadingBarTextColor());
     }
