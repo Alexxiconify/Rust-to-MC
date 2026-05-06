@@ -120,9 +120,7 @@ public class NativeBridge {
     private static native int rustProcessPacket(byte[] buf, int len);
     private static native void rustProcessChunkData(byte[] buf, int len, int chunkX, int chunkZ);
     private static native void rustRequestMemoryCleanup();
-    //
-     // Subverts Java-side chunk data parsing by offloading large byte buffers
-     // directly to Rust's optimized decoder (PumpkinMC style).
+    //  Subverts Java-side chunk data parsing by offloading large byte buffers directly to Rust's optimized decoder (PumpkinMC style).
     public static void processChunkData(byte[] buf, int chunkX, int chunkZ) {
         if (!libLoaded || buf == null || !supportsChunkDataOffload.get()) return;
         if (!RustMC.CONFIG.isEnableChunkIngestOffload()) return;
@@ -172,8 +170,7 @@ public class NativeBridge {
     private static native int rustBatchCull(double[] aabbs, boolean[] results, int count);
     private static native int[] rustGenerateLodMeshGpu(int[] blocks, int chunkX, int chunkZ, int detail);
     private static native void rustFrustumDestroy(long ptr);
-    // Updates the persistent Vanilla frustum in Rust's global context.
-    // This avoids creating new frustum objects every frame.
+    // Updates the persistent Vanilla frustum in Rust's global context. This avoids creating new frustum objects every frame.
     public static void updateVanillaFrustum(float[] vpMatrix) {
         if (!libLoaded || vpMatrix == null || vpMatrix.length < 16) return;
         ClientFrustumContext ctx = getClientFrustumContext();
@@ -208,9 +205,7 @@ public class NativeBridge {
                     frustumTotalNanos.addAndGet(System.nanoTime() - start);
                 }
                 return;
-            } catch (UnsatisfiedLinkError ignored) {
-                // Fall through to separate native calls using the same captured context.
-            }
+            } catch (UnsatisfiedLinkError ignored) { /* Fall through to separate native calls using the same captured context. */ }
             updateVanillaFrustum(vpMatrix, ctx.fovScale(), ctx.camX(), ctx.camY(), ctx.camZ());
             updateCaveStatus(inCave);
             return;
@@ -218,8 +213,7 @@ public class NativeBridge {
         updateVanillaFrustum(vpMatrix);
         updateCaveStatus(inCave);
     }
-    // Optimizes entity/particle culling by offloading frustum intersection checks to Rust.
-    // Uses the persistent global frustum updated via 'updateVanillaFrustum'.
+    // Optimizes entity/particle culling by offloading frustum intersection checks to Rust. Uses the persistent global frustum updated via 'updateVanillaFrustum'.
     public static boolean isOutsideFrustum(double x, double y, double z, double radius) {
         if (!libLoaded) return false;
         try {

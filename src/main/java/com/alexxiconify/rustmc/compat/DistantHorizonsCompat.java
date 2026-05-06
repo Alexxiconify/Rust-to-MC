@@ -7,7 +7,8 @@ public class DistantHorizonsCompat {
     private static final String DH_API_CLASS = "com.seibel.distanthorizons.api.DhApi";
     private static final String MATRIX_VALUES_AS_ARRAY_METHOD = "getValuesAsArray";
     private static final String MATRIX_TO_ARRAY_METHOD = "toArray";
-    private static final double DH_SURFACE_Y = 54.0;
+    // Surface Y threshold for DH cave culling. Use config value to allow runtime tuning.
+    private static double dhSurfaceY() { return com.alexxiconify.rustmc.RustMC.CONFIG.getDhSurfaceY(); }
     private static final double COORD_CHANGE_THRESHOLD = 1.0e-6;
     private static final float ROTATION_CHANGE_THRESHOLD = 1.0e-4f;
     private static final double OPTICS_CHANGE_THRESHOLD = 1.0e-4;
@@ -455,7 +456,7 @@ public class DistantHorizonsCompat {
         }
         return NativeBridge.cullDistantHorizonsSection(
             rustFrustumPtr, minX, minY, minZ, maxX, maxY, maxZ,
-            DH_SURFACE_Y, 0.0, RustMC.CONFIG.isEnableDhCaveCulling()
+            dhSurfaceY(), 0.0, RustMC.CONFIG.isEnableDhCaveCulling()
         );
     }
 

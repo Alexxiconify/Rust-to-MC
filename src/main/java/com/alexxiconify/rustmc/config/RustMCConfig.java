@@ -21,6 +21,7 @@ public class RustMCConfig {
     private boolean enableImmediatelyFastCompat = true;
     private boolean enableClientRedstoneSkip   = true;
     private boolean enableDhCaveCulling        = true;
+    private double dhSurfaceY                   = 54.0;
     private int particleCullingDistance        = 64;
     public enum HardwarePreset {
         LOW_END_IGPU, // Aggressive culling, low detail
@@ -70,6 +71,7 @@ public class RustMCConfig {
         this.enableImmediatelyFastCompat = o.enableImmediatelyFastCompat;
         this.enableClientRedstoneSkip = o.enableClientRedstoneSkip;
         this.enableDhCaveCulling = o.enableDhCaveCulling;
+        this.dhSurfaceY = o.dhSurfaceY;
         this.particleCullingDistance = o.particleCullingDistance;
         this.hardwarePreset = o.hardwarePreset;
         this.diagnosticMode = o.diagnosticMode;
@@ -104,6 +106,7 @@ public class RustMCConfig {
     public boolean isEnableImmediatelyFastCompat() { return enableImmediatelyFastCompat; }
     public boolean isEnableClientRedstoneSkip()   { return enableClientRedstoneSkip; }
     public boolean isEnableDhCaveCulling()        { return enableDhCaveCulling; }
+    public double getDhSurfaceY()                 { return dhSurfaceY; }
     public int getParticleCullingDistance()       { return particleCullingDistance; }
     public HardwarePreset getHardwarePreset()     { return hardwarePreset; }
     public DiagnosticMode getDiagnosticMode()     { return diagnosticMode; }
@@ -136,6 +139,7 @@ public class RustMCConfig {
     public void setEnableImmediatelyFastCompat(boolean v) { enableImmediatelyFastCompat = v; }
     public void setEnableClientRedstoneSkip(boolean v)   { enableClientRedstoneSkip = v; }
     public void setEnableDhCaveCulling(boolean v)        { enableDhCaveCulling = v; }
+    public void setDhSurfaceY(double v)                  { dhSurfaceY = v; }
     public void setParticleCullingDistance(int v)       { particleCullingDistance = v; }
     public void setHardwarePreset(HardwarePreset v)     { hardwarePreset = v; }
     public void setDiagnosticMode(DiagnosticMode v)     { diagnosticMode = v; }
