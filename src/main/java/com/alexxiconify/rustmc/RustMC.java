@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -161,6 +162,11 @@ public class RustMC implements ModInitializer {
             sb.append(String.format(fmt, "TRACKED TOTAL", tracked));
             sb.append(String.format(fmt, "WALL CLOCK", wallClockMs()));
             return sb.toString();
+        }
+
+        public static List<Entry> getEntriesWithGaps() {
+          // TODO Auto-generated method stub
+          throw new UnsupportedOperationException("Unimplemented method 'getEntriesWithGaps'");
         }
     }
 
@@ -417,4 +423,6 @@ public class RustMC implements ModInitializer {
         public void setExperimentalCoexistEnabled(boolean v) { experimentalCoexistEnabled = v; }
     }
 }
+
+
 

@@ -1,12 +1,11 @@
 package com.alexxiconify.rustmc;
 
 import org.objectweb.asm.tree.ClassNode;
-import org.spongepowered.asm.mixin.extensibility.IMixinRustMC.ConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
-public class MixinManager implements IMixinRustMC.ConfigPlugin {
+public class MixinManager {
     private static final String PKG = "com.alexxiconify.rustmc.mixin.";
     private static final Map<String, BooleanSupplier> MIXIN_CONDITIONS;
     private static final Map<String, Long> groupTimings = new ConcurrentHashMap<>();
@@ -56,29 +55,22 @@ public class MixinManager implements IMixinRustMC.ConfigPlugin {
             Map.entry(PKG + "network.ClientPlayNetworkHandlerMixin", RustMC.CONFIG :: isEnableChunkIngestOffload)
         );
     }
-    @Override
     public void onLoad(String mixinPackage) {
         RustMC.LOGGER.info("[Rust-MC] MixinManager loaded for package: {}", mixinPackage);
     }
-    @Override
-    public String getRefMapperRustMC.Config() { return null; }
-    @Override
+    public String getRefMapperConfig() { return null; }
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         BooleanSupplier condition = MIXIN_CONDITIONS.get(mixinClassName);
         if (condition != null) return condition.getAsBoolean();
         return true;
     }
-    @Override
     public void acceptTargets(Set<String> myTargets, Set<String> otherTargets) {
         // No target filtering needed — all targets accepted
     }
-    @Override
     public List<String> getMixins() { return Collections.emptyList(); }
-    @Override
     public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
         applyStartNanos.set(System.nanoTime());
     }
-    @Override
     public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
         Long start = applyStartNanos.get();
         if (start == null) return;
@@ -95,7 +87,7 @@ public class MixinManager implements IMixinRustMC.ConfigPlugin {
         int dot = mixinClassName.lastIndexOf('.');
         return dot >= 0 ? mixinClassName.substring(dot + 1) : mixinClassName;
     }
-    // Flushes per-group mixin timings into the RustMC.RustMC.BlameLog after startup.
+    // Flushes per-group mixin timings into the RustMC.BlameLog after startup.
     public static void flushBlameTimings() {
         if (groupTimings.isEmpty()) return;
         List<Map.Entry<String, Long>> sorted = new ArrayList<>(groupTimings.entrySet());
@@ -103,8 +95,8 @@ public class MixinManager implements IMixinRustMC.ConfigPlugin {
         for (Map.Entry<String, Long> entry : sorted) {
             long ms = entry.getValue() / 1_000_000;
             if (ms > 0) {
-                RustMC.RustMC.BlameLog.begin("Mixin: " + entry.getKey());
-                RustMC.RustMC.BlameLog.end();
+                RustMC.BlameLog.begin("Mixin: " + entry.getKey());
+                RustMC.BlameLog.end();
             }
         }
         long totalMs = groupTimings.values().stream().mapToLong(Long::longValue).sum() / 1_000_000;
@@ -117,7 +109,3 @@ public class MixinManager implements IMixinRustMC.ConfigPlugin {
         return Map.copyOf(groupTimings);
     }
 }
-
-
-
-

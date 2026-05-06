@@ -1,5 +1,5 @@
 package com.alexxiconify.rustmc.mixin.client;
-import com.alexxiconify.RustMC.Config;
+import com.alexxiconify.rustmc.RustMC.Config;
 import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
@@ -126,6 +126,8 @@ class RenderBudgetMixin {
         }
     }
 }
+
+
 
 
 

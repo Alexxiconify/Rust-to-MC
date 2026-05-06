@@ -53,7 +53,7 @@ public class MiniHUDLightUpdateMixin {
         } catch (Exception | LinkageError ignored) { // Lighty absent or incompatible
         }
     }
-    //Returns the first method found by name, or null if none match. // /
+    //Returns the first method found by name, or null if none match.
     @Unique
     private static Method probeMethod( Class<?> cls ) {
         for (String name : new String[] { "requestRecompute" , "markDirty" , "clear" } ) {
@@ -92,6 +92,8 @@ public class MiniHUDLightUpdateMixin {
         }
     }
 }
+
+
 
 
 

@@ -8,7 +8,7 @@ public class DistantHorizonsCompat {
     private static final String MATRIX_VALUES_AS_ARRAY_METHOD = "getValuesAsArray";
     private static final String MATRIX_TO_ARRAY_METHOD = "toArray";
     // Surface Y threshold for DH cave culling. Use RustMC.Config value to allow runtime tuning.
-    private static double dhSurfaceY() { return com.alexxiconify.RustMC.CONFIG.getDhSurfaceY(); }
+    private static double dhSurfaceY() { return com.alexxiconify.rustmc.RustMC.CONFIG.getDhSurfaceY(); }
     private static final double COORD_CHANGE_THRESHOLD = 0.05;
     private static final float ROTATION_CHANGE_THRESHOLD = 0.1f;
     private static final double OPTICS_CHANGE_THRESHOLD = 0.01;
@@ -604,6 +604,8 @@ public class DistantHorizonsCompat {
         }
     }
 }
+
+
 
 
 

@@ -10,7 +10,7 @@ public final class RamBarRenderer {
     private static long cachedMaxMb = -1L;
     private static int cachedPct = -1;
     private static String cachedRamText = "RAM 0MB / 0MB (0%)";
-    //Picks a color based on the memory usage ratio (0–1). // /
+    //Picks a color based on the memory usage ratio (0–1).
     public static int ramColor(float ratio) {
         if (ratio < 0.6f) return RustMC.CONFIG.getLoadingBarLowColor();
         if (ratio < 0.8f) return RustMC.CONFIG.getLoadingBarMidColor();
@@ -46,6 +46,8 @@ public final class RamBarRenderer {
                 RustMC.CONFIG.getLoadingBarTextColor());
     }
 }
+
+
 
 
 

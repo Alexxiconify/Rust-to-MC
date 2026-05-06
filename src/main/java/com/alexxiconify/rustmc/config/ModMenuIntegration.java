@@ -170,12 +170,12 @@ public class ModMenuIntegration implements ModMenuApi {
             .name(Text.literal("Blame Chart"))
             .tooltip(Text.literal("Loading phase timings from launcher start to game-ready."));
 
-        List<RustMC.RustMC.BlameLog.Entry> entries = RustMC.RustMC.BlameLog.getEntriesWithGaps();
+        List<RustMC.BlameLog.Entry> entries = RustMC.BlameLog.getEntriesWithGaps();
         if (entries.isEmpty()) {
             addNoDataOption(builder);
         } else {
-            long wallClock = RustMC.RustMC.BlameLog.wallClockMs();
-            addTotalSummary(builder, RustMC.RustMC.BlameLog.trackedMs(), wallClock);
+            long wallClock = RustMC.BlameLog.wallClockMs();
+            addTotalSummary(builder, RustMC.BlameLog.trackedMs(), wallClock);
             addPhaseEntries(builder, entries, wallClock);
             addMixinBreakdown(builder);
         }
@@ -224,8 +224,8 @@ public class ModMenuIntegration implements ModMenuApi {
         }
     }
 
-    private static void addPhaseEntries(ConfigCategory.Builder builder, List<RustMC.RustMC.BlameLog.Entry> entries, long wallClock) {
-        for (RustMC.RustMC.BlameLog.Entry entry : entries) {
+    private static void addPhaseEntries(ConfigCategory.Builder builder, List<RustMC.BlameLog.Entry> entries, long wallClock) {
+        for (RustMC.BlameLog.Entry entry : entries) {
             long dur = entry.durationMs();
             float pct = wallClock > 0 ? (float) dur / wallClock * 100f : 0;
             String bar = buildAsciiBar(pct);
@@ -305,6 +305,8 @@ public class ModMenuIntegration implements ModMenuApi {
         return "This phase loaded quickly.";
     }
 }
+
+
 
 
 

@@ -40,7 +40,7 @@ public class PreLaunchWindow extends JFrame {
     private static final String FONT_FAMILY = "Segoe UI";
     private transient BufferedImage logoImage;
     public PreLaunchWindow() {
-        ElbRustMC.Config RustMC.Config = ElbConfig.getInstance();
+        ElbConfig config = ElbConfig.getInstance();
         startTimeMs = System.currentTimeMillis();
         setTitle(config.getBarTitle());
         setUndecorated(true);
@@ -49,7 +49,7 @@ public class PreLaunchWindow extends JFrame {
         setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         setAlwaysOnTop(true);
         setBackground(BG_DARK);
-        loadLogo(RustMC.Config);
+        loadLogo(config);
         setContentPane(new SplashPanel());
         updater = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "rustmc-elb-repaint");
@@ -60,7 +60,7 @@ public class PreLaunchWindow extends JFrame {
             if (!disposed) SwingUtilities.invokeLater(this::repaint);
         }, 100, 150, TimeUnit.MILLISECONDS);
     }
-    private void loadLogo(ElbRustMC.Config RustMC.Config) {
+    private void loadLogo(ElbConfig config) {
         if (config.getLogoPath() != null && !config.getLogoPath().isEmpty()) {
             try {
                 java.nio.file.Path p = java.nio.file.Paths.get(config.getLogoPath());
@@ -203,6 +203,8 @@ public class PreLaunchWindow extends JFrame {
         if (message != null) win.statusMessage = message;
     }
 }
+
+
 
 
 

@@ -74,11 +74,11 @@ public class NativeCache {
             LOCK.readLock().unlock();
         }
     }
-    //Returns cache hit count since last clear. // /
+    //Returns cache hit count since last clear.
     public static long getHits() { return HITS.get(); }
-    //Returns cache miss count since last clear. // /
+    //Returns cache miss count since last clear.
     public static long getMisses() { return MISSES.get(); }
-    //Returns the cache hit ratio (0.0 - 1.0). // /
+    //Returns the cache hit ratio (0.0 - 1.0).
     public static float getHitRatio() {
         long h = HITS.get();
         long m = MISSES.get();
@@ -86,6 +86,8 @@ public class NativeCache {
         return total == 0 ? 0.0f : (float) h / total;
     }
 }
+
+
 
 
 

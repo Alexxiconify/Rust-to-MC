@@ -196,8 +196,8 @@ public class NativeBridge {
         if (ctx != null) {
             try {
                 long start = 0L;
-                boolean track = RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.Config.DiagnosticMode.TIMING
-                    || RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.Config.DiagnosticMode.ALL;
+                boolean track = RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.RustMC.Config.DiagnosticMode.TIMING
+                    || RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.RustMC.Config.DiagnosticMode.ALL;
                 if (track) start = System.nanoTime();
                 rustUpdateFrustumAndCave(0, vpMatrix, ctx.fovScale(), ctx.camX(), ctx.camY(), ctx.camZ(), inCave);
                 if (track) {
@@ -272,8 +272,8 @@ public class NativeBridge {
         int count = Math.min(positions.length, velocities.length) / 3;
         if ( count == 0 ) return;
         long start = 0L;
-        boolean track = RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.Config.DiagnosticMode.TIMING
-            || RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.Config.DiagnosticMode.ALL;
+        boolean track = RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.RustMC.Config.DiagnosticMode.TIMING
+            || RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.RustMC.Config.DiagnosticMode.ALL;
         if (track) start = System.nanoTime();
         try {
             rustTickParticles(positions, velocities, count, gravity, camX, camY, camZ, maxDistSq);
@@ -622,8 +622,8 @@ public class NativeBridge {
         if (!libLoaded || ptr == 0) return false;
         if (!supportsDhFusedCull.get()) return false;
         long start = 0L;
-        boolean track = RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.Config.DiagnosticMode.TIMING
-            || RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.Config.DiagnosticMode.ALL;
+        boolean track = RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.RustMC.Config.DiagnosticMode.TIMING
+            || RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.RustMC.Config.DiagnosticMode.ALL;
         if (track) start = System.nanoTime();
         try {
             boolean res = rustDHCullFused(ptr, minX, minY, minZ, maxX, maxY, maxZ, surfaceY);
@@ -828,7 +828,7 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError e) { return 0; }
     }
     // DNS Disk Persistence
-    private static final java.nio.file.Path DNS_CACHE_PATH = com.alexxiconify.RustMC.BIN_DIR.resolve("rust-mc-dns-cache.json");
+    private static final java.nio.file.Path DNS_CACHE_PATH = com.alexxiconify.rustmc.RustMC.BIN_DIR.resolve("rust-mc-dns-cache.json");
     //  Saves resolved hostname→IP pairs to disk so subsequent launches can skip DNS lookups entirely. Called on world unload and game exit.
     public static void dnsCacheSave() {
         if (!libLoaded) return;
@@ -865,7 +865,7 @@ public class NativeBridge {
 
     // DNS Utility Helpers (Merged from NativeBridge)
     public static boolean isDnsCacheEnabled() {
-        return isReady() && com.alexxiconify.RustMC.CONFIG.isEnableDnsCache();
+        return isReady() && com.alexxiconify.rustmc.RustMC.CONFIG.isEnableDnsCache();
     }
 
     public static void persistDnsCache(String reason) {
@@ -886,6 +886,8 @@ public class NativeBridge {
         return hostname;
     }
 }
+
+
 
 
 

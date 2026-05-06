@@ -13,14 +13,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(targets = "fi.dy.masa.malilib.render.RenderUtils", remap = false)
 public class RenderUtilsMixin {
     private RenderUtilsMixin() {}
-    //Returns viewDist² (with +32 block pad), or -1 if no player camera. // /
+    //Returns viewDist² (with +32 block pad), or -1 if no player camera.
     @Unique
     private static double cullRadiusSq(MinecraftClient mc, Entity cam) {
         if (cam == null) return -1;
         double d = mc.options.getClampedViewDistance() / 16.0 + 32.0;
         return d * d;
     }
-    //Checks if the center point is beyond cull distance. Returns true if it should be culled. // /
+    //Checks if the center point is beyond cull distance. Returns true if it should be culled.
     @Unique
     private static boolean shouldCullCenter(Entity cam, double rSq, double cx, double cy, double cz) {
         return cam != null && cam.squaredDistanceTo(cx, cy, cz) > rSq;
@@ -71,6 +71,8 @@ public class RenderUtilsMixin {
         }
     }
 }
+
+
 
 
 

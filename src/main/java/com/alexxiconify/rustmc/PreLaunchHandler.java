@@ -27,8 +27,8 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
     static volatile long tsWindowOpen = 0;
     @Override
     public void onPreLaunch() {
-        RustMC.RustMC.BlameLog.begin("PreLaunch / JVM Bootstrap");
-        RustMC.ConfigureParallelism();
+        RustMC.BlameLog.begin("PreLaunch / JVM Bootstrap");
+        configureParallelism();
         triggerEarlyNativeLoad();
         installLiveAppender(); // must be before ELB thread so it captures events immediately
         if (isWindows() && FabricLoader.getInstance().getEnvironmentType() == net.fabricmc.api.EnvType.CLIENT) {
@@ -38,10 +38,10 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
         installSpamFilter();
         // End PreLaunch phase immediately — the next phase (Mixin Application) runs
         // outside our control until the log appender detects Datafixer Bootstrap.
-        RustMC.RustMC.BlameLog.begin("Mixin Application / Class Loading");
+        RustMC.BlameLog.begin("Mixin Application / Class Loading");
     }
     // ─── Parallelism RustMC.Config ─────────────────────────────────────────────────
-    private static void RustMC.ConfigureParallelism() {
+    private static void configureParallelism() {
         int cores   = Runtime.getRuntime().availableProcessors();
         int workers = Math.max(1, cores - 1);
         System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", String.valueOf(workers));
@@ -82,7 +82,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
     private static void installLiveAppender() {
         try {
             LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
-            Configuration RustMC.Config = ctx.getConfiguration();
+            Configuration config = ctx.getConfiguration();
             AbstractAppender counter = getAbstractAppender ( );
             config.addAppender(counter);
             ((org.apache.logging.log4j.core.Logger) LogManager.getRootLogger()).addAppender(counter);
@@ -107,7 +107,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
     }
     // ─── Stage Detection ───────────────────────────────────────────────────
     //
-     // Detects loading phases from log messages and records them in RustMC.RustMC.BlameLog.
+     // Detects loading phases from log messages and records them in RustMC.BlameLog.
      // Delegates to focused helpers to keep cognitive complexity low.
     private static void detectStage(String msg) {
         if (detectPerModEntrypoint(msg)) return;
@@ -126,42 +126,42 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
             String rest = msg.substring(idx + 9);
             int end = rest.indexOf('\'');
             String modId = end > 0 ? rest.substring(0, end) : rest;
-            RustMC.RustMC.BlameLog.begin("Entrypoint: " + modId);
+            RustMC.BlameLog.begin("Entrypoint: " + modId);
             return true;
         }
         // Track mod init messages like "[Rust-MC] Initializing..." or "[Sodium] Initializing"
         // Don't create a new phase for every "Initializing" — just extend the current one
         return false;
     }
-    //Detects Fabric mod discovery, mixin bootstrap, entrypoint init, and environment setup. // /
+    //Detects Fabric mod discovery, mixin bootstrap, entrypoint init, and environment setup.
     private static boolean detectEarlyPhases(String msg) {
         if (stageGameReady) return false;
         if (!stageModInit && msg.contains("Loading") && msg.contains("mods")) {
             stageModInit = true;
             tsModInit = System.currentTimeMillis();
-            RustMC.RustMC.BlameLog.begin("Fabric Mod Discovery");
+            RustMC.BlameLog.begin("Fabric Mod Discovery");
             return true;
         }
         if (stageModInit && !stageDatafixer && (msg.contains("Loaded") || msg.contains("loaded")) && msg.contains("mod")) {
-            RustMC.RustMC.BlameLog.begin("Post-Mod-Init Wiring");
+            RustMC.BlameLog.begin("Post-Mod-Init Wiring");
             return true;
         }
         if (msg.contains("SpongePowered MIXIN") || msg.contains("Mixin subsystem")) {
-            RustMC.RustMC.BlameLog.begin("Mixin Bootstrap");
+            RustMC.BlameLog.begin("Mixin Bootstrap");
             return true;
         }
         if (msg.contains("Mixin Environment") || msg.contains("mixin.transformer")) {
-            RustMC.RustMC.BlameLog.begin("Mixin Environment Setup");
+            RustMC.BlameLog.begin("Mixin Environment Setup");
             return true;
         }
         // Track the big gap between DFU and resource loading — this is mod entrypoint init
         if (stageDatafixer && !stageResources && msg.contains("HTTP server")) {
-            RustMC.RustMC.BlameLog.begin("Mod Entrypoint Init");
+            RustMC.BlameLog.begin("Mod Entrypoint Init");
             return true;
         }
         return false;
     }
-    //Detects the major milestones: Datafixer, Resources, Sound, Window, Game Ready. // /
+    //Detects the major milestones: Datafixer, Resources, Sound, Window, Game Ready.
     private static void detectMajorMilestones(String msg) {
         if (detectDatafixer(msg)) return;
         if (detectResources(msg)) return;
@@ -177,7 +177,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
                 || (msg.contains("Datafixer") && msg.contains("took"))) {
             stageDatafixer = true;
             tsDatafixer = System.currentTimeMillis();
-            RustMC.RustMC.BlameLog.begin("Datafixer / Registry Bootstrap");
+            RustMC.BlameLog.begin("Datafixer / Registry Bootstrap");
             return true;
         }
         return false;
@@ -188,7 +188,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
                 || msg.contains("Resource reload") || msg.contains("Loading resource")) {
             stageResources = true;
             tsResources = System.currentTimeMillis();
-            RustMC.RustMC.BlameLog.begin("Resource Loading");
+            RustMC.BlameLog.begin("Resource Loading");
             return true;
         }
         return false;
@@ -199,7 +199,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
                 || msg.contains("OpenAL") || msg.contains("Sound Physics")) {
             stageSound = true;
             tsSound = System.currentTimeMillis();
-            RustMC.RustMC.BlameLog.begin("Sound & Asset Stitching");
+            RustMC.BlameLog.begin("Sound & Asset Stitching");
             return true;
         }
         return false;
@@ -211,7 +211,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
                 || msg.contains("OpenGL")) {
             stageWindowOpen = true;
             tsWindowOpen = System.currentTimeMillis();
-            RustMC.RustMC.BlameLog.begin("Window / GL Init");
+            RustMC.BlameLog.begin("Window / GL Init");
             return true;
         }
         return false;
@@ -220,10 +220,10 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
         if (stageGameReady) return;
         if (msg.contains("Game took") || msg.contains("game started")) {
             stageGameReady = true;
-            RustMC.RustMC.BlameLog.begin("Game Ready");
-            RustMC.RustMC.BlameLog.end();
+            RustMC.BlameLog.begin("Game Ready");
+            RustMC.BlameLog.end();
             if (LOGGER.isInfoEnabled()) {
-                LOGGER.info("[Rust-MC] {}", RustMC.RustMC.BlameLog.summary());
+                LOGGER.info("[Rust-MC] {}", RustMC.BlameLog.summary());
             }
         }
     }
@@ -286,7 +286,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
         // Return the higher of time-based and milestone-based
         return Math.clamp(Math.max(timeProgress, milestoneMin), 3, 99);
     }
-    //Linearly interpolates from lo to hi over durationMs after the current stage started. // /
+    //Linearly interpolates from lo to hi over durationMs after the current stage started.
     private static int timeRamp(int lo, int hi, long stageStartMs, long durationMs) {
         long elapsed = System.currentTimeMillis() - stageStartMs;
         return lo + (int) Math.min((hi - lo - 1), ((long) hi - (long) lo) / elapsed / durationMs);
@@ -310,7 +310,7 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
     private static void installSpamFilter() {
         try {
             LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
-            Configuration RustMC.Config = ctx.getConfiguration();
+            Configuration config = ctx.getConfiguration();
             AbstractFilter filter = new AbstractFilter() {
                 @Override
                 public Result filter(LogEvent event) {
@@ -353,6 +353,8 @@ public class PreLaunchHandler implements PreLaunchEntrypoint {
         return os != null && os.toLowerCase(java.util.Locale.ROOT).contains("windows");
     }
 }
+
+
 
 
 

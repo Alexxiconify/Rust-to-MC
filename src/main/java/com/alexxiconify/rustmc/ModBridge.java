@@ -90,11 +90,10 @@ public class ModBridge {
         return GNETUM;
     }
 
-    public static boolean isVisualRustMC.ConfigIntegrated() {
+    public static boolean isVisualConfigIntegrated() {
         return REESES_SODIUM || SODIUM_EXTRA;
     }
 }
-
 
 
 

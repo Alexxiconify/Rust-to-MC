@@ -7,7 +7,7 @@ package com.alexxiconify.rustmc;
  //  Usage: replace direct MC API calls that differ between versions with
  //  VersionCompat.xxx() so the shared source compiles and works on both.
 public final class VersionCompat {
-    //Detected at class-load time. // /
+    //Detected at class-load time.
     public static final boolean IS_26_X;
     static {
         String ver = net.fabricmc.loader.api.FabricLoader.getInstance()
@@ -30,6 +30,8 @@ public final class VersionCompat {
         return mc.getWindow().getFramebufferHeight();
     }
 }
+
+
 
 
 
