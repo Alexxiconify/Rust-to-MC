@@ -8,7 +8,6 @@ public class DistantHorizonsCompat {
     private static final String MATRIX_VALUES_AS_ARRAY_METHOD = "getValuesAsArray";
     private static final String MATRIX_TO_ARRAY_METHOD = "toArray";
     // Surface Y threshold for DH cave culling. Use RustMC.Config value to allow runtime tuning.
-    private static double dhSurfaceY() { return com.alexxiconify.rustmc.RustMC.CONFIG.getDhSurfaceY(); }
     private static final double COORD_CHANGE_THRESHOLD = 0.05;
     private static final float ROTATION_CHANGE_THRESHOLD = 0.1f;
     private static final double OPTICS_CHANGE_THRESHOLD = 0.01;
@@ -364,8 +363,7 @@ public class DistantHorizonsCompat {
                     double maxY = Math.max(bounds.minY(), bounds.maxY());
                     double maxZ = Math.max(bounds.minZ(), bounds.maxZ());
 
-                    boolean visible = !isOutsideFrustum(minX, minY, minZ, maxX, maxY, maxZ)
-                                   && cullDhSectionInAnySpace(minX, minY, minZ, maxX, maxY, maxZ);
+                    boolean visible = !isOutsideFrustum(minX, minY, minZ, maxX, maxY, maxZ);
 
                     if (VISIBILITY_CACHE.size() > MAX_CACHE_SIZE) {
                         VISIBILITY_CACHE.clear(); // Simple bounded clear
@@ -463,26 +461,7 @@ public class DistantHorizonsCompat {
         }
     }
 
-    // Force single camera-minus transform path (best-performing mode).
-    private static boolean cullDhSectionInAnySpace(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
-        return testCameraMinusSpace(minX, minY, minZ, maxX, maxY, maxZ);
-    }
-
-
-    private static boolean testCameraMinusSpace(double minX, double minY, double minZ,
-                                                double maxX, double maxY, double maxZ) {
-        if (!hasLastCameraState || rustFrustumPtr == 0) {
-            return true;
-        }
-        return NativeBridge.cullDistantHorizonsSection(
-            rustFrustumPtr, minX, minY, minZ, maxX, maxY, maxZ,
-            dhSurfaceY(), 0.0, RustMC.CONFIG.isEnableDhCaveCulling()
-        );
-    }
-
-
-    //
-      // Public API hook for DH vertex builders to offload Ambient Occlusion.
+    //  Public API hook for DH vertex builders to offload Ambient Occlusion.
     public static float[] computeRustAmbientOcclusion(float[] vertexData) {
         if (isDhNativeReady()) {
             return new float[0];

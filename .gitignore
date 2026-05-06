@@ -112,3 +112,5 @@ yarn-error.log*
 *.hprof
 qodana.yaml
 scratch/
+mod jar/
+dh-api/

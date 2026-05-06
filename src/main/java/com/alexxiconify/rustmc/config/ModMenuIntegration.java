@@ -124,14 +124,14 @@ public class ModMenuIntegration implements ModMenuApi {
         options.add(Option.<RustMC.Config.HardwarePreset>createBuilder()
             .name(Text.literal("Hardware Preset"))
             .binding(RustMC.Config.HardwarePreset.MID_RANGE, cfg::getHardwarePreset, cfg::setHardwarePreset)
-            .controller(EnumControllerBuilder::create)
+            .controller(opt -> EnumControllerBuilder.create(opt).enumClass(RustMC.Config.HardwarePreset.class))
             .build());
         options.add(buildBooleanOption("Native Lighting", "Use Rust for lighting updates.", cfg::isUseNativeLighting, v -> cfg.setUseNativeLighting(v != null && v)));
         options.add(buildBooleanOption("DNS Cache", "Speeds up server list pings.", cfg::isEnableDnsCache, v -> cfg.setEnableDnsCache(v != null && v)));
         options.add(Option.<RustMC.Config.DiagnosticMode>createBuilder()
             .name(Text.literal("Diagnostic HUD"))
             .binding(RustMC.Config.DiagnosticMode.HIDDEN, cfg::getDiagnosticMode, v -> cfg.setDiagnosticMode(v != null ? v : RustMC.Config.DiagnosticMode.HIDDEN))
-            .controller(EnumControllerBuilder::create)
+            .controller(opt -> EnumControllerBuilder.create(opt).enumClass(RustMC.Config.DiagnosticMode.class))
             .build());
         options.add(buildBooleanOption("Sparkline Graph", "Show frame-time graph on HUD.", cfg::isEnableSparklineGraph, v -> cfg.setEnableSparklineGraph(v != null && v)));
 

@@ -165,8 +165,24 @@ public class RustMC implements ModInitializer {
         }
 
         public static List<Entry> getEntriesWithGaps() {
-          // TODO Auto-generated method stub
-          throw new UnsupportedOperationException("Unimplemented method 'getEntriesWithGaps'");
+            List<Entry> original = getEntries();
+            List<Entry> withGaps = new java.util.ArrayList<>();
+            long lastEnd = JVM_START_MS;
+            
+            for (Entry e : original) {
+                if (e.startMs() - lastEnd > 50) {
+                    withGaps.add(new Entry("⚠ Untracked Gap", lastEnd, e.startMs()));
+                }
+                withGaps.add(e);
+                lastEnd = e.endMs();
+            }
+            
+            long wallClockEnd = gameReadyMs > 0 ? gameReadyMs : System.currentTimeMillis();
+            if (wallClockEnd - lastEnd > 50) {
+                withGaps.add(new Entry("⚠ Untracked Gap", lastEnd, wallClockEnd));
+            }
+            
+            return withGaps;
         }
     }
 
@@ -294,7 +310,7 @@ public class RustMC implements ModInitializer {
         private boolean enableImmediatelyFastCompat = true;
         private boolean enableClientRedstoneSkip = true;
         private boolean enableDhCaveCulling = true;
-        private double dhSurfaceY = 54.0;
+        private double dhSurfaceY = getDhSurfaceY();
         private int particleCullingDistance = 64;
 
         public enum HardwarePreset { LOW_END_IGPU, MID_RANGE, HIGH_END_DGPU }
