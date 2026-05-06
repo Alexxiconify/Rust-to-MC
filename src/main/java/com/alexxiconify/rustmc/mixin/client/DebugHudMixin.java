@@ -4,6 +4,7 @@ import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
 import com.alexxiconify.rustmc.util.DiagnosticHudRenderer;
+import com.alexxiconify.rustmc.util.FrameTracker;
 import com.alexxiconify.rustmc.util.RenderState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -17,30 +18,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 // Draws a compact frame-time sparkline graph in the F3 overlay using MC's built-in FPS counter.
 @Mixin(DebugHud.class)
 public class DebugHudMixin {
-    // ── Local ring buffer populated from mc.getCurrentFps() ──
-    @Unique
-    private static final int HISTORY_SIZE = 240;
-    @Unique private static final float[] frameHistory = new float[HISTORY_SIZE];
-    @Unique private static int historyHead = 0;
-    @Unique private static String cachedStatsText = "0.0ms avg | 0.0 min | 0.0 max";
-    @Unique private static long lastHistoryUpdateMs;
-    @Unique private static final long HISTORY_UPDATE_INTERVAL_MS = 100; // 10 Hz refresh
-    @Unique private static float avgMs = 0;
-    @Unique private static float minMs = 0;
-    @Unique private static float maxMs = 0;
-    @Unique private static int slowFramesCount = 0;
-
-    @Unique
-    public static float[] getFrameHistory ( ) { return frameHistory; }
-    @Unique
-    public static float getAvgMs ( ) { return avgMs; }
-    @Unique
-    public static float getMinMs ( ) { return minMs; }
-    @Unique
-    public static float getMaxMs ( ) { return maxMs; }
-    @Unique
-    public static int getSlowFramesCount ( ) { return slowFramesCount; }
-
     @Inject(method = "render", at = @At("TAIL"), require = 0)
     private void onRenderTail(DrawContext context, CallbackInfo ci) {
         if (!NativeBridge.isReady()) return;
@@ -50,7 +27,7 @@ public class DebugHudMixin {
         boolean hasDiagnostics = mode != RustMCConfig.DiagnosticMode.HIDDEN;
         if (!RustMC.CONFIG.isEnableSparklineGraph() && !hasDiagnostics) return;
 
-        refreshHistoryCache(mc);
+        FrameTracker.refresh(mc);
 
         if (RustMC.CONFIG.isEnableSparklineGraph() && !ModBridge.isHudOwned()) {
             drawSparkline(context, mc);
@@ -64,44 +41,12 @@ public class DebugHudMixin {
     }
 
     @Unique
-    private static void refreshHistoryCache(MinecraftClient mc) {
-        long now = System.currentTimeMillis();
-        if (now - lastHistoryUpdateMs < HISTORY_UPDATE_INTERVAL_MS) return;
-        int fps = mc.getCurrentFps();
-        float ms = fps > 0 ? 1000.0f / fps : 0.0f;
-        frameHistory[historyHead] = ms;
-        historyHead = (historyHead + 1) % HISTORY_SIZE;
-        // Compute stats over populated history
-        float sum = 0;
-        float min = Float.MAX_VALUE;
-        float max = 0;
-        int count = 0;
-        int slow = 0;
-        for (float v : frameHistory) {
-            if (v <= 0) continue;
-            sum += v;
-            min = Math.min(min, v);
-            max = Math.max(max, v);
-            if (v > 16.6f) slow++;
-            count++;
-        }
-        if (count == 0) {
-            avgMs = minMs = maxMs = 0;
-            slowFramesCount = 0;
-            cachedStatsText = "0.0ms avg | 0.0 min | 0.0 max";
-        } else {
-            avgMs = sum / count;
-            minMs = min;
-            maxMs = max;
-            slowFramesCount = slow;
-            cachedStatsText = "%.1fms avg | %.1f min | %.1f max".formatted(avgMs, minMs, maxMs);
-        }
-        lastHistoryUpdateMs = now;
-    }
-
-    @Unique
     private static void drawSparkline(DrawContext context, MinecraftClient mc) {
-        int graphW = HISTORY_SIZE;
+        int historySize = FrameTracker.getHistorySize();
+        float[] frameHistory = FrameTracker.getFrameHistory();
+        int historyHead = FrameTracker.getHistoryHead();
+
+        int graphW = historySize;
         int graphH = 40;
         int x0 = 2;
         int y0 = 2;
@@ -115,7 +60,7 @@ public class DebugHudMixin {
         context.fill(x0, target30Y, x0 + graphW, target30Y + 1, 0x40FFFF00);
         // Draw bars in chronological order from ring buffer
         for (int i = 0; i < graphW; i++) {
-            int idx = (historyHead + i) % HISTORY_SIZE;
+            int idx = (historyHead + i) % historySize;
             float ms = frameHistory[idx];
             int barH = Math.clamp((int) ((ms / 50.0f) * graphH), 1, graphH);
             int barY = y0 + graphH - barH;
@@ -134,7 +79,7 @@ public class DebugHudMixin {
             context.drawTextWithShadow(mc.textRenderer, "60", x0 + graphW + 2, targetY - 4, 0xFF00CC44);
             context.drawTextWithShadow(mc.textRenderer, "30", x0 + graphW + 2, target30Y - 4, 0xFFCCAA00);
             int statsY = y0 + graphH + 3;
-            context.drawTextWithShadow(mc.textRenderer, cachedStatsText, x0, statsY, 0xFFAAAAAA);
+            context.drawTextWithShadow(mc.textRenderer, FrameTracker.getCachedStatsText(), x0, statsY, 0xFFAAAAAA);
             int legendY = statsY + 11;
             context.fill(x0, legendY + 1, x0 + 6, legendY + 7, 0xFF00CC44);
             context.drawTextWithShadow(mc.textRenderer, ">60", x0 + 8, legendY, 0xFF00CC44);

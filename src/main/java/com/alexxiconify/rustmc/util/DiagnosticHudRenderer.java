@@ -3,7 +3,7 @@ package com.alexxiconify.rustmc.util;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.compat.DistantHorizonsCompat;
-import com.alexxiconify.rustmc.mixin.client.DebugHudMixin;
+
 
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -112,16 +112,16 @@ public final class DiagnosticHudRenderer {
     }
 
     private static boolean refreshTimingStats() {
-        float[] history = DebugHudMixin.getFrameHistory();
+        float[] history = FrameTracker.getFrameHistory();
         if (history == null || history.length == 0) {
             timingCacheValid = false;
             return false;
         }
 
-        float avg = DebugHudMixin.getAvgMs();
-        float min = DebugHudMixin.getMinMs();
-        float max = DebugHudMixin.getMaxMs();
-        int slowFrames = DebugHudMixin.getSlowFramesCount();
+        float avg = FrameTracker.getAvgMs();
+        float min = FrameTracker.getMinMs();
+        float max = FrameTracker.getMaxMs();
+        int slowFrames = FrameTracker.getSlowFramesCount();
 
         // Estimate proportions
         float renderPct = Math.min(0.55f, 0.35f + (avg - 8f) * 0.005f);

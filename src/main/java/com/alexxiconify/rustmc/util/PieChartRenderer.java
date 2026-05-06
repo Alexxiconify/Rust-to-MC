@@ -52,18 +52,17 @@ public final class PieChartRenderer {
         context.drawTextWithShadow(textRenderer, cachedFrustumLabel, x, y + 100, 0xFFFFFF55);
         context.drawTextWithShadow(textRenderer, cachedJniLabel, x, y + 110, 0xFFFFAA55);
     }
-    // Refreshes cached stats from the local frame history ring buffer.
     private static boolean refreshStats() {
-        float[] history = com.alexxiconify.rustmc.mixin.client.DebugHudMixin.getFrameHistory();
+        float[] history = FrameTracker.getFrameHistory();
         if (history == null || history.length == 0) {
             cacheValid = false;
             return false;
         }
 
-        float avg = com.alexxiconify.rustmc.mixin.client.DebugHudMixin.getAvgMs();
-        float min = com.alexxiconify.rustmc.mixin.client.DebugHudMixin.getMinMs();
-        float max = com.alexxiconify.rustmc.mixin.client.DebugHudMixin.getMaxMs();
-        int slowFrames = com.alexxiconify.rustmc.mixin.client.DebugHudMixin.getSlowFramesCount();
+        float avg = FrameTracker.getAvgMs();
+        float min = FrameTracker.getMinMs();
+        float max = FrameTracker.getMaxMs();
+        int slowFrames = FrameTracker.getSlowFramesCount();
 
         // Estimate category proportions heuristically from frame variance
         float renderPct = Math.min(0.55f, 0.35f + (avg - 8f) * 0.005f);
