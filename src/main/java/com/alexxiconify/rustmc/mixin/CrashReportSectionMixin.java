@@ -17,3 +17,7 @@ public class CrashReportSectionMixin {
         return ste1.getClassName().equals(ste2.getClassName()) && ste1.getMethodName().equals(ste2.getMethodName());
     }
 }
+
+
+
+

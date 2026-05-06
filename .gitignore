@@ -111,3 +111,4 @@ yarn-error.log*
 .local/
 *.hprof
 qodana.yaml
+scratch/

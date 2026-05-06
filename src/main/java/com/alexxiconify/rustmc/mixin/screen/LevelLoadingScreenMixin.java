@@ -20,3 +20,7 @@ public abstract class LevelLoadingScreenMixin {
         RamBarRenderer.drawRamBar(context, client.textRenderer, w, h, RustMC.CONFIG.getLoadingBarBgColor());
     }
 }
+
+
+
+

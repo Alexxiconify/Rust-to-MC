@@ -112,7 +112,7 @@ public final class DiagnosticHudRenderer {
     }
 
     private static boolean refreshTimingStats() {
-        float[] history = FrameTracker.getFrameHistory();
+        float[] history = FrameTracker.rustmcGetFrameHistory();
         if (history == null || history.length == 0) {
             timingCacheValid = false;
             return false;
@@ -169,3 +169,8 @@ public final class DiagnosticHudRenderer {
         return whole + "." + frac;
     }
 }
+
+
+
+
+

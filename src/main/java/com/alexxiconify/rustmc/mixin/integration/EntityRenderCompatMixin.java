@@ -33,3 +33,7 @@ public class EntityRenderCompatMixin {
         RenderState.immediatelyFastActive = ModBridge.IMMEDIATELYFAST && RustMC.CONFIG.isEnableImmediatelyFastCompat();
     }
 }
+
+
+
+

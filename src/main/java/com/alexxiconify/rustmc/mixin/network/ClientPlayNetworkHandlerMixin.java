@@ -5,7 +5,6 @@ import com.alexxiconify.rustmc.RustMC;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.packet.s2c.play.ChunkDataS2CPacket;
-import io.netty.buffer.Unpooled;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -22,7 +21,8 @@ public class ClientPlayNetworkHandlerMixin {
     @Unique private static volatile long lastValidationLogNs;
     @Unique private static final AtomicInteger ingestSequence = new AtomicInteger(0);
     @Unique private static Method cachedWriteMethod;
-
+    @Unique private static final ThreadLocal<net.minecraft.network.PacketByteBuf> REUSABLE_BUF = ThreadLocal.withInitial(() -> 
+        new net.minecraft.network.PacketByteBuf(io.netty.buffer.Unpooled.directBuffer(65536)));
     @Inject(method = "onChunkData", at = @At("HEAD"), cancellable = false)
     private void rustmcOnChunkData(ChunkDataS2CPacket packet, CallbackInfo ci) {
         if (!RustMC.CONFIG.isEnableChunkIngestOffload()) return;
@@ -53,29 +53,24 @@ public class ClientPlayNetworkHandlerMixin {
 
     @Unique
     private static byte[] snapshotPayload(ChunkDataS2CPacket packet, int x, int z) {
-        // Access the chunk data object directly via public API
         var chunkData = packet.getChunkData();
-
         if (chunkData == null) return coordPayload(x, z);
 
         try {
             if (cachedWriteMethod == null) {
-                // Cached method lookup for the internal write() call
                 cachedWriteMethod = chunkData.getClass().getMethod("write", PacketByteBuf.class);
             }
 
-            PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer(32768));
-            try {
-                cachedWriteMethod.invoke(chunkData, buf);
-                int len = buf.readableBytes();
-                if (len <= 0) return coordPayload(x, z);
+            PacketByteBuf buf = REUSABLE_BUF.get();
+            buf.clear(); // Important: reuse existing buffer
+            
+            cachedWriteMethod.invoke(chunkData, buf);
+            int len = buf.readableBytes();
+            if (len <= 0) return coordPayload(x, z);
 
-                byte[] out = new byte[len];
-                buf.readBytes(out);
-                return out;
-            } finally {
-                buf.release();
-            }
+            byte[] out = new byte[len];
+            buf.getBytes(buf.readerIndex(), out);
+            return out;
         } catch (Exception e) {
             return coordPayload(x, z);
         }
@@ -97,4 +92,13 @@ public class ClientPlayNetworkHandlerMixin {
           (nativeStats.length > 4 ? nativeStats[4] : 0L)
         );
     }
+
+    @Inject(method = "onDisconnected", at = @At("RETURN"))
+    private void rustmcOnDisconnected(net.minecraft.text.Text reason, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        REUSABLE_BUF.remove();
+    }
 }
+
+
+
+

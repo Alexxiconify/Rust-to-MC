@@ -16,7 +16,7 @@ public final class FrameTracker {
 
     private FrameTracker() {}
 
-    public static float[] getFrameHistory() { return frameHistory; }
+    public static float[] rustmcGetFrameHistory() { return frameHistory; }
     public static float getAvgMs() { return avgMs; }
     public static float getMinMs() { return minMs; }
     public static float getMaxMs() { return maxMs; }
@@ -60,3 +60,8 @@ public final class FrameTracker {
         lastHistoryUpdateMs = now;
     }
 }
+
+
+
+
+

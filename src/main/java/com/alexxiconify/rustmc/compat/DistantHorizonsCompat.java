@@ -7,14 +7,13 @@ public class DistantHorizonsCompat {
     private static final String DH_API_CLASS = "com.seibel.distanthorizons.api.DhApi";
     private static final String MATRIX_VALUES_AS_ARRAY_METHOD = "getValuesAsArray";
     private static final String MATRIX_TO_ARRAY_METHOD = "toArray";
-    // Surface Y threshold for DH cave culling. Use config value to allow runtime tuning.
-    private static double dhSurfaceY() { return com.alexxiconify.rustmc.RustMC.CONFIG.getDhSurfaceY(); }
-    private static final double COORD_CHANGE_THRESHOLD = 1.0e-6;
-    private static final float ROTATION_CHANGE_THRESHOLD = 1.0e-4f;
-    private static final double OPTICS_CHANGE_THRESHOLD = 1.0e-4;
+    // Surface Y threshold for DH cave culling. Use RustMC.Config value to allow runtime tuning.
+    private static double dhSurfaceY() { return com.alexxiconify.RustMC.CONFIG.getDhSurfaceY(); }
+    private static final double COORD_CHANGE_THRESHOLD = 0.05;
+    private static final float ROTATION_CHANGE_THRESHOLD = 0.1f;
+    private static final double OPTICS_CHANGE_THRESHOLD = 0.01;
     private static final double MATRIX_QUANTIZATION_SCALE = 1_000_000.0;
     private static final int SHADOW_PLANE_ARRAY_SIZE = 24;
-    private static final int SHADOW_PLANE_COUNT = 6;
     private DistantHorizonsCompat() {}
     private static long rustFrustumPtr = 0;
     private static int currentMinY = -64;
@@ -42,15 +41,32 @@ public class DistantHorizonsCompat {
     private static final long REBIND_INTERVAL_NANOS = java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
     // Bounded cache with max size to prevent unbounded growth on large maps
     // Thread-safe LRU Cache
-    private static final java.util.Map<Long, Boolean> VISIBILITY_CACHE = java.util.Collections.synchronizedMap(
-      new java.util.LinkedHashMap <> ( 1024 , 0.75f , true ) {
-       @Override
-       protected boolean removeEldestEntry ( java.util.Map.Entry < Long, Boolean > eldest ) {
-        return size ( ) > 8192;
-       }
-      }
-    );
+    private static final java.util.concurrent.ConcurrentHashMap<Long, Boolean> VISIBILITY_CACHE = new java.util.concurrent.ConcurrentHashMap<>(1024);
+    private static final int MAX_CACHE_SIZE = 8192;
     private static final ThreadLocal<float[]> THREAD_SHADOW_PLANES = ThreadLocal.withInitial(() -> new float[SHADOW_PLANE_ARRAY_SIZE]);
+
+    private static boolean isOutsideFrustum(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        float[] planes = THREAD_SHADOW_PLANES.get();
+        if (planes == null) return false;
+        
+        for (int i = 0; i < 6; i++) {
+            int offset = i * 4;
+            float nx = planes[offset];
+            float ny = planes[offset+1];
+            float nz = planes[offset+2];
+            float d  = planes[offset+3];
+            
+            // P-vertex test (optimized frustum culling)
+            double px = (nx > 0) ? maxX : minX;
+            double py = (ny > 0) ? maxY : minY;
+            double pz = (nz > 0) ? maxZ : minZ;
+            
+            if (nx * px + ny * py + nz * pz + d < 0) {
+                return true;
+            }
+        }
+        return false;
+    }
     public static String getLastRefreshReason() {
         return LAST_REFRESH_REASON;
     }
@@ -338,20 +354,24 @@ public class DistantHorizonsCompat {
         return resolveIntersectBounds(args)
                 .map(bounds -> {
                     long key = hashBounds(bounds);
-                    return VISIBILITY_CACHE.computeIfAbsent(key, k -> {
-                        double minX = Math.min(bounds.minX(), bounds.maxX());
-                        double minY = Math.min(bounds.minY(), bounds.maxY());
-                        double minZ = Math.min(bounds.minZ(), bounds.maxZ());
-                        double maxX = Math.max(bounds.minX(), bounds.maxX());
-                        double maxY = Math.max(bounds.minY(), bounds.maxY());
-                        double maxZ = Math.max(bounds.minZ(), bounds.maxZ());
+                    Boolean cached = VISIBILITY_CACHE.get(key);
+                    if (cached != null) return cached;
 
-                        if (isOutsideShadowFrustum(minX, minY, minZ, maxX, maxY, maxZ)) {
-                            return false;
-                        }
+                    double minX = Math.min(bounds.minX(), bounds.maxX());
+                    double minY = Math.min(bounds.minY(), bounds.maxY());
+                    double minZ = Math.min(bounds.minZ(), bounds.maxZ());
+                    double maxX = Math.max(bounds.minX(), bounds.maxX());
+                    double maxY = Math.max(bounds.minY(), bounds.maxY());
+                    double maxZ = Math.max(bounds.minZ(), bounds.maxZ());
 
-                        return cullDhSectionInAnySpace(minX, minY, minZ, maxX, maxY, maxZ);
-                    });
+                    boolean visible = !isOutsideFrustum(minX, minY, minZ, maxX, maxY, maxZ)
+                                   && cullDhSectionInAnySpace(minX, minY, minZ, maxX, maxY, maxZ);
+
+                    if (VISIBILITY_CACHE.size() > MAX_CACHE_SIZE) {
+                        VISIBILITY_CACHE.clear(); // Simple bounded clear
+                    }
+                    VISIBILITY_CACHE.put(key, visible);
+                    return visible;
                 })
                 .orElse(true);
     }
@@ -379,7 +399,7 @@ public class DistantHorizonsCompat {
     private static java.util.Optional<SectionBounds> resolveSixArgBounds(Object[] args) {
         if (args[0] instanceof Number minX && args[1] instanceof Number minY && args[2] instanceof Number minZ &&
             args[3] instanceof Number maxX && args[4] instanceof Number maxY && args[5] instanceof Number maxZ) {
-            return java.util.Optional.of(new SectionBounds(
+            return java.util.Optional.<SectionBounds>of(new SectionBounds(
                 minX.doubleValue(), minY.doubleValue(), minZ.doubleValue(),
                 maxX.doubleValue(), maxY.doubleValue(), maxZ.doubleValue()
             ));
@@ -390,7 +410,7 @@ public class DistantHorizonsCompat {
     private static java.util.Optional<SectionBounds> resolveFourArgBounds(Object[] args) {
         if (args[0] instanceof Number minX && args[1] instanceof Number minZ &&
             args[2] instanceof Number maxX && args[3] instanceof Number maxZ) {
-            return java.util.Optional.of(new SectionBounds(
+            return java.util.Optional.<SectionBounds>of(new SectionBounds(
                 minX.doubleValue(), currentMinY, minZ.doubleValue(),
                 maxX.doubleValue(), currentMaxY, maxZ.doubleValue()
             ));
@@ -401,13 +421,13 @@ public class DistantHorizonsCompat {
     private static java.util.Optional<SectionBounds> resolveSingleArgBounds(Object arg) {
         // Fast path: arrays of numbers (most common)
         if (arg instanceof double[] vals && vals.length >= 6) {
-            return java.util.Optional.of(new SectionBounds(vals[0], vals[1], vals[2], vals[3], vals[4], vals[5]));
+            return java.util.Optional.<SectionBounds>of(new SectionBounds(vals[0], vals[1], vals[2], vals[3], vals[4], vals[5]));
         }
         if (arg instanceof float[] vals && vals.length >= 6) {
-            return java.util.Optional.of(new SectionBounds(vals[0], vals[1], vals[2], vals[3], vals[4], vals[5]));
+            return java.util.Optional.<SectionBounds>of(new SectionBounds(vals[0], vals[1], vals[2], vals[3], vals[4], vals[5]));
         }
         if (arg instanceof Number[] vals && vals.length >= 6) {
-            return java.util.Optional.of(new SectionBounds(
+            return java.util.Optional.<SectionBounds>of(new SectionBounds(
                 vals[0].doubleValue(), vals[1].doubleValue(), vals[2].doubleValue(),
                 vals[3].doubleValue(), vals[4].doubleValue(), vals[5].doubleValue()
             ));
@@ -417,7 +437,7 @@ public class DistantHorizonsCompat {
         BoundsFields fields;
         try {
             fields = BOUNDS_FIELD_CACHE.computeIfAbsent(arg.getClass(), DistantHorizonsCompat::resolveBoundsFields);
-            return java.util.Optional.of(new SectionBounds(
+            return java.util.Optional.<SectionBounds>of(new SectionBounds(
                 fields.minX().getDouble(arg), fields.minY().getDouble(arg), fields.minZ().getDouble(arg),
                 fields.maxX().getDouble(arg), fields.maxY().getDouble(arg), fields.maxZ().getDouble(arg)
             ));
@@ -583,29 +603,9 @@ public class DistantHorizonsCompat {
             }
         }
     }
-
-    private static boolean isOutsideShadowFrustum(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
-        float[] planes = THREAD_SHADOW_PLANES.get();
-        try {
-            for (int i = 0; i < SHADOW_PLANE_COUNT; i++) {
-                int o = i * 4;
-                float nx = planes[o];
-                float ny = planes[o+1];
-                float nz = planes[o+2];
-                float d = planes[o+3];
-
-                float px = nx >= 0 ? (float)maxX : (float)minX;
-                float py = ny >= 0 ? (float)maxY : (float)minY;
-                float pz = nz >= 0 ? (float)maxZ : (float)minZ;
-
-                if (nx * px + ny * py + nz * pz + d < -0.5f) {
-                    return true;
-                }
-            }
-            return false;
-        } finally {
-            // Ensure the thread-local is cleared after processing
-            THREAD_SHADOW_PLANES.remove();
-        }
-    }
 }
+
+
+
+
+

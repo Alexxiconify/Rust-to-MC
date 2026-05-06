@@ -49,7 +49,7 @@ public class NativeBridge {
             if (Files.exists(devPath)) {
                 System.load(devPath.toString());
             } else {
-                // Use a persistent cache path in the game config directory to avoid re-extracting every launch
+                // Use a persistent cache path in the game RustMC.Config directory to avoid re-extracting every launch
                 Path cacheDir = net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("rustmc-bin");
                 Files.createDirectories(cacheDir);
                 byte[] bundledLib;
@@ -196,8 +196,8 @@ public class NativeBridge {
         if (ctx != null) {
             try {
                 long start = 0L;
-                boolean track = RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.RustMCConfig.DiagnosticMode.TIMING
-                    || RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.RustMCConfig.DiagnosticMode.ALL;
+                boolean track = RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.Config.DiagnosticMode.TIMING
+                    || RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.Config.DiagnosticMode.ALL;
                 if (track) start = System.nanoTime();
                 rustUpdateFrustumAndCave(0, vpMatrix, ctx.fovScale(), ctx.camX(), ctx.camY(), ctx.camZ(), inCave);
                 if (track) {
@@ -272,8 +272,8 @@ public class NativeBridge {
         int count = Math.min(positions.length, velocities.length) / 3;
         if ( count == 0 ) return;
         long start = 0L;
-        boolean track = RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.RustMCConfig.DiagnosticMode.TIMING
-            || RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.RustMCConfig.DiagnosticMode.ALL;
+        boolean track = RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.Config.DiagnosticMode.TIMING
+            || RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.Config.DiagnosticMode.ALL;
         if (track) start = System.nanoTime();
         try {
             rustTickParticles(positions, velocities, count, gravity, camX, camY, camZ, maxDistSq);
@@ -561,15 +561,10 @@ public class NativeBridge {
 
     private static double getDhReferenceY() {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null) {
-            return Double.NaN;
-        }
-        var player = client.player;
-        if (player == null) {
-            return Double.NaN;
-        }
-    return player.getY();
-}
+        if (client == null) return Double.NaN;
+        var p = client.player;
+        return (p != null) ? p.getY() : Double.NaN;
+    }
 
     private static ClientFrustumContext getClientFrustumContext() {
         try {
@@ -582,7 +577,7 @@ public class NativeBridge {
             double fovScale = Math.clamp(1.15 * (fov / 70.0) * Math.sqrt(aspectBoost), 0.8, 2.5);
             var pos = camera.getCameraPos();
             return new ClientFrustumContext(fovScale, pos.x, pos.y, pos.z);
-        } catch (Exception ignored) { return null;}
+        } catch (Exception ignored) { return null; }
     }
     public static void destroyRustFrustum(long ptr) {
         if (!libLoaded || ptr == 0) return;
@@ -627,8 +622,8 @@ public class NativeBridge {
         if (!libLoaded || ptr == 0) return false;
         if (!supportsDhFusedCull.get()) return false;
         long start = 0L;
-        boolean track = RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.RustMCConfig.DiagnosticMode.TIMING
-            || RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.RustMCConfig.DiagnosticMode.ALL;
+        boolean track = RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.Config.DiagnosticMode.TIMING
+            || RustMC.CONFIG.getDiagnosticMode() == com.alexxiconify.rustmc.config.Config.DiagnosticMode.ALL;
         if (track) start = System.nanoTime();
         try {
             boolean res = rustDHCullFused(ptr, minX, minY, minZ, maxX, maxY, maxZ, surfaceY);
@@ -833,14 +828,14 @@ public class NativeBridge {
         catch (UnsatisfiedLinkError e) { return 0; }
     }
     // DNS Disk Persistence
-    private static final java.nio.file.Path DNS_CACHE_PATH =
-        net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("rust-mc-dns-cache.json");
+    private static final java.nio.file.Path DNS_CACHE_PATH = com.alexxiconify.RustMC.BIN_DIR.resolve("rust-mc-dns-cache.json");
     //  Saves resolved hostname→IP pairs to disk so subsequent launches can skip DNS lookups entirely. Called on world unload and game exit.
     public static void dnsCacheSave() {
         if (!libLoaded) return;
         try {
             String json = rustDnsCacheExport();
             if (json != null && !json.equals("{}")) {
+                java.nio.file.Files.createDirectories(DNS_CACHE_PATH.getParent());
                 java.nio.file.Files.writeString(DNS_CACHE_PATH, json);
                 RustMC.LOGGER.debug("[Rust-MC] DNS cache saved: {} entries", dnsCacheSize());
             }
@@ -867,4 +862,31 @@ public class NativeBridge {
             RustMC.LOGGER.debug("[Rust-MC] Failed to load DNS cache: {}", e.getMessage());
         }
     }
+
+    // DNS Utility Helpers (Merged from NativeBridge)
+    public static boolean isDnsCacheEnabled() {
+        return isReady() && com.alexxiconify.RustMC.CONFIG.isEnableDnsCache();
+    }
+
+    public static void persistDnsCache(String reason) {
+        if (!isDnsCacheEnabled()) return;
+        try {
+            dnsCacheSave();
+            RustMC.LOGGER.debug("[Rust-MC] DNS cache persisted on {}.", reason);
+        } catch (Exception e) {
+            RustMC.LOGGER.debug("[Rust-MC] DNS cache persist failed on {}: {}", reason, e.getMessage());
+        }
+    }
+
+    public static String extractResolvableHostname(String address) {
+        if (address == null || address.isEmpty()) return "";
+        String trimmed = address.trim();
+        String hostname = trimmed.contains(":") ? trimmed.substring(0, trimmed.lastIndexOf(':')) : trimmed;
+        if (hostname.isEmpty() || Character.isDigit(hostname.charAt(0))) return "";
+        return hostname;
+    }
 }
+
+
+
+

@@ -31,7 +31,7 @@ public class ElbConfig {
                 try (Reader reader = Files.newBufferedReader(path)) {
                     instance = new Gson().fromJson(reader, ElbConfig.class);
                 } catch (Exception e) {
-                    RustMC.LOGGER.error("Failed to load ELB config", e);
+                    RustMC.LOGGER.error("Failed to load ELB Config", e);
                 }
             }
             if (instance == null) instance = new ElbConfig();
@@ -48,7 +48,12 @@ public class ElbConfig {
         try (Writer writer = Files.newBufferedWriter(path)) {
             new GsonBuilder().setPrettyPrinting().create().toJson(this, writer);
         } catch (Exception e) {
-            RustMC.LOGGER.error("Failed to save ELB config", e);
+            RustMC.LOGGER.error("Failed to save ELB Config", e);
         }
     }
 }
+
+
+
+
+

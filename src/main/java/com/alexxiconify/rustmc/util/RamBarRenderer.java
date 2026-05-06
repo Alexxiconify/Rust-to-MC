@@ -46,3 +46,7 @@ public final class RamBarRenderer {
                 RustMC.CONFIG.getLoadingBarTextColor());
     }
 }
+
+
+
+

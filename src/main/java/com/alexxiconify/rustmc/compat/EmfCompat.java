@@ -23,3 +23,7 @@ public class EmfCompat {
         NativeBridge.transformVertices(vertices, normals, matrix);
     }
 }
+
+
+
+

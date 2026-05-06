@@ -119,3 +119,7 @@ public abstract class SplashOverlayMixin {
                 RustMC.CONFIG.getLoadingBarSubtextColor());
     }
 }
+
+
+
+

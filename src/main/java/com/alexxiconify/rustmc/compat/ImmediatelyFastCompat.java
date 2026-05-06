@@ -11,19 +11,19 @@ public final class ImmediatelyFastCompat {
     private static boolean mapAtlasActive = false;
     private static boolean textOptActive = false;
     //
-     // Probes IF's configuration via reflection.
+     // Probes IF's Configuration via reflection.
      // Called once during mod init on a virtual thread.
     public static void initialize() {
         if (!ModBridge.IMMEDIATELYFAST || initialized) return;
         initialized = true;
         try {
-            // IF exposes its config through net.raphimc.immediatelyfast.ImmediatelyFast
+            // IF exposes its RustMC.Config through net.raphimc.immediatelyfast.ImmediatelyFast
             Class<?> ifClass = Class.forName("net.raphimc.immediatelyfast.ImmediatelyFast");
-            Object runtimeConfig = ifClass.getMethod("getRuntimeConfig").invoke(null);
+            Object runtimeRustMC.Config = ifClass.getMethod("getRuntimeRustMC.Config").invoke(null);
             // Probe active optimizations
-            hudBatchingActive = probeBoolean(runtimeConfig, "hud_batching" );
-            mapAtlasActive = probeBoolean(runtimeConfig, "map_atlas_generation" );
-            textOptActive = probeBoolean(runtimeConfig, "fast_text_lookup" );
+            hudBatchingActive = probeBoolean(runtimeRustMC.Config, "hud_batching" );
+            mapAtlasActive = probeBoolean(runtimeRustMC.Config, "map_atlas_generation" );
+            textOptActive = probeBoolean(runtimeRustMC.Config, "fast_text_lookup" );
             RustMC.LOGGER.info("[Rust-MC] ImmediatelyFast detected: hudBatch={}, mapAtlas={}, textOpt={}",
                     hudBatchingActive, mapAtlasActive, textOptActive);
         } catch (ClassNotFoundException e) {
@@ -33,16 +33,16 @@ public final class ImmediatelyFastCompat {
             textOptActive = true;
             RustMC.LOGGER.debug("[Rust-MC] IF detected but API not accessible ({}). Assuming defaults.", e.getMessage());
         } catch (Exception e) {
-            RustMC.LOGGER.debug("[Rust-MC] IF config probe failed ({}). Using safe defaults.", e.getMessage());
+            RustMC.LOGGER.debug("[Rust-MC] IF RustMC.Config probe failed ({}). Using safe defaults.", e.getMessage());
             hudBatchingActive = true;
             mapAtlasActive = true;
         }
     }
     @SuppressWarnings("java:S3400") // fallback parameter designed for future use with different defaults
-    private static boolean probeBoolean(Object config, String fieldName ) {
+    private static boolean probeBoolean(Object RustMC.Config, String fieldName ) {
         try {
             java.lang.reflect.Field f = config.getClass().getField(fieldName);
-            return f.getBoolean(config);
+            return f.getBoolean(RustMC.Config);
         } catch (Exception e) {
             return true;
         }
@@ -73,3 +73,7 @@ public final class ImmediatelyFastCompat {
         return hudBatchingActive ? 1.3f : 1.15f;
     }
 }
+
+
+
+

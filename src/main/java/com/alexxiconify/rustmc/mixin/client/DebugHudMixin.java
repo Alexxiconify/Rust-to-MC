@@ -1,5 +1,5 @@
 package com.alexxiconify.rustmc.mixin.client;
-import com.alexxiconify.rustmc.config.RustMCConfig;
+import com.alexxiconify.RustMC.Config;
 import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
@@ -23,8 +23,8 @@ public class DebugHudMixin {
         if (!NativeBridge.isReady()) return;
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.world == null || mc.player == null) return;
-        RustMCConfig.DiagnosticMode mode = RustMC.CONFIG.getDiagnosticMode();
-        boolean hasDiagnostics = mode != RustMCConfig.DiagnosticMode.HIDDEN;
+        Config.DiagnosticMode mode = RustMC.CONFIG.getDiagnosticMode();
+        boolean hasDiagnostics = mode != Config.DiagnosticMode.HIDDEN;
         if (!RustMC.CONFIG.isEnableSparklineGraph() && !hasDiagnostics) return;
 
         FrameTracker.refresh(mc);
@@ -34,8 +34,8 @@ public class DebugHudMixin {
         }
 
         if (hasDiagnostics && mc.textRenderer != null) {
-            boolean showTiming = mode == RustMCConfig.DiagnosticMode.TIMING || mode == RustMCConfig.DiagnosticMode.ALL;
-            boolean showNative = mode == RustMCConfig.DiagnosticMode.NATIVE || mode == RustMCConfig.DiagnosticMode.ALL;
+            boolean showTiming = mode == Config.DiagnosticMode.TIMING || mode == Config.DiagnosticMode.ALL;
+            boolean showNative = mode == Config.DiagnosticMode.NATIVE || mode == Config.DiagnosticMode.ALL;
             DiagnosticHudRenderer.render(context, mc.textRenderer, showTiming, showNative);
         }
     }
@@ -43,7 +43,7 @@ public class DebugHudMixin {
     @Unique
     private static void drawSparkline(DrawContext context, MinecraftClient mc) {
         int historySize = FrameTracker.getHistorySize();
-        float[] frameHistory = FrameTracker.getFrameHistory();
+        float[] frameHistory = FrameTracker.rustmcGetFrameHistory();
         int historyHead = FrameTracker.getHistoryHead();
 
         int graphW = historySize;
@@ -126,3 +126,7 @@ class RenderBudgetMixin {
         }
     }
 }
+
+
+
+

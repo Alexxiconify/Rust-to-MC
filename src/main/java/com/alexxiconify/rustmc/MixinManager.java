@@ -1,12 +1,12 @@
 package com.alexxiconify.rustmc;
-import com.alexxiconify.rustmc.util.BlameLog;
+
 import org.objectweb.asm.tree.ClassNode;
-import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
+import org.spongepowered.asm.mixin.extensibility.IMixinRustMC.ConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
-public class MixinManager implements IMixinConfigPlugin {
+public class MixinManager implements IMixinRustMC.ConfigPlugin {
     private static final String PKG = "com.alexxiconify.rustmc.mixin.";
     private static final Map<String, BooleanSupplier> MIXIN_CONDITIONS;
     private static final Map<String, Long> groupTimings = new ConcurrentHashMap<>();
@@ -61,7 +61,7 @@ public class MixinManager implements IMixinConfigPlugin {
         RustMC.LOGGER.info("[Rust-MC] MixinManager loaded for package: {}", mixinPackage);
     }
     @Override
-    public String getRefMapperConfig() { return null; }
+    public String getRefMapperRustMC.Config() { return null; }
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         BooleanSupplier condition = MIXIN_CONDITIONS.get(mixinClassName);
@@ -95,7 +95,7 @@ public class MixinManager implements IMixinConfigPlugin {
         int dot = mixinClassName.lastIndexOf('.');
         return dot >= 0 ? mixinClassName.substring(dot + 1) : mixinClassName;
     }
-    // Flushes per-group mixin timings into the BlameLog after startup.
+    // Flushes per-group mixin timings into the RustMC.RustMC.BlameLog after startup.
     public static void flushBlameTimings() {
         if (groupTimings.isEmpty()) return;
         List<Map.Entry<String, Long>> sorted = new ArrayList<>(groupTimings.entrySet());
@@ -103,8 +103,8 @@ public class MixinManager implements IMixinConfigPlugin {
         for (Map.Entry<String, Long> entry : sorted) {
             long ms = entry.getValue() / 1_000_000;
             if (ms > 0) {
-                BlameLog.begin("Mixin: " + entry.getKey());
-                BlameLog.end();
+                RustMC.RustMC.BlameLog.begin("Mixin: " + entry.getKey());
+                RustMC.RustMC.BlameLog.end();
             }
         }
         long totalMs = groupTimings.values().stream().mapToLong(Long::longValue).sum() / 1_000_000;
@@ -117,3 +117,7 @@ public class MixinManager implements IMixinConfigPlugin {
         return Map.copyOf(groupTimings);
     }
 }
+
+
+
+

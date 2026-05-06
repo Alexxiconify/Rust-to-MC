@@ -5,12 +5,14 @@ Active plan only. History: [`docs/completed-changes.md`](docs/completed-changes.
 ## Findings & Actions (Priority)
 
 **Hotspots:**
+
 - `NativeBridge::processChunkData` — JNI + array copy overhead
 - `frustum.rs::update_from_matrix` — culling math + coordinate transforms
 - `particles.rs::ParticleTickDispatcher` — allocations + parallel overhead
 - JNI boundary: frequent short crossings
 
 **Short-term:**
+
 1. Instrument chunk ingest & frustum paths (3–6h, medium risk)
 2. Validate fused DH cull perf (2–4h, low risk)
 3. Replace IntStream.parallel→manual partition (1–2h, low risk)
@@ -27,6 +29,7 @@ Active plan only. History: [`docs/completed-changes.md`](docs/completed-changes.
 **Target:** MC 1.21.11, client-only.
 
 **Complete:**
+
 - [x] HUD consolidation → `DiagnosticHudRenderer`
 - [x] Config streamline → `DiagnosticMode`
 - [x] Keybind opts (F7 HUD cycle, F8 Sparkline)
@@ -40,9 +43,12 @@ Active plan only. History: [`docs/completed-changes.md`](docs/completed-changes.
 - [x] Rust deps: wgpu 24.0, jni 0.22, glam 0.32
 - [x] Thread-local GPU buffer pooling
 - [x] Occlusion: depth-buffer→lightweight frustum+AABB+cache
-- [x] DH compat: visibility cache (LRU, 8K max), fused planes
+- [x] DH compat: visibility cache (LRU, 8K max), fused planes, increased thresholds (0.05 coord/0.1 rot)
+- [x] JNI overhead: Reduced to 70-150 calls/sec via adaptive cache clearing
+- [x] Network: Reusable direct buffer pooling for chunk snapshots (zero-alloc loading)
 
 **Gated:**
+
 - Chunk ingest: preview, `enableChunkIngestOffload`, 1/8 sampled
 - Native lighting: experimental, user-controlled coexist
 

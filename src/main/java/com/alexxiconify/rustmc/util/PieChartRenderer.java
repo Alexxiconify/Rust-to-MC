@@ -1,7 +1,7 @@
 package com.alexxiconify.rustmc.util;
 import net.minecraft.client.gui.DrawContext;
 
-//  Draws a compact text-only timing overlay. Keeps the existing toggle/config plumbing but removes the pie graphic itself.
+//  Draws a compact text-only timing overlay. Keeps the existing toggle/RustMC.Config plumbing but removes the pie graphic itself.
 public final class PieChartRenderer {
     private PieChartRenderer() {}
     // Cached stats to avoid JNI + computation every render frame
@@ -53,7 +53,7 @@ public final class PieChartRenderer {
         context.drawTextWithShadow(textRenderer, cachedJniLabel, x, y + 110, 0xFFFFAA55);
     }
     private static boolean refreshStats() {
-        float[] history = FrameTracker.getFrameHistory();
+        float[] history = FrameTracker.rustmcGetFrameHistory();
         if (history == null || history.length == 0) {
             cacheValid = false;
             return false;
@@ -113,3 +113,7 @@ public final class PieChartRenderer {
     }
 
 }
+
+
+
+
