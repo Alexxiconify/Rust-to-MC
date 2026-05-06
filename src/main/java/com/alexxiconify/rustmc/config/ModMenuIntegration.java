@@ -31,46 +31,59 @@ public class ModMenuIntegration implements ModMenuApi {
     @Override
     public ConfigScreenFactory<?> getModConfigScreenFactory() {
         return parent -> {
-            RustMC.Config cfg = RustMC.CONFIG;
-            return YetAnotherConfigLib.createBuilder()
-                .title(Text.literal("Rust to MC"))
-                .category(ConfigCategory.createBuilder()
-                    .name(Text.literal("Settings"))
-                    .tooltip(Text.literal("Status and Configuration"))
-                    .options(buildStatusOptions())
-                    .options(buildUnifiedOptions(cfg))
-                    .build())
-                .category(buildBlameCategory())
-                .save(RustMC::saveConfig)
-                .build()
-                .generateScreen(parent);
+            try {
+                RustMC.Config cfg = RustMC.CONFIG;
+                if (cfg == null) {
+                    RustMC.LOGGER.warn("[ModMenu] CONFIG not initialized, creating fallback");
+                    cfg = new RustMC.Config();
+                }
+                return YetAnotherConfigLib.createBuilder()
+                    .title(Text.literal("Rust to MC"))
+                    .category(ConfigCategory.createBuilder()
+                        .name(Text.literal("Settings"))
+                        .tooltip(Text.literal("Status and Configuration"))
+                        .options(buildStatusOptions())
+                        .options(buildUnifiedOptions(cfg))
+                        .build())
+                    .category(buildBlameCategory())
+                    .save(RustMC::saveConfig)
+                    .build()
+                    .generateScreen(parent);
+            } catch (Exception e) {
+                RustMC.LOGGER.error("[ModMenu] Failed to build config screen: {}", e.getMessage(), e);
+                return parent; // Fallback: return parent screen
+            }
         };
     }
 
     private List<Option<?>> buildStatusOptions() {
         refreshMetricsCache();
-        return List.of(
-            Option.<Boolean>createBuilder()
+        List<Option<?>> options = new ArrayList<>();
+        try {
+            options.add(Option.<Boolean>createBuilder()
                 .name(Text.literal("Native Core Status"))
                 .description(OptionDescription.of(Text.literal("READY: Rust library loaded.\nFAILED: Fallback to Java.")))
                 .binding(true, NativeBridge::isReady, val -> {})
                 .controller(opt -> BooleanControllerBuilder.create(opt)
                     .formatValue(val -> Text.literal(NativeBridge.isReady() ? "§aREADY" : "§cFAILED")))
-                .available(false).build(),
-            Option.<String>createBuilder()
+                .available(false).build());
+            options.add(Option.<String>createBuilder()
                 .name(Text.literal("Lighting Hook"))
                 .binding("unknown", ModMenuIntegration::getLightingStatusText, val -> {})
                 .controller(StringControllerBuilder::create)
-                .available(false).build(),
-            buildDetectOption("Sodium", () -> ModBridge.SODIUM),
-            buildDetectOption("Iris", () -> ModBridge.IRIS),
-            Option.<String>createBuilder()
+                .available(false).build());
+            options.add(buildDetectOption("Sodium", () -> ModBridge.SODIUM));
+            options.add(buildDetectOption("Iris", () -> ModBridge.IRIS));
+            options.add(Option.<String>createBuilder()
                 .name(Text.literal("Session Metrics"))
                 .description(OptionDescription.of(Text.literal("Total JNI calls / Lighting updates / Chunk ingest")))
                 .binding("", () -> "%s / %s / %s".formatted(metricText(0), metricText(1), metricText(3)), val -> {})
                 .controller(StringControllerBuilder::create)
-                .available(false).build()
-        );
+                .available(false).build());
+        } catch (Exception e) {
+            RustMC.LOGGER.warn("[ModMenu] Failed to build status options: {}", e.getMessage());
+        }
+        return options;
     }
 
     private static String getLightingStatusText() {
@@ -106,7 +119,7 @@ public class ModMenuIntegration implements ModMenuApi {
 
     private List<Option<?>> buildUnifiedOptions(RustMC.Config cfg) {
         List<Option<?>> options = new ArrayList<>();
-        
+
         options.add(buildSectionHeader("Native Optimization", "Core native features."));
         options.add(Option.<RustMC.Config.HardwarePreset>createBuilder()
             .name(Text.literal("Hardware Preset"))
@@ -128,7 +141,7 @@ public class ModMenuIntegration implements ModMenuApi {
         options.add(buildBooleanOption("Sodium Bridge", "Enhanced Sodium integration.", cfg::isBridgeSodium, v -> cfg.setBridgeSodium(v != null && v)));
         options.add(buildBooleanOption("DH Cave Culling", "Cull DH LODs in caves.", cfg::isEnableDhCaveCulling, v -> cfg.setEnableDhCaveCulling(v != null && v)));
         options.add(buildBooleanOption("Silence Logs", "Suppress startup spam.", cfg::isSilenceLogs, v -> cfg.setSilenceLogs(v != null && v)));
-        
+
         return options;
     }
 
@@ -305,9 +318,3 @@ public class ModMenuIntegration implements ModMenuApi {
         return "This phase loaded quickly.";
     }
 }
-
-
-
-
-
-

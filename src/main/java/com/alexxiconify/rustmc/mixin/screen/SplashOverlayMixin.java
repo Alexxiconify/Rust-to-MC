@@ -1,6 +1,6 @@
 package com.alexxiconify.rustmc.mixin.screen;
 import com.alexxiconify.rustmc.RustMC;
-import com.alexxiconify.rustmc.util.RamBarRenderer;
+import com.alexxiconify.rustmc.util.HudManager;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -111,7 +111,7 @@ public abstract class SplashOverlayMixin {
         context.drawCenteredTextWithShadow(this.client.textRenderer, cachedStageText, w / 2, by + barH + 4, 0xFF46BEFF);
         context.drawCenteredTextWithShadow(this.client.textRenderer, cachedElapsedText, w / 2, by + barH + 16, 0xFF787890);
         // ── Compact RAM bar at very bottom ──
-        RamBarRenderer.drawRamBar(context, this.client.textRenderer, w, h, 0xFF1A1A1A);
+        HudManager.drawRamBarCompat(context, this.client.textRenderer, w, h, 0xFF1A1A1A);
         // Mod count line
         int ramBarY = h - 22;
         context.drawCenteredTextWithShadow(this.client.textRenderer,
@@ -119,9 +119,3 @@ public abstract class SplashOverlayMixin {
                 RustMC.CONFIG.getLoadingBarSubtextColor());
     }
 }
-
-
-
-
-
-

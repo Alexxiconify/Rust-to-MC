@@ -1,6 +1,6 @@
 package com.alexxiconify.rustmc.mixin.screen;
 import com.alexxiconify.rustmc.RustMC;
-import com.alexxiconify.rustmc.util.RamBarRenderer;
+import com.alexxiconify.rustmc.util.HudManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.world.LevelLoadingScreen;
@@ -17,12 +17,6 @@ public abstract class LevelLoadingScreenMixin {
         if (client.textRenderer == null) return;
         int w = context.getScaledWindowWidth();
         int h = context.getScaledWindowHeight();
-        RamBarRenderer.drawRamBar(context, client.textRenderer, w, h, RustMC.CONFIG.getLoadingBarBgColor());
+        HudManager.drawRamBarCompat(context, client.textRenderer, w, h, RustMC.CONFIG.getLoadingBarBgColor());
     }
 }
-
-
-
-
-
-

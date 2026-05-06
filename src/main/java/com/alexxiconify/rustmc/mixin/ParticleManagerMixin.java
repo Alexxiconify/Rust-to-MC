@@ -1,5 +1,5 @@
 package com.alexxiconify.rustmc.mixin;
-import com.alexxiconify.rustmc.util.RenderState;
+import com.alexxiconify.rustmc.util.HudManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleManager;
@@ -53,8 +53,8 @@ public class ParticleManagerMixin {
     private static double getCutoff(double baseDistance) {
         double cutoff;
         // Cache render state checks: one budget tier read, one compat read.
-        int budgetTier = RenderState.renderBudgetTier;
-        boolean heavy = RenderState.heavyEntityModsActive;
+        int budgetTier = HudManager.RenderState.renderBudgetTier;
+        boolean heavy = HudManager.RenderState.heavyEntityModsActive;
 
         if (budgetTier == 1) {
             cutoff = baseDistance * 0.4; // FPS < 60: aggressive recovery
@@ -72,9 +72,3 @@ public class ParticleManagerMixin {
         return cutoff;
     }
 }
-
-
-
-
-
-

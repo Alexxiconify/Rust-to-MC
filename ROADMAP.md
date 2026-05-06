@@ -1,99 +1,60 @@
-# Rust to MC Roadmap
+# Rust-MC Roadmap
 
-Active plan only. History: [`docs/completed-changes.md`](docs/completed-changes.md). Index: [`docs/file-tree-index.md`](docs/file-tree-index.md).
+Plan: [`docs/completed-changes.md`](docs/completed-changes.md). Tree: [`docs/file-tree-index.md`](docs/file-tree-index.md).
 
-## Findings & Actions (Priority)
+## 🔥 Hotspots & Actions
 
 **Hotspots:**
+- `NativeBridge::processChunkData` — JNI + array copies
+- `frustum.rs::update_from_matrix` — math + xforms
+- `particles.rs` — alloc + parallel overhead
+- JNI boundary — short crossings
 
-- `NativeBridge::processChunkData` — JNI + array copy overhead
-- `frustum.rs::update_from_matrix` — culling math + coordinate transforms
-- `particles.rs::ParticleTickDispatcher` — allocations + parallel overhead
-- JNI boundary: frequent short crossings
+**Due:**
+1. Chunk/frustum profile (3–6h, med risk)
+2. DH cull validate (2–4h, low risk)
+3. IntStream.parallel → manual (1–2h, low risk)
+4. CI: clippy+gradle (2h, low risk)
 
-**Short-term:**
+## ✅ Done (May 1–6)
 
-1. Instrument chunk ingest & frustum paths (3–6h, medium risk)
-2. Validate fused DH cull perf (2–4h, low risk)
-3. Replace IntStream.parallel→manual partition (1–2h, low risk)
-4. CI: cargo clippy + gradlew enforcement (2h, low risk)
-
-## Scope
-
-- Move hot client paths Java→Rust
-- Keep vanilla behavior, mod compat, stable pacing
-- JNI safe: explicit fallbacks, no hard crashes
-
-## Current Status (May 1-6)
-
-**Target:** MC 1.21.11, client-only.
-
-**Complete:**
-
-- [x] HUD consolidation → `DiagnosticHudRenderer`
-- [x] Config streamline → `DiagnosticMode`
-- [x] Keybind opts (F7 HUD cycle, F8 Sparkline)
-- [x] Abs coord consistency (VP matrix→world at boundary)
-- [x] DH fused: frustum+cave+occlusion in single JNI crossing
-- [x] Frustum short-circuit: fingerprints skip rebuilds on static
-- [x] Shader/mesher micro-opts: const hoisting, index simplification
-- [x] Frame telemetry: Java ring buffer (no native collection)
-- [x] Reflection-free packet accessors
-- [x] Particle distance culling + hardware presets
-- [x] Rust deps: wgpu 24.0, jni 0.22, glam 0.32
-- [x] Thread-local GPU buffer pooling
-- [x] Occlusion: depth-buffer→lightweight frustum+AABB+cache
-- [x] DH compat: visibility cache (LRU, 8K max), fused planes, increased thresholds (0.05 coord/0.1 rot)
-- [x] JNI overhead: Reduced to 70-150 calls/sec via adaptive cache clearing
-- [x] Network: Reusable direct buffer pooling for chunk snapshots (zero-alloc loading)
+- HUD → `DiagnosticHudRenderer`
+- Config → `DiagnosticMode`
+- F7=cycle, F8=sparkline
+- Abs coords (VP→world at xform)
+- DH fused (frustum+cave+occl 1 JNI call)
+- Frustum fingerprint (skip rebuild static)
+- Shader/mesher micros
+- Frame telemetry (Java ring, no native)
+- Reflection-free packet accessors
+- Particle distance cull + presets
+- wgpu 24.0, jni 0.22, glam 0.32
+- GPU buffer pooling (thread-local)
+- Occl: depth→frustum+AABB+cache
+- DH compat: visibility (LRU 8K), fused planes
+- JNI: 70–150/sec (adaptive cache)
+- Network: zero-alloc chunk pooling
+- **New:** Core module (math+config merged), utils. NativeStatsRenderer deleted.
 
 **Gated:**
+- Chunk ingest: 1/8 sample, `enableChunkIngestOffload`
+- Native lighting: user coexist
 
-- Chunk ingest: preview, `enableChunkIngestOffload`, 1/8 sampled
-- Native lighting: experimental, user-controlled coexist
+## Priorities
 
-## Q2 2026: Optimize & Maintain
+1. Chunk/frustum profiling (3–6h)
+2. Java frustum hash skip (highest ROI)
+3. Worldgen WGPU batch candidates
+4. Lighting digest batch
 
-- Chunk ingest: expand w/ profiling proof only (1/8 active)
-- Keep sampled + gated
-- Cache locality + alloc trim
-- If Rust overhead > Java: prefer Java multithread first
+## Validation
 
-## Next
-
-1. Worldgen offload candidates (WGPU batchable)
-2. Java frustum hash→skip native on static scene (highest ROI)
-3. Lightweight JNI pre-flight: `rustFrustumNeedsUpdate(hash: long) → bool`
-4. Java snippet + docs (float-to-bits, matrix column order)
-
-## Future
-
-- Screen/HUD path opt
-- Chunk/mesh pipeline locality + alloc trim
-- JNI lookup/cache micro-opts
-- Lock-free on proven contention only
-- Structure consolidation on equivalence only
-- Worldgen offload w/ parity harness + fallback
-- **CI enforcement:** `cargo clippy -- -D warnings` + Gradle (zero-warning)
-- End-to-end micro-bench (Java+native, repeatable scenes)
-- Lighting batch: accept digest, skip on-change
-
-## Validation Gates
-
-- No frustum/LOD regression
-- Frame time ≥ target in scenes
-- Lower CPU, alloc, or JNI cost
-- No crash, fallback, or compat break
-- Zero new warnings/errors
-
-## Non-Goals
-
-- JNI ≮ Java speed
-- Correctness > speed always
-- No removed feature config
-- No unbounded shared state
-- No per-frame release logging
+- No regression
+- Frame time ≥ target
+- Lower CPU/JNI/alloc
+- Zero new warnings
+- Fallback always works
 
 ---
 
-Last: May 6 (Consolidation + env types + rustBatchCull refactor)
+Last: May 6 (Batch consolidation + env<'local> fix + redundant file cleanup)

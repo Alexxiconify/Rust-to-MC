@@ -14,6 +14,15 @@ Purpose: be concise and clear. Use this guide for outputs in this repo.
  - Prefer active voice and simple verbs.
  - Use backticks for file names, symbols, and paths.
 
+## Markdown Authoring
+
+ - Prefer editing existing markdown over creating new markdown.
+ - Create at most 1 new markdown file per pass unless user explicitly approves more.
+ - If more than 1 new markdown file seems needed, stop and ask user.
+ - Keep markdown as terse as possible.
+ - Use bullets and short lines.
+ - No long prose unless user asks.
+
 ## Caveman Mode
 
  - Strip articles when safe (a, an, the).

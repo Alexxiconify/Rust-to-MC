@@ -1,6 +1,5 @@
 {
   "key.category.rust-mc:keybinds": "Rust to MC",
-  "key.categories.rust-mc:keybinds": "Rust to MC",
   "key.rustmc.toggle_sparkline": "Toggle Frame Graph",
   "key.rustmc.toggle_diagnostic_mode": "Toggle Performance Chart"
 }

@@ -51,9 +51,8 @@ public class ModBridge {
     }
 
     public static void initialize() {
-        RustMC.LOGGER.info("[Rust-MC] Mod ecosystem detected: Sodium={}, Lithium={}, C2ME={}, Iris={}, " +
-                        "ScalableLux={}, Ferritecore={}, Oxidizium={}, ImmediatelyFast={}, DH={}",
-                SODIUM, LITHIUM, C2ME, IRIS, SCALABLELUX, FERRITECORE, OXIDIZIUM, IMMEDIATELYFAST, DISTANT_HORIZONS);
+        RustMC.LOGGER.info("[Rust-MC] Mod ecosystem detected: Sodium={}, Lithium={}, C2ME={}, Iris={}, " + "ScalableLux={}, Ferritecore={}, Oxidizium={}, ImmediatelyFast={}, DH={}",
+        SODIUM, LITHIUM, C2ME, IRIS, SCALABLELUX, FERRITECORE, OXIDIZIUM, IMMEDIATELYFAST, DISTANT_HORIZONS);
     }
 
     // Returns true if another mod owns lighting threading and coexist mode is disabled.

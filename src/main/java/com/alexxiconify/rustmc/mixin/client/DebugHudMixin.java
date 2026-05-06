@@ -3,9 +3,8 @@ import com.alexxiconify.rustmc.RustMC.Config;
 import com.alexxiconify.rustmc.ModBridge;
 import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
-import com.alexxiconify.rustmc.util.DiagnosticHudRenderer;
+import com.alexxiconify.rustmc.util.HudManager;
 import com.alexxiconify.rustmc.util.FrameTracker;
-import com.alexxiconify.rustmc.util.RenderState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.DebugHud;
@@ -36,18 +35,17 @@ public class DebugHudMixin {
         if (hasDiagnostics && mc.textRenderer != null) {
             boolean showTiming = mode == Config.DiagnosticMode.TIMING || mode == Config.DiagnosticMode.ALL;
             boolean showNative = mode == Config.DiagnosticMode.NATIVE || mode == Config.DiagnosticMode.ALL;
-            DiagnosticHudRenderer.render(context, mc.textRenderer, showTiming, showNative);
+            HudManager.render(context, mc.textRenderer, showTiming, showNative, false);
         }
     }
 
     @Unique
     private static void drawSparkline(DrawContext context, MinecraftClient mc) {
-        int historySize = FrameTracker.getHistorySize();
+        int graphW = FrameTracker.getHistorySize();
         float[] frameHistory = FrameTracker.rustmcGetFrameHistory();
         int historyHead = FrameTracker.getHistoryHead();
 
-        int graphW = historySize;
-        int graphH = 40;
+     int graphH = 40;
         int x0 = 2;
         int y0 = 2;
         // Background
@@ -60,7 +58,7 @@ public class DebugHudMixin {
         context.fill(x0, target30Y, x0 + graphW, target30Y + 1, 0x40FFFF00);
         // Draw bars in chronological order from ring buffer
         for (int i = 0; i < graphW; i++) {
-            int idx = (historyHead + i) % historySize;
+            int idx = (historyHead + i) % graphW;
             float ms = frameHistory[idx];
             int barH = Math.clamp((int) ((ms / 50.0f) * graphH), 1, graphH);
             int barY = y0 + graphH - barH;
@@ -109,7 +107,7 @@ class RenderBudgetMixin {
     private static void updateBudget() {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.world == null) {
-            RenderState.renderBudgetTier = 0;
+            HudManager.RenderState.renderBudgetTier = 0;
             return;
         }
         int fps = mc.getCurrentFps();
@@ -121,14 +119,8 @@ class RenderBudgetMixin {
         } else {
             newTier = 0;
         }
-        if (RenderState.renderBudgetTier != newTier) {
-            RenderState.renderBudgetTier = newTier;
+        if (HudManager.RenderState.renderBudgetTier != newTier) {
+            HudManager.RenderState.renderBudgetTier = newTier;
         }
     }
 }
-
-
-
-
-
-

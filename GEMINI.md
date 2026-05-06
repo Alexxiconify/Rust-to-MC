@@ -1,7 +1,7 @@
 # Rules
 
 1. **Code**: Bug-proof. Clean comments.
-2. **Docs**: Pro MD. Normal writing.
+2. **Docs**: Follow [`docs/output-style-guide.md`](docs/output-style-guide.md). Keep markdown terse. Prefer existing files. Max 1 new markdown file per pass unless user greenlights more.
 3. **Output**: Use [`docs/output-style-guide.md`](docs/output-style-guide.md).
 4. **Env**: Win11/PS7. No linux: grep, rm, sed.
 5. **Tool**: API > Shell.

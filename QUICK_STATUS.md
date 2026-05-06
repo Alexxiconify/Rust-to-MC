@@ -1,29 +1,63 @@
-# ✅ May 7 - Mission Accomplished
+# ✅ May 7 - Refactoring & Consolidation COMPLETE
 
-## Fixed
-- ✅ 38 compilation errors in lib.rs (all resolved, zero left)
-- ✅ Env<'_> type error (pattern consistency)
-- ✅ JString conversion (unsafe raw pointer handling)
-- ✅ Batch cull cognitive complexity (refactored into helpers)
+## Rust Refactoring ✅
+- 38 lib.rs errors resolved
+- Env<'local> types fixed
+- math.rs + config.rs → core.rs
+- utils.rs created
+- lighting.rs documented
 
-## Consolidated
-- ✅ ROADMAP.md (verbose → concise, 50% smaller)
-- ✅ Friction removed from roadmap reading
+## Java Consolidation ✅
 
-## Optimized
-- ✅ Frustum: plane norm precomputation
-- ✅ Frustum: margin early-exit check
-- ✅ Code architecture: better separation of concerns
+**Deleted (Dead Code):**
+- PieChartRenderer (exact dup)
+- DiagnosticHudRenderer (→ HudManager)
+- RamBarRenderer (→ HudManager)
+- NativeStatsRenderer (redundant)
 
-## Documented
-- ✅ Optimization checklist (candidates identified)
-- ✅ Pass summary (what, why, next)
+**Merged:**
+- RenderState → HudManager.RenderState (nested class)
 
-## Status
-- **Compiles:** ✅ No errors, ready for clippy
-- **Ready for:** Testing, profiling, or next feature
-- **Branch:** Clean, tested, documented
+**Fixed:**
+- ModMenuIntegration (try-catch, null checks)
+- All refs updated (3 mixin files)
 
----
+## Architecture Improvements
 
-You asked: consolidate roadmap, fix Env types, continue optimizing, don't run cargo clippy. Done. All requirements met.
+**util/ folder:** 7 files → 3 files (57% ↓)
+- HudManager (unified)
+- FrameTracker (frame stats)
+- ParticleTickDispatcher (optimization)
+
+**HudManager (Unified Hub):**
+- Timing diagnostics + native metrics + RAM bar
+- Consolidated render state (render budget tier)
+- Single cache layer → eliminates redundancy
+- Compat wrapper for legacy code paths
+
+**Flat Structure:**
+- Max 3 directory levels
+- No deep nesting
+- Clear concerns separation
+
+## Build Status
+- ✅ **Rust:** cargo check pass
+- ✅ **Java:** gradlew compileJava BUILD SUCCESSFUL (10s)
+- ✅ **Zero warnings/errors**
+
+## Docs Updated
+- ROADMAP.md (caveman, -50%)
+- consolidation-pass-may6.md (Rust)
+- java-refactoring-may7.md (Java)
+- java-architecture-final.md (Complete structure)
+
+## Ready For
+✅ Profiling & performance work
+✅ Chunk ingest optimization (#1 priority)
+✅ DH compat reflection reduction
+✅ Git commit
+
+## Deletion Summary
+- 4 redundant files removed
+- ~400 Java LOC deleted
+- 0 features lost
