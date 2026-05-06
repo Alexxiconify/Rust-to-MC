@@ -359,8 +359,6 @@ public class NativeBridge {
     private static native boolean rustDHCullFused(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double surfaceY);
     private static native void rustSetCaveStatus(boolean inCave);
     private static native boolean rustRayIntersectsBox(double rx, double ry, double rz, double dx, double dy, double dz, double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
-    private static native boolean rustOcclusionTest(double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
-    private static native void rustOcclusionSubmit(double minX, double minY, double minZ, double maxX, double maxY, double maxZ);
     private static native float[] rustComputeAmbientOcclusion(float[] vertexData, int vertexCount);
     private static native float[] rustComputeAmbientOcclusionDirect(java.nio.ByteBuffer vertexData, int vertexCount);
     // DNS cache
@@ -660,28 +658,7 @@ public class NativeBridge {
             return Optional.empty();
         }
     }
-    private static boolean isDHOccluded(double minX, double minY, double minZ,
-                                        double maxX, double maxY, double maxZ) {
-        if (!libLoaded) return false;
-        if (!supportsDhOcclusionTest.get()) return false;
-        try {
-            return rustOcclusionTest(minX, minY, minZ, maxX, maxY, maxZ);
-        } catch (UnsatisfiedLinkError ignored) {
-            supportsDhOcclusionTest.set(false);
-            return false;
-        }
-    }
-
-    private static void submitDHOccluder(double minX, double minY, double minZ,
-                                         double maxX, double maxY, double maxZ) {
-        if (!libLoaded) return;
-        if (!supportsDhOcclusionSubmit.get()) return;
-        try {
-            rustOcclusionSubmit(minX, minY, minZ, maxX, maxY, maxZ);
-        } catch (UnsatisfiedLinkError ignored) {
-            supportsDhOcclusionSubmit.set(false);
-        }
-    }
+    // Per-section DH occlusion removed from Java hot path (no-op/native)
 
     private static boolean shouldCullDhBelowSurface(double refY, double surfaceY) {
         return RustMC.CONFIG.isEnableDhCaveCulling() && !Double.isNaN(refY) && refY < surfaceY;
@@ -701,27 +678,23 @@ public class NativeBridge {
         return invokeDHCull(minY, maxY, surfaceY);
     }
 
-    // DH section visibility: frustum first, optional vertical gate for absolute space,
-    // then DH-only occlusion where only frustum-kept chunks can occlude other DH chunks.
+    // DH section visibility: frustum first, optional vertical gate for absolute space,then DH-only occlusion where only frustum-kept chunks can occlude other DH chunks.
     public static boolean cullDistantHorizonsSection(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double surfaceY, double margin, boolean applyVerticalGate) {
         if (!libLoaded || ptr == 0) return true;
-
-        // Fused path: handles frustum, vertical gate (if context is cave), and occlusion in one JNI call.
-        // We use margin=0 for DH since they have their own adaptive margin logic usually.
+        // Vertical gate check first: if player is below surfaceY and DH cave culling enabled, disable DH immediately without invoking fused/native occlusion paths. This avoids accidental native fused-path visibility when user expects DH disabled below a Y threshold.
+        double refY = applyVerticalGate ? getDhReferenceY() : Double.NaN;
+        if (shouldCullDhBelowSurface(refY, surfaceY)) {
+            return false;
+        }
+        // Fused path (preferred): handles frustum + vertical gate + occlusion in one native call.
         if (supportsDhFusedCull.get()) {
             return invokeDHCullFused(ptr, minX, minY, minZ, maxX, maxY, maxZ, surfaceY);
         }
-
-        // Fallback path
+        // Fallback path: frustum test then optional vertical gate native check.
         boolean visibleByFrustum = testRustFrustum(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
         if (!visibleByFrustum) return false;
-
-        double refY = applyVerticalGate ? getDhReferenceY() : Double.NaN;
-        if (!passesDhVerticalGate(applyVerticalGate, refY, minY, maxY, surfaceY)) return false;
-
-        if (isDHOccluded(minX, minY, minZ, maxX, maxY, maxZ)) return false;
-        submitDHOccluder(minX, minY, minZ, maxX, maxY, maxZ);
-        return true;
+     return passesDhVerticalGate ( applyVerticalGate , refY , minY , maxY , surfaceY );
+        // No per-section occlusion step on Java side; assume visible.
     }
     public static void updateCaveStatus(boolean inCave) {
         if (!libLoaded) return;
@@ -747,10 +720,6 @@ public class NativeBridge {
             return new float[0];
         }
     }
-
-    public static float[] invokeGetFrameHistory() { return new float[0]; }
-    // Frame snapshot methods removed
-
     private static void multiplyMatrices(float[] left, float[] right, float[] result) {
         for (int col = 0; col < 4; col++) {
             int colBase = col * 4;
@@ -787,10 +756,7 @@ public class NativeBridge {
         }
     }
 
-    /**
-     * Returns lightweight local timing metrics collected on the Java side.
-     * Array layout: [frustumCalls, frustumTotalNanos, particleCalls, particleTotalNanos, dhFusedCalls, dhFusedTotalNanos]
-     */
+    // Returns lightweight local timing metrics collected on the Java side. Array layout: [frustumCalls, frustumTotalNanos, particleCalls, particleTotalNanos, dhFusedCalls, dhFusedTotalNanos]
     public static synchronized long[] getLocalTimingMetrics() {
         long[] out = new long[6];
         out[0] = frustumCalls.get();
@@ -801,10 +767,7 @@ public class NativeBridge {
         out[5] = dhFusedTotalNanos.get();
         return out;
     }
-    // ─── DNS Cache Methods ──────────────────────────────────────────────────
-    //
-     // Resolves a hostname to an IP address using Rust's cached DNS resolver.
-     // Results are cached permanently on disk to speed up repeated server list pings.
+    // DNS Cache Methods: Resolves a hostname to an IP address using Rust's cached DNS resolver. Results are cached permanently on disk to speed up repeated server list pings.
     public static void dnsResolve(String hostname) {
         if (!libLoaded || hostname == null || hostname.isEmpty()) return;
         try { rustDnsResolve(hostname); }
@@ -812,10 +775,7 @@ public class NativeBridge {
             // DNS resolution fallback
         }
     }
-    //
-     // Batch resolves multiple hostnames in parallel using Rust's rayon thread pool.
-     // Much faster than sequential Java InetAddress.getByName() for server lists.
-     // @return array of IPs (empty string for failed lookups), or empty array on error
+    // Batch resolves multiple hostnames in parallel using Rust's rayon thread pool. Much faster than sequential Java InetAddress.getByName() for server lists. @return array of IPs (empty string for failed lookups), or empty array on error
     public static String[] dnsBatchResolve(String[] hostnames) {
         if (hostnames == null || hostnames.length == 0) return new String[0];
         if (libLoaded) {
@@ -864,7 +824,7 @@ public class NativeBridge {
             return "";
         }
     }
-    //Clears the Rust DNS cache (memory + disk). // /
+    //Clears the Rust DNS cache (memory + disk).
     public static void dnsCacheClear() {
         if (!libLoaded) return;
         try { rustDnsCacheClear(); }
@@ -878,12 +838,10 @@ public class NativeBridge {
         try { return rustDnsCacheSize(); }
         catch (UnsatisfiedLinkError e) { return 0; }
     }
-    // ─── DNS Disk Persistence ────────────────────────────────────────────────
+    // DNS Disk Persistence
     private static final java.nio.file.Path DNS_CACHE_PATH =
         net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("rust-mc-dns-cache.json");
-    //
-     // Saves resolved hostname→IP pairs to disk so subsequent launches
-     // can skip DNS lookups entirely. Called on world unload and game exit.
+    //  Saves resolved hostname→IP pairs to disk so subsequent launches can skip DNS lookups entirely. Called on world unload and game exit.
     public static void dnsCacheSave() {
         if (!libLoaded) return;
         try {
@@ -898,9 +856,7 @@ public class NativeBridge {
             RustMC.LOGGER.debug("[Rust-MC] Failed to save DNS cache: {}", e.getMessage());
         }
     }
-    //
-     // Loads persisted hostname→IP pairs from disk into Rust's cache.
-     // Called early at startup so the first server list open is instant.
+    // Loads persisted hostname→IP pairs from disk into Rust's cache. Called early at startup so the first server list open is instant.
     public static void dnsCacheLoad() {
         if (!libLoaded) return;
         try {
