@@ -653,37 +653,13 @@ public class NativeBridge {
         return RustMC.CONFIG.isEnableDhCaveCulling() && !Double.isNaN(refY) && refY < surfaceY;
     }
 
-    private static boolean passesDhVerticalGate(boolean applyVerticalGate,
-                                                double refY,
-                                                double minY,
-                                                double maxY,
-                                                double surfaceY) {
-        if (!applyVerticalGate) {
-            return true;
-        }
-        if (shouldCullDhBelowSurface(refY, surfaceY)) {
-            return false;
-        }
-        return invokeDHCull(minY, maxY, surfaceY);
-    }
-
     // DH section visibility: frustum first, optional vertical gate for absolute space,then DH-only occlusion where only frustum-kept chunks can occlude other DH chunks.
     public static boolean cullDistantHorizonsSection(long ptr, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double surfaceY, double margin, boolean applyVerticalGate) {
         if (!libLoaded || ptr == 0) return true;
-        // Vertical gate check first: if player is below surfaceY and DH cave culling enabled, disable DH immediately without invoking fused/native occlusion paths. This avoids accidental native fused-path visibility when user expects DH disabled below a Y threshold.
-        double refY = applyVerticalGate ? getDhReferenceY() : Double.NaN;
-        if (shouldCullDhBelowSurface(refY, surfaceY)) {
-            return false;
-        }
-        // Fused path (preferred): handles frustum + vertical gate + occlusion in one native call.
-        if (supportsDhFusedCull.get()) {
-            return invokeDHCullFused(ptr, minX, minY, minZ, maxX, maxY, maxZ, surfaceY);
-        }
-        // Fallback path: frustum test then optional vertical gate native check.
-        boolean visibleByFrustum = testRustFrustum(ptr, minX, minY, minZ, maxX, maxY, maxZ, margin);
-        if (!visibleByFrustum) return false;
-     return passesDhVerticalGate ( applyVerticalGate , refY , minY , maxY , surfaceY );
-        // No per-section occlusion step on Java side; assume visible.
+        if (margin < 0.0 || minX > maxX || minY > maxY || minZ > maxZ) return true;
+        if (!applyVerticalGate) return true;
+        double refY = getDhReferenceY();
+        return !shouldCullDhBelowSurface(refY, surfaceY);
     }
     public static void updateCaveStatus(boolean inCave) {
         if (!libLoaded) return;
@@ -869,12 +845,13 @@ public class NativeBridge {
     }
 
     public static void persistDnsCache(String reason) {
-        if (!isDnsCacheEnabled()) return;
-        try {
-            dnsCacheSave();
-            RustMC.LOGGER.debug("[Rust-MC] DNS cache persisted on {}.", reason);
-        } catch (Exception e) {
-            RustMC.LOGGER.debug("[Rust-MC] DNS cache persist failed on {}: {}", reason, e.getMessage());
+        if (isDnsCacheEnabled()) {
+            try {
+                dnsCacheSave();
+                RustMC.LOGGER.debug("[Rust-MC] DNS cache persisted on {}.", reason);
+            } catch (Exception e) {
+                RustMC.LOGGER.debug("[Rust-MC] DNS cache persist failed on {}: {}", reason, e.getMessage());
+            }
         }
     }
 
@@ -886,9 +863,3 @@ public class NativeBridge {
         return hostname;
     }
 }
-
-
-
-
-
-
