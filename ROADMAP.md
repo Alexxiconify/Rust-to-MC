@@ -57,4 +57,4 @@ Plan: [`docs/completed-changes.md`](docs/completed-changes.md). Tree: [`docs/fil
 
 ---
 
-Last: May 6 (Batch consolidation + env<'local> fix + redundant file cleanup)
+Last: May 12 (Mixin conflict fix: removed CrashReportSectionMixin @Overwrite conflict w/ crash_assistant.)

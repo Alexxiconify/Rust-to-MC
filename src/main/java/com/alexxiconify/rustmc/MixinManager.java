@@ -1,11 +1,13 @@
 package com.alexxiconify.rustmc;
 
+import net.fabricmc.loader.api.FabricLoader;
 import org.objectweb.asm.tree.ClassNode;
+import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
-public class MixinManager {
+public class MixinManager implements IMixinConfigPlugin {
     private static final String PKG = "com.alexxiconify.rustmc.mixin.";
     private static final Map<String, BooleanSupplier> MIXIN_CONDITIONS;
     private static final Map<String, Long> groupTimings = new ConcurrentHashMap<>();
@@ -38,6 +40,7 @@ public class MixinManager {
     }
     static {
         MIXIN_CONDITIONS = Map.ofEntries(
+            Map.entry(PKG + "CrashReportSectionMixin", () -> !FabricLoader.getInstance().isModLoaded("crash_assistant")),
             Map.entry(PKG + "performance.LightingMixin", () -> !ModBridge.isLightingOwned()),
             Map.entry(PKG + "performance.ChunkBuilderMixin", () -> RustMC.CONFIG.isEnableChunkBuilderExpand() && !ModBridge.SODIUM),
             Map.entry(PKG + "integration.ClientRedstoneSkipMixin", RustMC.CONFIG :: isEnableClientRedstoneSkip),
@@ -77,7 +80,7 @@ public class MixinManager {
         long elapsed = System.nanoTime() - start;
         applyStartNanos.remove();
         String group = classifyMixin(mixinClassName);
-        groupTimings.merge(group, elapsed, (oldValue, newValue) -> oldValue + newValue);
+        groupTimings.merge( group, elapsed, Long :: sum );
     }
     @SuppressWarnings({"java:S3776", "CognitiveComplexity"})
     private static String classifyMixin(String mixinClassName) {
