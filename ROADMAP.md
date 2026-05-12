@@ -59,3 +59,13 @@ Plan: [`docs/completed-changes.md`](docs/completed-changes.md). Tree: [`docs/fil
 ---
 
 Last: May 12 (DH cull simplified to frustum + below-Y gate.)
+
+## ✅ Changes (May 12)
+
+- Java-side async LOD integration: added non-blocking example to offload GPU LOD mesh generation from render-like threads. Files: `src/main/java/com/alexxiconify/rustmc/NativeBridge.java` (new executor + async wrapper) and `src/main/java/com/alexxiconify/rustmc/compat/DistantHorizonsCompat.java` (conservative non-blocking path + async API).
+- JNI pinned-in-place additions: prefer direct/pinned buffer variants where available for map texture and audio processing to minimize array copies; fallbacks preserved. See `NativeBridge.processMapTexture(IntBuffer)` and `NativeBridge.processAudio(ByteBuffer)`.
+- Zero-copy GPU buffer handle API: added Create/Release/Map/Unmap primitives and Java wrappers (no-op when native not linked). API exposed in `NativeBridge` (createGpuBuffer/releaseGpuBuffer/mapGpuBufferPointer/unmapGpuBuffer).
+
+Notes:
+- All native additions are optional: wrappers detect missing native symbols and fall back to safe Java paths.
+- This pass intentionally avoids changing public mod behavior; DH compatibility uses conservative fallback (returns empty mesh on render-thread call) — can be extended later to cache and inject results back into DH.

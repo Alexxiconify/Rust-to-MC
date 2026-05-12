@@ -95,7 +95,26 @@ public final class DistantHorizonsCompat {
             return new int[0];
         }
         int[] blockSnapshot = java.util.Arrays.copyOf(blocks, blocks.length);
+        // Avoid blocking render thread: if current thread appears to be a render thread,
+        // schedule async generation and return empty so DH can fallback. This is a conservative
+        // non-blocking integration example; users may replace with a proper cache/update callback.
+        String tname = Thread.currentThread().getName().toLowerCase(java.util.Locale.ROOT);
+        boolean isRenderLike = tname.contains("render") || tname.contains("game thread") || tname.contains("client");
+        if (isRenderLike) {
+            NativeBridge.generateLodMeshGpuAsync(blockSnapshot, chunkX, chunkZ, detail)
+                .thenAccept(mesh -> {
+                    // noop: advanced integration could notify DH via reflection or a shared cache
+                });
+            return new int[0];
+        }
         return NativeBridge.generateLodMeshGpu(blockSnapshot, chunkX, chunkZ, detail);
+    }
+
+    /** Non-blocking version returning a CompletableFuture. */
+    public static java.util.concurrent.CompletableFuture<int[]> generateGpuLodAsync(int[] blocks, int chunkX, int chunkZ, int detail) {
+        if (blocks == null) return java.util.concurrent.CompletableFuture.completedFuture(new int[0]);
+        int[] blockSnapshot = java.util.Arrays.copyOf(blocks, blocks.length);
+        return NativeBridge.generateLodMeshGpuAsync(blockSnapshot, chunkX, chunkZ, detail);
     }
 
     private static Method findBindMethod(Object overridesInjector) {

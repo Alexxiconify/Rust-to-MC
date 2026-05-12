@@ -39,6 +39,13 @@ public class NativeBridge {
     private static final java.util.concurrent.atomic.AtomicLong dhFusedTotalNanos = new java.util.concurrent.atomic.AtomicLong(0L);
     private static final int DNS_PARALLEL_THRESHOLD = 16;
     private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
+    // Executor for long-running offload tasks (LOD mesh generation etc.)
+    private static final java.util.concurrent.ExecutorService LOD_EXECUTOR =
+        java.util.concurrent.Executors.newFixedThreadPool(Math.max(1, Runtime.getRuntime().availableProcessors() / 2), r -> {
+            Thread t = new Thread(r, "RustMC-Lod-Worker");
+            t.setDaemon(true);
+            return t;
+        });
 
     // Frame history tracking removed; use external telemetry if needed
     public static boolean isReady() { return libLoaded; }
@@ -169,6 +176,8 @@ public class NativeBridge {
     private static native boolean rustIsOutsideFrustum(long ptr, double x, double y, double z, double radius);
     private static native int rustBatchCull(double[] aabbs, boolean[] results, int count);
     private static native int[] rustGenerateLodMeshGpu(int[] blocks, int chunkX, int chunkZ, int detail);
+    // Optional direct/native variants that may be provided by newer native builds.
+    private static native int[] rustGenerateLodMeshGpuDirect(java.nio.ByteBuffer blocksDirect, int count, int chunkX, int chunkZ, int detail);
     private static native void rustFrustumDestroy(long ptr);
     // Updates the persistent Vanilla frustum in Rust's global context. This avoids creating new frustum objects every frame.
     public static void updateVanillaFrustum(float[] vpMatrix) {
@@ -254,6 +263,8 @@ public class NativeBridge {
     private static native void rustProcessMapTexture(int[] pixels, int width, int height);
     private static native void rustProcessMapTexturePtr(long ptr, int width, int height);
     private static native void rustProcessAudio(float[] samples, int count, float volume, float pan);
+    // Optional direct/pinned audio variant
+    private static native void rustProcessAudioPtr(long ptr, int count, float volume, float pan);
     private static native void rustTransformVertices(float[] vertices, float[] normals, float[] matrix, int count);
     private static native void rustMatrixMul(float[] left, float[] right, float[] result);
     private static native int[] rustSampleBiomes(long seed, int x, int z, int width, int height);
@@ -290,6 +301,89 @@ public class NativeBridge {
     }
     private static native void rustProcessSoundPhysics(float[] samples, int count, double distance, double occlusion);
     private static native int[] rustBlendBiomes(int[] biomeIds, int width, int height, int radius);
+
+    // --- New async / pinned / GPU buffer API wrappers ---
+    /**
+     * Generate LOD mesh off the render thread. Returns a CompletableFuture that completes
+     * with the generated mesh or an empty array on failure.
+     */
+    public static java.util.concurrent.CompletableFuture<int[]> generateLodMeshGpuAsync(int[] blocks, int chunkX, int chunkZ, int detail) {
+        if (blocks == null) return java.util.concurrent.CompletableFuture.completedFuture(new int[0]);
+        int[] blockSnapshot = java.util.Arrays.copyOf(blocks, blocks.length);
+        return java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            try {
+                // Prefer direct/native pinned variant when available
+                try {
+                    java.nio.ByteBuffer bb = java.nio.ByteBuffer.allocateDirect(blockSnapshot.length * Integer.BYTES).order(java.nio.ByteOrder.nativeOrder());
+                    bb.asIntBuffer().put(blockSnapshot);
+                    return rustGenerateLodMeshGpuDirect(bb, blockSnapshot.length, chunkX, chunkZ, detail);
+                } catch (UnsatisfiedLinkError ignored) {
+                    // Direct native variant not available; fallback
+                }
+                return rustGenerateLodMeshGpu(blockSnapshot, chunkX, chunkZ, detail);
+            } catch (Throwable t) {
+                return new int[0];
+            }
+        }, LOD_EXECUTOR);
+    }
+
+    // Audio wrapper that prefers pinned direct buffer variant to avoid copy
+    public static void processAudio(java.nio.ByteBuffer samples, float volume, float pan) {
+        if (!libLoaded || samples == null) return;
+        if (samples.isDirect()) {
+            long addr = getDirectBufferAddress(samples);
+            if (addr != 0L) {
+                try { rustProcessAudioPtr(addr, samples.remaining() / Float.BYTES, volume, pan); return; }
+                catch (UnsatisfiedLinkError ignored) {}
+            }
+        }
+        // Fallback to float[] path
+        float[] tmp;
+        if (samples.hasArray()) {
+            tmp = (float[]) samples.array();
+        } else {
+            int floats = samples.remaining() / Float.BYTES;
+            tmp = new float[floats];
+            samples.asFloatBuffer().get(tmp);
+        }
+        rustProcessAudio(tmp, tmp.length, volume, pan);
+    }
+
+    // --- GPU buffer handle API (zero-copy) ---
+    private static native long rustGpuBufferCreate(int size, int usageFlags);
+    private static native void rustGpuBufferRelease(long handle);
+    private static native long rustGpuBufferMap(long handle);
+    private static native void rustGpuBufferUnmap(long handle);
+    private static native int rustGpuBufferGetSize(long handle);
+
+    public static java.util.OptionalLong createGpuBuffer(int size, int usageFlags) {
+        if (!libLoaded || size <= 0) return java.util.OptionalLong.empty();
+        try {
+            long h = rustGpuBufferCreate(size, usageFlags);
+            return h == 0L ? java.util.OptionalLong.empty() : java.util.OptionalLong.of(h);
+        } catch (UnsatisfiedLinkError e) { return java.util.OptionalLong.empty(); }
+    }
+
+    public static void releaseGpuBuffer(long handle) {
+        if (!libLoaded || handle == 0L) return;
+        try { rustGpuBufferRelease(handle); } catch (UnsatisfiedLinkError ignored) {}
+    }
+
+    /** Map GPU buffer and return native pointer. Caller must call {@link #unmapGpuBuffer} after use. */
+    public static long mapGpuBufferPointer(long handle) {
+        if (!libLoaded || handle == 0L) return 0L;
+        try { return rustGpuBufferMap(handle); } catch (UnsatisfiedLinkError e) { return 0L; }
+    }
+
+    public static void unmapGpuBuffer(long handle) {
+        if (!libLoaded || handle == 0L) return;
+        try { rustGpuBufferUnmap(handle); } catch (UnsatisfiedLinkError ignored) {}
+    }
+
+    public static int getGpuBufferSize(long handle) {
+        if (!libLoaded || handle == 0L) return 0;
+        try { return rustGpuBufferGetSize(handle); } catch (UnsatisfiedLinkError e) { return 0; }
+    }
     //
      // Offloads sound occlusion and reverb math to Rust.
     public static void processSoundPhysics(float[] samples, double distance, double occlusion) {
@@ -308,6 +402,44 @@ public class NativeBridge {
     public static void processMapTexturePtr(long ptr, int width, int height) {
         if (!libLoaded || ptr == 0) return;
         rustProcessMapTexturePtr(ptr, width, height);
+    }
+
+    // Prefer direct/native pinned buffers when available to avoid copying.
+    public static void processMapTexture(java.nio.IntBuffer pixels, int width, int height) {
+        if (!libLoaded || pixels == null) return;
+        if (pixels.isDirect()) {
+            long addr = getDirectBufferAddress(pixels);
+            if (addr != 0L) {
+                try { rustProcessMapTexturePtr(addr, width, height); return; } catch (UnsatisfiedLinkError ignored) {}
+            }
+        }
+        // Fallback to array-copy path
+        if (pixels.hasArray()) {
+            rustProcessMapTexture(pixels.array(), width, height);
+        } else {
+            int[] tmp = new int[width * height];
+            pixels.get(tmp);
+            rustProcessMapTexture(tmp, width, height);
+        }
+    }
+
+    // Helper to read the address field of a direct buffer via reflection. Returns 0 when unavailable.
+    private static long getDirectBufferAddress(java.nio.Buffer buf) {
+        if (buf == null) return 0L;
+        try {
+            java.lang.reflect.Field addressField = java.nio.Buffer.class.getDeclaredField("address");
+            addressField.setAccessible(true);
+            Object val = addressField.get(buf);
+            if (val instanceof Long) return (Long) val;
+            if (val instanceof Integer) return ((Integer) val).longValue();
+        } catch (Throwable ignored) {}
+        // Try DirectBuffer (JDK internal) fallback
+        try {
+            java.lang.reflect.Method m = buf.getClass().getMethod("address");
+            Object v = m.invoke(buf);
+            if (v instanceof Long) return (Long) v;
+        } catch (Throwable ignored) {}
+        return 0L;
     }
     //
      // SIMD Audio processing (Volume/Pan/Normalization).
