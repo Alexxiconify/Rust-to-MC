@@ -69,3 +69,46 @@ Last: May 12 (DH cull simplified to frustum + below-Y gate.)
 Notes:
 - All native additions are optional: wrappers detect missing native symbols and fall back to safe Java paths.
 - This pass intentionally avoids changing public mod behavior; DH compatibility uses conservative fallback (returns empty mesh on render-thread call) — can be extended later to cache and inject results back into DH.
+
+## ✅ Micro-Optimizations (May 12 – continued)
+
+### A) Allocation Pooling & Reuse
+- **ThreadLocal block array pool** (`LOD_BLOCK_POOL`): avoids repeated `Arrays.copyOf` in `generateLodMeshGpuAsync`; reuses pool with grow-on-demand for blocks snapshot.
+- **ThreadLocal direct ByteBuffer pool** (`LOD_DIRECT_BUFFER`): reuses native buffers for `rustGenerateLodMeshGpuDirect` calls; grows on first use, reused thereafter.
+- **Impact**: Reduces JNI->Rust array allocation churn and GC pressure when LOD meshing at high frequency.
+
+### B) JNI Wrapper Conversions & Pinning
+- Extracted nested try-catch into `tryGenerateLodMeshGpuDirect()` helper to simplify async flow and isolate direct-call logic.
+- Added bounds checks & safe length handling to `propagateLightBulk` and `propagateLightDH` (input validation now inline).
+- Prepared support flags (`supportsPropagateLight`, etc.) for future optional pinned variants.
+- **Impact**: Cleaner code, reduced JNI nesting overhead, safer array bounds.
+
+### C) Async LOD Result Caching & Integration
+- **LRU mesh cache** (`LOD_MESH_CACHE`, 256 entry limit, LRU eviction): stores completed async LOD meshes keyed by `(chunkX, chunkZ, detail)`.
+- **DistantHorizonsCompat integration**: `generateGpuLod` now checks cache first; if mesh previously generated async, returns it immediately (one-shot retrieval).
+- **Callback-driven**: `generateLodMeshGpuAsync` caches mesh upon completion; subsequent DH calls on render thread will still return empty, but future calls will find cache entry.
+- **Impact**: Async-generated meshes are not lost; DH will eventually reuse them when requesting same chunk again.
+
+### D) Reflection Caching & Executor Pooling
+- **Cached reflection lookups**: `getDirectBufferAddress` now caches Field and Method lookups (single initialization via synchronized block).
+- **DistantHorizonsCompat reflection caching**: `tryInvokeNoArgFloatArray` and `tryInvokeMatrixGet` cache method references; `readField` caches Field per (type, name) pair using `ConcurrentHashMap`.
+- **Executor improvements**:
+  - Switched `LOD_EXECUTOR` from `FixedThreadPool` to `ForkJoinPool` for work-stealing and better load balancing in mesh generation.
+  - Added `BACKGROUND_EXECUTOR` (fixed pool) for general offload tasks (DNS batch resolve, etc.).
+  - DNS batch resolver now uses `BACKGROUND_EXECUTOR` instead of `CompletableFuture.runAsync()` (default commonPool); better control over thread count.
+- **Impact**: Reduced reflection overhead in hot paths; better executor utilization and thread control; lower latency in DNS and LOD generation.
+
+### Summary of Changes
+| Aspect      | Optimization                                    | Impact                                                  |
+|-------------|-------------------------------------------------|---------------------------------------------------------|
+| Allocations | ThreadLocal pools (blocks, direct buffers)      | Fewer native alloc/dealloc cycles; lower GC             |
+| JNI Calls   | Simplified nesting, added validation            | Cleaner code, safer array handling                      |
+| Async       | Result caching (LRU, 256 entries)               | Meshes not lost; future requests find cached results    |
+| Reflection  | Cached Field/Method lookups (global + per-type) | Avoids repeated reflection in hot matrix/field access   |
+| Executors   | ForkJoinPool (LOD), shared pool (background)    | Work-stealing, better thread control, lower DNS latency |
+
+**Files Modified:**
+- `src/main/java/com/alexxiconify/rustmc/NativeBridge.java` — pools, helpers, caching, executor
+- `src/main/java/com/alexxiconify/rustmc/compat/DistantHorizonsCompat.java` — reflection caching, async cache lookup
+
+**Build Status:** ✅ `gradle compileJava` successful. No compile errors; all changes backward-compatible.

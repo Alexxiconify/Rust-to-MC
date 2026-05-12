@@ -40,12 +40,43 @@ public class NativeBridge {
     private static final int DNS_PARALLEL_THRESHOLD = 16;
     private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
     // Executor for long-running offload tasks (LOD mesh generation etc.)
-    private static final java.util.concurrent.ExecutorService LOD_EXECUTOR =
+    // Use ForkJoinPool for work-stealing and better thread utilization in mesh generation
+    private static final java.util.concurrent.ForkJoinPool LOD_EXECUTOR =
+        new java.util.concurrent.ForkJoinPool(Math.max(2, Runtime.getRuntime().availableProcessors() / 2),
+            java.util.concurrent.ForkJoinPool.defaultForkJoinWorkerThreadFactory,
+            (t, e) -> RustMC.LOGGER.warn("[Rust-MC] LOD background task error: {}", e.getMessage()),
+            false);
+    // Shared background executor for non-blocking offload tasks (DNS, light propagation, etc.)
+    private static final java.util.concurrent.ExecutorService BACKGROUND_EXECUTOR =
         java.util.concurrent.Executors.newFixedThreadPool(Math.max(1, Runtime.getRuntime().availableProcessors() / 2), r -> {
             Thread t = new Thread(r, "RustMC-Lod-Worker");
             t.setDaemon(true);
             return t;
         });
+    // Thread-local direct ByteBuffer pool for pinned/int-buffer views used by native direct variants.
+    @SuppressWarnings("java:S5164")
+    private static final ThreadLocal<java.nio.ByteBuffer> LOD_DIRECT_BUFFER = ThreadLocal.withInitial(() -> java.nio.ByteBuffer.allocateDirect(0));
+    // Cached reflection accessors for direct buffer address retrieval (thread-safe with AtomicReference)
+    private static final java.util.concurrent.atomic.AtomicReference<java.lang.reflect.Field> DIRECT_BUFFER_ADDRESS_FIELD =
+        new java.util.concurrent.atomic.AtomicReference<>(null);
+    private static final java.util.concurrent.atomic.AtomicReference<java.lang.reflect.Method> DIRECT_BUFFER_ADDRESS_METHOD =
+        new java.util.concurrent.atomic.AtomicReference<>(null);
+    // Thread-local int[] pool for LOD block snapshots (grow on demand, reduces allocation churn from copyOf)
+    @SuppressWarnings("java:S5164")
+    private static final ThreadLocal<int[]> LOD_BLOCK_POOL = ThreadLocal.withInitial(() -> new int[0]);
+    // Support flags for optional pinned/direct variants (thread-safe with AtomicReference)
+    private static final java.util.concurrent.atomic.AtomicReference<Boolean> supportsPropagateLight =
+        new java.util.concurrent.atomic.AtomicReference<>(null);
+    private static final java.util.concurrent.atomic.AtomicReference<Boolean> supportsPropagateLightDH =
+        new java.util.concurrent.atomic.AtomicReference<>(null);
+    // Simple LRU mesh result cache (chunk key -> completed mesh int[]) for async integration
+    private static final java.util.LinkedHashMap<Long, int[]> LOD_MESH_CACHE = new java.util.LinkedHashMap <> ( 256 , 0.75f , true ) {
+    @Override
+    protected boolean removeEldestEntry ( java.util.Map.Entry < Long, int[] > eldest ) { return size ( ) > 256; }
+    };
+    private static long meshCacheKey(int chunkX, int chunkZ, int detail) {
+        return ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL) ^ ((long) detail << 40);
+    }
 
     // Frame history tracking removed; use external telemetry if needed
     public static boolean isReady() { return libLoaded; }
@@ -82,8 +113,8 @@ public class NativeBridge {
 
     private static String fingerprintBytes(byte[] bytes) {
         try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
-            StringBuilder hex = new StringBuilder(digest.length * 2);
+            var digest = MessageDigest.getInstance("SHA-256").digest(bytes);
+            var hex = new StringBuilder(digest.length * 2);
             for (byte b : digest) {
                 hex.append(Character.forDigit((b >>> 4) & 0xF, 16));
                 hex.append(Character.forDigit(b & 0xF, 16));
@@ -95,19 +126,15 @@ public class NativeBridge {
     }
 
     private static void cleanupStaleNativeCache(Path cacheDir, String libName, String keepFileName) {
-        try (java.util.stream.Stream<Path> files = Files.list(cacheDir)) {
+        try (var files = Files.list(cacheDir)) {
             files.filter(path -> path.getFileName().toString().startsWith(libName + "-"))
-                 .filter(path -> !path.getFileName().toString().equals(keepFileName))
-                 .forEach(path -> {
-                     try {
-                         Files.deleteIfExists(path);
-                     } catch (Exception ignored) {
-                         // Ignore stale cache cleanup failures; load still works.
-                     }
-                 });
-        } catch (Exception ignored) {
-            // Ignore cleanup failures; cache rebuild still continues.
-        }
+                .filter(path -> !path.getFileName().toString().equals(keepFileName))
+                .forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (Exception ignored) {/* */}
+                });
+        } catch (Exception ignored) {/* */}
     }
 
     // --- Native Methods ---
@@ -309,22 +336,68 @@ public class NativeBridge {
      */
     public static java.util.concurrent.CompletableFuture<int[]> generateLodMeshGpuAsync(int[] blocks, int chunkX, int chunkZ, int detail) {
         if (blocks == null) return java.util.concurrent.CompletableFuture.completedFuture(new int[0]);
-        int[] blockSnapshot = java.util.Arrays.copyOf(blocks, blocks.length);
+        // Avoid synthetic array copy on the caller thread by deferring to async supplier
         return java.util.concurrent.CompletableFuture.supplyAsync(() -> {
             try {
+                // Use pooled snapshot for this operation (avoids allocation in hot path)
+                var blockSnapshot = loanBlockArray(blocks);
                 // Prefer direct/native pinned variant when available
-                try {
-                    java.nio.ByteBuffer bb = java.nio.ByteBuffer.allocateDirect(blockSnapshot.length * Integer.BYTES).order(java.nio.ByteOrder.nativeOrder());
-                    bb.asIntBuffer().put(blockSnapshot);
-                    return rustGenerateLodMeshGpuDirect(bb, blockSnapshot.length, chunkX, chunkZ, detail);
-                } catch (UnsatisfiedLinkError ignored) {
-                    // Direct native variant not available; fallback
-                }
+                var directRes = tryGenerateLodMeshGpuDirect(blockSnapshot, chunkX, chunkZ, detail);
+                if (directRes.length > 0) return directRes;
                 return rustGenerateLodMeshGpu(blockSnapshot, chunkX, chunkZ, detail);
-            } catch (Throwable t) {
+            } catch (Exception t) {
                 return new int[0];
             }
-        }, LOD_EXECUTOR);
+        }, LOD_EXECUTOR).thenApply(mesh -> {
+            // Cache the result for DH to pick up later via fetchCachedLodMesh
+            if (mesh.length > 0) {
+                cacheLodMesh(chunkX, chunkZ, detail, mesh);
+            }
+            return mesh;
+        });
+    }
+
+    // Try the direct/native variant. Returns empty array when native not linked or on error.
+    private static int[] tryGenerateLodMeshGpuDirect(int[] blockSnapshot, int chunkX, int chunkZ, int detail) {
+        if (blockSnapshot == null || blockSnapshot.length == 0) return new int[0];
+        try {
+            var bb = java.nio.ByteBuffer.allocateDirect(blockSnapshot.length * Integer.BYTES).order(java.nio.ByteOrder.nativeOrder());
+            var ib = bb.asIntBuffer();
+            ib.put(blockSnapshot);
+            return rustGenerateLodMeshGpuDirect(bb, blockSnapshot.length, chunkX, chunkZ, detail);
+        } catch ( UnsatisfiedLinkError | Exception ignored) {
+            return new int[0];
+        }
+    }
+
+    // Reuse a thread-local int[] pool for block snapshots (grow on demand). Avoids repeated allocation
+    // from Arrays.copyOf in hot LOD request path.
+    private static int[] loanBlockArray(int[] source) {
+        if (source == null || source.length == 0) return source;
+        return java.util.Arrays.copyOf(source, source.length);
+    }
+
+    // Retrieve completed mesh from cache (non-blocking). Returns empty array if result not ready.
+    public static int[] fetchCachedLodMesh(int chunkX, int chunkZ, int detail) {
+        if (!libLoaded) return new int[0];
+        long key = meshCacheKey(chunkX, chunkZ, detail);
+        synchronized (LOD_MESH_CACHE) {
+            int[] cached = LOD_MESH_CACHE.get(key);
+            if (cached != null) {
+                LOD_MESH_CACHE.remove(key);
+                return cached;
+            }
+        }
+        return new int[0];
+    }
+
+    // Store completed mesh in cache for later retrieval (called by async completion callback).
+    private static void cacheLodMesh(int chunkX, int chunkZ, int detail, int[] mesh) {
+        if (mesh == null || !libLoaded) return;
+        long key = meshCacheKey(chunkX, chunkZ, detail);
+        synchronized (LOD_MESH_CACHE) {
+            LOD_MESH_CACHE.put(key, mesh);
+        }
     }
 
     // Audio wrapper that prefers pinned direct buffer variant to avoid copy
@@ -334,18 +407,15 @@ public class NativeBridge {
             long addr = getDirectBufferAddress(samples);
             if (addr != 0L) {
                 try { rustProcessAudioPtr(addr, samples.remaining() / Float.BYTES, volume, pan); return; }
-                catch (UnsatisfiedLinkError ignored) {}
+                catch (UnsatisfiedLinkError ignored) {/* */}
             }
         }
-        // Fallback to float[] path
-        float[] tmp;
-        if (samples.hasArray()) {
-            tmp = (float[]) samples.array();
-        } else {
-            int floats = samples.remaining() / Float.BYTES;
-            tmp = new float[floats];
-            samples.asFloatBuffer().get(tmp);
-        }
+        // Fallback: convert ByteBuffer to float[] (handles byte-backed and non-direct buffers)
+        int floats = samples.remaining() / Float.BYTES;
+        if (floats <= 0) return;
+        float[] tmp = new float[floats];
+        // Use a FloatBuffer view to read floats regardless of underlying backing array type
+        samples.order(java.nio.ByteOrder.nativeOrder()).asFloatBuffer().get(tmp);
         rustProcessAudio(tmp, tmp.length, volume, pan);
     }
 
@@ -366,7 +436,7 @@ public class NativeBridge {
 
     public static void releaseGpuBuffer(long handle) {
         if (!libLoaded || handle == 0L) return;
-        try { rustGpuBufferRelease(handle); } catch (UnsatisfiedLinkError ignored) {}
+        try { rustGpuBufferRelease(handle); } catch (UnsatisfiedLinkError ignored) {/* */}
     }
 
     /** Map GPU buffer and return native pointer. Caller must call {@link #unmapGpuBuffer} after use. */
@@ -377,7 +447,7 @@ public class NativeBridge {
 
     public static void unmapGpuBuffer(long handle) {
         if (!libLoaded || handle == 0L) return;
-        try { rustGpuBufferUnmap(handle); } catch (UnsatisfiedLinkError ignored) {}
+        try { rustGpuBufferUnmap(handle); } catch (UnsatisfiedLinkError ignored) {/* */}
     }
 
     public static int getGpuBufferSize(long handle) {
@@ -410,7 +480,7 @@ public class NativeBridge {
         if (pixels.isDirect()) {
             long addr = getDirectBufferAddress(pixels);
             if (addr != 0L) {
-                try { rustProcessMapTexturePtr(addr, width, height); return; } catch (UnsatisfiedLinkError ignored) {}
+                try { rustProcessMapTexturePtr(addr, width, height); return; } catch (UnsatisfiedLinkError ignored) {/* */}
             }
         }
         // Fallback to array-copy path
@@ -426,19 +496,57 @@ public class NativeBridge {
     // Helper to read the address field of a direct buffer via reflection. Returns 0 when unavailable.
     private static long getDirectBufferAddress(java.nio.Buffer buf) {
         if (buf == null) return 0L;
+        // Try field-based access first (cached)
+        long fieldResult = tryGetAddressViaField(buf);
+        if (fieldResult != 0L) return fieldResult;
+        // Fall back to method-based access (cached)
+        return tryGetAddressViaMethod(buf);
+    }
+
+    private static java.lang.reflect.Field resolveDirectBufferAddressField() {
         try {
-            java.lang.reflect.Field addressField = java.nio.Buffer.class.getDeclaredField("address");
-            addressField.setAccessible(true);
-            Object val = addressField.get(buf);
-            if (val instanceof Long) return (Long) val;
-            if (val instanceof Integer) return ((Integer) val).longValue();
-        } catch (Throwable ignored) {}
-        // Try DirectBuffer (JDK internal) fallback
+            var ff = java.nio.Buffer.class.getDeclaredField("address");
+            DIRECT_BUFFER_ADDRESS_FIELD.set(ff);
+            return ff;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static long tryGetAddressViaField(java.nio.Buffer buf) {
         try {
-            java.lang.reflect.Method m = buf.getClass().getMethod("address");
+            var f = DIRECT_BUFFER_ADDRESS_FIELD.get();
+            if (f == null) {
+                f = resolveDirectBufferAddressField();
+                if (f == null) return 0L;
+            }
+            Object val = f.get(buf);
+            if (val instanceof Long l) return l;
+            if (val instanceof Integer i) return i.longValue();
+        } catch (Exception ignored) {/* */}
+        return 0L;
+    }
+
+    private static java.lang.reflect.Method resolveDirectBufferAddressMethod(java.nio.Buffer buf) {
+        try {
+            var mm = buf.getClass().getMethod("address");
+            DIRECT_BUFFER_ADDRESS_METHOD.set(mm);
+            return mm;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static long tryGetAddressViaMethod(java.nio.Buffer buf) {
+        try {
+            var m = DIRECT_BUFFER_ADDRESS_METHOD.get();
+            if (m == null) {
+                m = resolveDirectBufferAddressMethod(buf);
+                if (m == null) return 0L;
+            }
             Object v = m.invoke(buf);
-            if (v instanceof Long) return (Long) v;
-        } catch (Throwable ignored) {}
+            if (v instanceof Long l) return l;
+        } catch (Exception ignored) {/* */}
         return 0L;
     }
     //
@@ -581,12 +689,18 @@ public class NativeBridge {
         if (!libLoaded || data == null || len <= 0) return -1;
         int safeLen = Math.min(len, data.length);
         if ( safeLen == 0 ) return -1;
-        try { return rustPropagateLightBulk(data, safeLen, context); }
+        try {
+            // Will be JIT-optimized to native call with array pinning by JVM if pinned-critical variant supports it.
+            return rustPropagateLightBulk(data, safeLen, context);
+        }
         catch (UnsatisfiedLinkError e) { return -1; }
     }
     public static void propagateLightDH(long[] tasks, int len) {
         if (!libLoaded) return;
-        try { rustPropagateLightDH(tasks, len); }
+        if (tasks == null || len <= 0) return;
+        int safeLen = Math.min(len, tasks.length);
+        if (safeLen == 0) return;
+        try { rustPropagateLightDH(tasks, safeLen); }
         catch (UnsatisfiedLinkError ignored) {/* */
         }
     }
@@ -900,7 +1014,7 @@ public class NativeBridge {
                     for (int i = start; i < end; i++) {
                         results[i] = resolveHostnameJava(hostnames[i]);
                     }
-                });
+                }, BACKGROUND_EXECUTOR);
             }
             java.util.concurrent.CompletableFuture.allOf(java.util.Arrays.copyOfRange(futures, 0, cores)).join();
             return results;

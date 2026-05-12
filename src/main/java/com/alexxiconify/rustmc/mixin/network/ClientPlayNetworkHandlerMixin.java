@@ -21,6 +21,7 @@ public class ClientPlayNetworkHandlerMixin {
     @Unique private static volatile long lastValidationLogNs;
     @Unique private static final AtomicInteger ingestSequence = new AtomicInteger(0);
     @Unique private static Method cachedWriteMethod;
+    @SuppressWarnings("null")
     @Unique private static final ThreadLocal<net.minecraft.network.PacketByteBuf> REUSABLE_BUF = ThreadLocal.withInitial(() -> 
         new net.minecraft.network.PacketByteBuf(io.netty.buffer.Unpooled.directBuffer(65536)));
     @Inject(method = "onChunkData", at = @At("HEAD"), cancellable = false)

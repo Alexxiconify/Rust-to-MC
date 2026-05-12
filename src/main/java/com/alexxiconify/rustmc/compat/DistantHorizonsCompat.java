@@ -19,6 +19,16 @@ public final class DistantHorizonsCompat {
     private static final ThreadLocal<float[]> THREAD_SHADOW_PLANES =
         ThreadLocal.withInitial(() -> new float[SHADOW_PLANE_ARRAY_SIZE]);
 
+    // Cached reflection accessors to avoid repeated method lookups during matrix extraction (thread-safe)
+    private static final java.util.concurrent.atomic.AtomicReference<java.lang.reflect.Method> cachedGetValuesAsArray =
+        new java.util.concurrent.atomic.AtomicReference<>(null);
+    private static final java.util.concurrent.atomic.AtomicReference<java.lang.reflect.Method> cachedToArray =
+        new java.util.concurrent.atomic.AtomicReference<>(null);
+    private static final java.util.concurrent.atomic.AtomicReference<java.lang.reflect.Method> cachedMatrixGetMethod =
+        new java.util.concurrent.atomic.AtomicReference<>(null);
+    private static final java.util.concurrent.atomic.AtomicReference<java.util.Map<String, java.lang.reflect.Field>> cachedFieldMap =
+        new java.util.concurrent.atomic.AtomicReference<>(null);
+
     private static volatile boolean frustumInitialized;
 
     private DistantHorizonsCompat() {}
@@ -94,16 +104,21 @@ public final class DistantHorizonsCompat {
         if (blocks == null) {
             return new int[0];
         }
+        // First check if this mesh was already generated asynchronously and cached
+        int[] cached = NativeBridge.fetchCachedLodMesh(chunkX, chunkZ, detail);
+        if (cached.length > 0) {
+            return cached;
+        }
         int[] blockSnapshot = java.util.Arrays.copyOf(blocks, blocks.length);
         // Avoid blocking render thread: if current thread appears to be a render thread,
-        // schedule async generation and return empty so DH can fallback. This is a conservative
+        // schedule async generation and return empty so DH can fall back. This is a conservative
         // non-blocking integration example; users may replace with a proper cache/update callback.
         String tname = Thread.currentThread().getName().toLowerCase(java.util.Locale.ROOT);
         boolean isRenderLike = tname.contains("render") || tname.contains("game thread") || tname.contains("client");
         if (isRenderLike) {
             NativeBridge.generateLodMeshGpuAsync(blockSnapshot, chunkX, chunkZ, detail)
                 .thenAccept(mesh -> {
-                    // noop: advanced integration could notify DH via reflection or a shared cache
+                    // Mesh is already cached by generateLodMeshGpuAsync; just ignore the future
                 });
             return new int[0];
         }
@@ -183,6 +198,7 @@ public final class DistantHorizonsCompat {
         return !Double.isNaN(refY) && bounds.maxY() < refY;
     }
 
+    @SuppressWarnings("null")
     private static double getDhReferenceY() {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.player == null) {
@@ -211,7 +227,23 @@ public final class DistantHorizonsCompat {
 
     private static float[] tryInvokeNoArgFloatArray(Object mat, String methodName) {
         try {
-            Method method = mat.getClass().getMethod(methodName);
+            Method method;
+            if ("getValuesAsArray".equals(methodName)) {
+                method = cachedGetValuesAsArray.get();
+                if (method == null) {
+                    method = mat.getClass().getMethod(methodName);
+                    cachedGetValuesAsArray.set(method);
+                }
+            } else if ("toArray".equals(methodName)) {
+                method = cachedToArray.get();
+                if (method == null) {
+                    method = mat.getClass().getMethod(methodName);
+                    cachedToArray.set(method);
+                }
+            } else {
+                // Unknown method name, try it anyway
+                method = mat.getClass().getMethod(methodName);
+            }
             Object ret = method.invoke(mat);
             return ret instanceof float[] arr ? arr : new float[0];
         } catch (ReflectiveOperationException ignored) {
@@ -221,7 +253,12 @@ public final class DistantHorizonsCompat {
 
     private static float[] tryInvokeMatrixGet(Object mat) {
         try {
-            Method method = mat.getClass().getMethod("get", int.class, int.class);
+            // Cache the method to avoid repeated reflection
+            Method method = cachedMatrixGetMethod.get();
+            if (method == null || !method.getDeclaringClass().equals(mat.getClass())) {
+                method = mat.getClass().getMethod("get", int.class, int.class);
+                cachedMatrixGetMethod.set(method);
+            }
             float[] out = new float[16];
             int idx = 0;
             for (int c = 0; c < 4; c++) {
@@ -328,9 +365,26 @@ public final class DistantHorizonsCompat {
             return null;
         }
     }
-
     private static double readField(Class<?> type, Object target, String name) throws ReflectiveOperationException {
-        Field field = type.getField(name);
+        // Cache fields per type to avoid repeated reflection
+        java.util.Map<String, Field> map = cachedFieldMap.get();
+        if (map == null) {
+            synchronized (DistantHorizonsCompat.class) {
+                map = cachedFieldMap.get();
+                if (map == null) {
+                    map = new java.util.concurrent.ConcurrentHashMap<>();
+                    cachedFieldMap.set(map);
+                }
+            }
+        }
+        String key = type.getName() + "." + name;
+        Field field = map.computeIfAbsent(key, k -> {
+            try {
+                return type.getField(name);
+            } catch (NoSuchFieldException e) {
+                throw new RuntimeException(e);
+            }
+        });
         Object value = field.get(target);
         return value instanceof Number number ? number.doubleValue() : Double.NaN;
     }

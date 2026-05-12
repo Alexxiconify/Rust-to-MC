@@ -117,6 +117,7 @@ public class ModMenuIntegration implements ModMenuApi {
         lastMetricsRefreshMs = now;
     }
 
+    @SuppressWarnings("null")
     private List<Option<?>> buildUnifiedOptions(RustMC.Config cfg) {
         List<Option<?>> options = new ArrayList<>();
 
