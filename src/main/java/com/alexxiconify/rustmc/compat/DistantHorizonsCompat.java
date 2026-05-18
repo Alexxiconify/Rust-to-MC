@@ -4,8 +4,6 @@ import com.alexxiconify.rustmc.NativeBridge;
 import com.alexxiconify.rustmc.RustMC;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
-
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Locale;
 
@@ -26,11 +24,16 @@ public final class DistantHorizonsCompat {
         new java.util.concurrent.atomic.AtomicReference<>(null);
     private static final java.util.concurrent.atomic.AtomicReference<java.lang.reflect.Method> cachedMatrixGetMethod =
         new java.util.concurrent.atomic.AtomicReference<>(null);
-    private static final java.util.concurrent.atomic.AtomicReference<java.util.Map<String, java.lang.reflect.Field>> cachedFieldMap =
-        new java.util.concurrent.atomic.AtomicReference<>(null);
-
+    private static final java.util.concurrent.ConcurrentHashMap<String, java.lang.reflect.Field> FIELD_CACHE =
+        new java.util.concurrent.ConcurrentHashMap<>();
+    // Sentinel: field lookup failed for this key
+    private static final java.lang.reflect.Field FIELD_NOT_FOUND;
+    static {
+        try { FIELD_NOT_FOUND = DistantHorizonsCompat.class.getDeclaredField("FIELD_NOT_FOUND"); }
+        catch (NoSuchFieldException e) { throw new ExceptionInInitializerError(e); }
+    }
+    private static volatile boolean loggedBoundsError = false;
     private static volatile boolean frustumInitialized;
-
     private DistantHorizonsCompat() {}
 
     public static String getLastRefreshReason() {
@@ -351,42 +354,87 @@ public final class DistantHorizonsCompat {
         };
     }
 
+    // Alternative field name aliases: minX -> x0, etc. (used by AABB and some DH versions)
+    private static final java.util.Map<String, String[]> FIELD_ALIASES = java.util.Map.of(
+        "minX", new String[]{"minX", "x0", "minx", "left", "xMin", "startX"},
+        "minY", new String[]{"minY", "y0", "miny", "bottom", "yMin", "startY"},
+        "minZ", new String[]{"minZ", "z0", "minz", "near", "zMin", "startZ"},
+        "maxX", new String[]{"maxX", "x1", "maxx", "right", "xMax", "endX"},
+        "maxY", new String[]{"maxY", "y1", "maxy", "top", "yMax", "endY"},
+        "maxZ", new String[]{"maxZ", "z1", "maxz", "far", "zMax", "endZ"}
+    );
+
     private static SectionBounds resolveBoundsFromFields(Object arg) {
         try {
             Class<?> type = arg.getClass();
-            double minX = readField(type, arg, "minX");
-            double minY = readField(type, arg, "minY");
-            double minZ = readField(type, arg, "minZ");
-            double maxX = readField(type, arg, "maxX");
-            double maxY = readField(type, arg, "maxY");
-            double maxZ = readField(type, arg, "maxZ");
+            double minX = readFieldAliased(type, arg, "minX");
+            double minY = readFieldAliased(type, arg, "minY");
+            double minZ = readFieldAliased(type, arg, "minZ");
+            double maxX = readFieldAliased(type, arg, "maxX");
+            double maxY = readFieldAliased(type, arg, "maxY");
+            double maxZ = readFieldAliased(type, arg, "maxZ");
+            if (Double.isNaN(minX) || Double.isNaN(maxX)) return null;
             return new SectionBounds(minX, minY, minZ, maxX, maxY, maxZ);
-        } catch (ReflectiveOperationException ignored) {
+        } catch (Exception e) {
+            if (!loggedBoundsError) {
+                loggedBoundsError = true;
+                RustMC.LOGGER.warn("[Rust-MC] DH bounds resolution failed for {}: {}", arg.getClass().getName(), e.getMessage());
+            }
             return null;
         }
     }
-    private static double readField(Class<?> type, Object target, String name) throws ReflectiveOperationException {
-        // Cache fields per type to avoid repeated reflection
-        java.util.Map<String, Field> map = cachedFieldMap.get();
-        if (map == null) {
-            synchronized (DistantHorizonsCompat.class) {
-                map = cachedFieldMap.get();
-                if (map == null) {
-                    map = new java.util.concurrent.ConcurrentHashMap<>();
-                    cachedFieldMap.set(map);
-                }
-            }
-        }
-        String key = type.getName() + "." + name;
-        Field field = map.computeIfAbsent(key, k -> {
+
+    /** Try all aliases for a logical field name. Returns NaN if none found. */
+    private static double readFieldAliased(Class<?> type, Object target, String logicalName) {
+        String[] aliases = FIELD_ALIASES.getOrDefault(logicalName, new String[]{logicalName});
+        for (String alias : aliases) {
             try {
-                return type.getField(name);
+                return readField(type, target, alias);
+            } catch (ReflectiveOperationException ignored) { /* try next alias */ }
+        }
+        // Last resort: try getter methods (getMinX, minX(), etc.)
+        return tryGetterMethod(target, logicalName);
+    }
+
+    /** Find a field by name walking the superclass chain, with setAccessible. */
+    private static java.lang.reflect.Field findDeclaredField(Class<?> type, String name) throws NoSuchFieldException {
+        for (Class<?> c = type; c != null && c != Object.class; c = c.getSuperclass()) {
+            try {
+                java.lang.reflect.Field f = c.getDeclaredField(name);
+                f.setAccessible(true);
+                return f;
+            } catch (NoSuchFieldException ignored) { /* continue up hierarchy */ }
+        }
+        String typeName = type != null ? type.getName() : "<null>";
+        throw new NoSuchFieldException(typeName + "." + name);
+    }
+
+    private static double readField(Class<?> type, Object target, String name) throws ReflectiveOperationException {
+        String key = type.getName() + "." + name;
+        java.lang.reflect.Field field = FIELD_CACHE.computeIfAbsent(key, k -> {
+            try {
+                return findDeclaredField(type, name);
             } catch (NoSuchFieldException e) {
-                throw new RuntimeException(e);
+                return FIELD_NOT_FOUND;
             }
         });
+        if (field == FIELD_NOT_FOUND) throw new NoSuchFieldException(name);
         Object value = field.get(target);
         return value instanceof Number number ? number.doubleValue() : Double.NaN;
+    }
+
+    private static double tryGetterMethod(Object target, String logicalName) {
+        // Build candidate getter names: getMinX, minX, minx
+        String cap = Character.toUpperCase(logicalName.charAt(0)) + logicalName.substring(1);
+        String[] candidates = {"get" + cap, logicalName, logicalName.toLowerCase(Locale.ROOT)};
+        for (String m : candidates) {
+            try {
+                java.lang.reflect.Method method = target.getClass().getMethod(m);
+                Object ret = method.invoke(target);
+                if (ret instanceof Number n) return n.doubleValue();
+            } catch (ReflectiveOperationException ignored) { /* try next candidate */ }
+        }
+        return Double.NaN;
     }
 
     private record SectionBounds(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {}
