@@ -58,7 +58,12 @@ Plan: [`docs/completed-changes.md`](docs/completed-changes.md). Tree: [`docs/fil
 
 ---
 
-Last: May 12 (DH cull simplified to frustum + below-Y gate.)
+Last: May 18 (repo cache/temp cleanup; gitignore expanded for git-rewrite and temp junk.)
+
+## ✅ Maintenance (May 18)
+
+- Removed safe cache/build leftovers from repo worktree: `.git-rewrite/`, Gradle cache/output dirs, versioned build/bin artifacts.
+- Expanded ignore rules for repo and submodule temp junk so future cache noise stays out of git.
 
 ## ✅ Changes (May 12)
 
